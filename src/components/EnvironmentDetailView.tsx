@@ -337,8 +337,11 @@ export default function EnvironmentDetailView({
   }, [envResources, search]);
 
   const ownerGuids = useMemo(
-    () => envResources.map((r) => (r.properties.createdBy ?? r.properties.ownerId) as string | undefined),
-    [envResources],
+    () => [
+      env.properties.createdBy as string | undefined,
+      ...envResources.map((r) => (r.properties.createdBy ?? r.properties.ownerId) as string | undefined),
+    ],
+    [env, envResources],
   );
   const ownerNames = useOwners(ownerGuids);
 
@@ -388,7 +391,10 @@ export default function EnvironmentDetailView({
           <span className={styles.heroMetaItem}><CalendarRegular style={{ fontSize: '0.85rem' }} />Created {createdAt}</span>
           <span className={styles.heroMetaItem}><KeyRegular style={{ fontSize: '0.85rem' }} title={env.name}>{shortId}</KeyRegular></span>
           {env.properties.createdBy && (
-            <span className={styles.heroMetaItem}><PersonRegular style={{ fontSize: '0.85rem' }} />{String(env.properties.createdBy)}</span>
+            <span className={styles.heroMetaItem}>
+              <PersonRegular style={{ fontSize: '0.85rem' }} />
+              {ownerNames.get(String(env.properties.createdBy).toLowerCase()) ?? String(env.properties.createdBy)}
+            </span>
           )}
         </div>
       </div>
