@@ -194,7 +194,7 @@ export async function fetchConnections(environmentId: string): Promise<Connectio
 }
 
 export async function fetchConnectors(environmentId: string): Promise<Connection[]> {
-  const result = await PowerPlatformforAdminsV2Service.ListConnectors(environmentId, '*', API_VERSION);
+  const result = await PowerPlatformforAdminsV2Service.ListConnectors(environmentId, `environment eq '${environmentId}'`, API_VERSION);
   return (unwrapOperationResult(result).value ?? []).map(mapConnector);
 }
 
