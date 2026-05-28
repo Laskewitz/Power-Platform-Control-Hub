@@ -126,6 +126,8 @@ export default function ConnectorsView({
   const [errorByKey, setErrorByKey] = useState<Record<string, string>>({});
   const [confirmDeleteConnection, setConfirmDeleteConnection] = useState<Connection | null>(null);
   const [pendingConnectionId, setPendingConnectionId] = useState<string | null>(null);
+  const [publisherFilter, setPublisherFilter] = useState('');
+  const [tierFilter, setTierFilter] = useState('');
 
   const { execute: execDeleteConnection } = useMutation(deleteConnection, {
     successMessage: 'Connection deleted.',
@@ -227,6 +229,37 @@ export default function ConnectorsView({
     ? websitesByEnvironment[selectedEnvironmentId] ?? []
     : [];
 
+  // Reset filters when environment or tab changes
+  useEffect(() => {
+    setPublisherFilter('');
+    setTierFilter('');
+  }, [selectedEnvironmentId, activeTab]);
+
+  const connectorPublishers = useMemo(() => {
+    const pubs = new Set<string>();
+    for (const c of connectorsByEnvironment[selectedEnvironmentId] ?? []) {
+      if (c.properties.publisher) pubs.add(c.properties.publisher);
+    }
+    return Array.from(pubs).sort();
+  }, [connectorsByEnvironment, selectedEnvironmentId]);
+
+  const connectorTiers = useMemo(() => {
+    const tiers = new Set<string>();
+    for (const c of connectorsByEnvironment[selectedEnvironmentId] ?? []) {
+      if (c.properties.tier) tiers.add(c.properties.tier);
+    }
+    return Array.from(tiers).sort();
+  }, [connectorsByEnvironment, selectedEnvironmentId]);
+
+  const displayedConnections = useMemo(() => {
+    if (activeTab !== 'connectors') return currentConnections;
+    return currentConnections.filter((c) => {
+      const matchesPublisher = !publisherFilter || c.properties.publisher === publisherFilter;
+      const matchesTier = !tierFilter || c.properties.tier === tierFilter;
+      return matchesPublisher && matchesTier;
+    });
+  }, [activeTab, currentConnections, publisherFilter, tierFilter]);
+
   const selectedEnvironmentValue = selectedEnvironmentLabel || undefined;
 
   const content = useMemo(() => {
@@ -321,8 +354,14 @@ export default function ConnectorsView({
                   No {activeTab} found for this environment.
                 </td>
               </tr>
+            ) : displayedConnections.length === 0 ? (
+              <tr>
+                <td className={styles.td} colSpan={activeTab === 'connections' ? 6 : 5} style={{ textAlign: 'center' }}>
+                  No connectors match the selected filters.
+                </td>
+              </tr>
             ) : (
-              currentConnections.map((item) => (
+              displayedConnections.map((item) => (
                 <tr key={item.id}>
                   <td className={styles.td}>{item.properties.displayName}</td>
                   <td className={styles.td}>{item.properties.publisher ?? '—'}</td>
@@ -360,7 +399,9 @@ export default function ConnectorsView({
     currentConnections,
     currentError,
     currentWebsites,
+    displayedConnections,
     isLoading,
+    pendingConnectionId,
     selectedEnvironmentId,
     styles,
   ]);
@@ -369,6 +410,32 @@ export default function ConnectorsView({
     <div className={styles.root}>
       <div className={styles.toolbar}>
         <Text className={styles.title}>Connectors</Text>
+        {activeTab === 'connectors' && connectorPublishers.length > 0 && (
+          <Dropdown
+            placeholder="All publishers"
+            value={publisherFilter || undefined}
+            selectedOptions={publisherFilter ? [publisherFilter] : []}
+            onOptionSelect={(_, data) => setPublisherFilter(data.optionValue === publisherFilter ? '' : (data.optionValue ?? ''))}
+            style={{ minWidth: '180px' }}
+          >
+            {connectorPublishers.map((pub) => (
+              <Option key={pub} value={pub}>{pub}</Option>
+            ))}
+          </Dropdown>
+        )}
+        {activeTab === 'connectors' && connectorTiers.length > 0 && (
+          <Dropdown
+            placeholder="All tiers"
+            value={tierFilter || undefined}
+            selectedOptions={tierFilter ? [tierFilter] : []}
+            onOptionSelect={(_, data) => setTierFilter(data.optionValue === tierFilter ? '' : (data.optionValue ?? ''))}
+            style={{ minWidth: '140px' }}
+          >
+            {connectorTiers.map((tier) => (
+              <Option key={tier} value={tier}>{tier}</Option>
+            ))}
+          </Dropdown>
+        )}
         <Dropdown
           placeholder="Select an environment"
           value={selectedEnvironmentValue}
