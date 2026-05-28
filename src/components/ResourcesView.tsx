@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import type { ReactElement } from 'react';
 import {
   makeStyles,
@@ -126,16 +126,31 @@ export default function ResourcesView({
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [confirmDelete, setConfirmDelete] = useState<Resource | null>(null);
   const [pendingResourceName, setPendingResourceName] = useState<string | null>(null);
+  const [deletedNames, setDeletedNames] = useState<Set<string>>(new Set());
+  const pendingDeleteRef = useRef<string | null>(null);
 
   const { execute: execDeleteFlow } = useMutation(deleteFlow, {
     successMessage: 'Flow deleted.',
-    onSuccess: () => { setPendingResourceName(null); void onRefresh(); },
-    onError: () => setPendingResourceName(null),
+    onSuccess: () => setPendingResourceName(null),
+    onError: () => {
+      // Roll back the optimistic removal on failure
+      if (pendingDeleteRef.current) {
+        setDeletedNames((prev) => { const n = new Set(prev); n.delete(pendingDeleteRef.current!); return n; });
+        pendingDeleteRef.current = null;
+      }
+      setPendingResourceName(null);
+    },
   });
   const { execute: execDeleteAgent } = useMutation(deleteCopilotAgent, {
     successMessage: 'Copilot agent deleted.',
-    onSuccess: () => { setPendingResourceName(null); void onRefresh(); },
-    onError: () => setPendingResourceName(null),
+    onSuccess: () => setPendingResourceName(null),
+    onError: () => {
+      if (pendingDeleteRef.current) {
+        setDeletedNames((prev) => { const n = new Set(prev); n.delete(pendingDeleteRef.current!); return n; });
+        pendingDeleteRef.current = null;
+      }
+      setPendingResourceName(null);
+    },
   });
 
   // Sync when navigating from Overview tile
@@ -146,12 +161,13 @@ export default function ResourcesView({
   const filtered = useMemo(() => {
     const term = search.toLowerCase();
     return resources.filter((r) => {
+      if (deletedNames.has(r.name)) return false;
       const matchesType = typeFilter === 'all' || r.type.toLowerCase() === typeFilter;
       const name = (r.properties.displayName ?? r.name).toLowerCase();
       const matchesSearch = !term || name.includes(term) || (r.environmentName ?? '').toLowerCase().includes(term);
       return matchesType && matchesSearch;
     });
-  }, [resources, search, typeFilter]);
+  }, [resources, search, typeFilter, deletedNames]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
@@ -308,12 +324,16 @@ export default function ResourcesView({
         isLoading={pendingResourceName !== null}
         onConfirm={() => {
           if (confirmDelete) {
-            setPendingResourceName(confirmDelete.name);
+            const name = confirmDelete.name;
+            setPendingResourceName(name);
+            pendingDeleteRef.current = name;
+            // Optimistically remove from the list immediately
+            setDeletedNames((prev) => new Set([...prev, name]));
             const type = confirmDelete.type.toLowerCase();
             if (type === 'microsoft.copilotstudio/agents') {
-              void execDeleteAgent(confirmDelete.properties.environmentId ?? '', confirmDelete.name);
+              void execDeleteAgent(confirmDelete.properties.environmentId ?? '', name);
             } else {
-              void execDeleteFlow(confirmDelete.name);
+              void execDeleteFlow(name);
             }
           }
           setConfirmDelete(null);
