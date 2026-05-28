@@ -85,19 +85,23 @@ async function dvGetIds(): Promise<Set<string>> {
 }
 
 async function dvAdd(entry: TombstoneEntry): Promise<void> {
-  const result = await Ppa_resourcetombstonesService.create({
+  // ownerid and statecode are intentionally omitted — Dataverse assigns the
+  // current user as owner and defaults statecode to 0 (Active) automatically.
+  const payload = {
     ppa_resourceid: entry.resourceId,
     ppa_resourcetype: entry.resourceType,
     ppa_environmentid: entry.environmentId,
     ppa_displayname: entry.displayName,
     ppa_deletedby: entry.deletedBy ?? '',
     ppa_deletedon: new Date().toISOString(),
-    ownerid: '',
-    owneridtype: 'systemusers',
-    statecode: 0,
-  });
+  } as Parameters<typeof Ppa_resourcetombstonesService.create>[0];
+
+  const result = await Ppa_resourcetombstonesService.create(payload);
   if (result.success && result.data?.ppa_resourcetombstoneid) {
     dvIdCache.set(entry.resourceId, result.data.ppa_resourcetombstoneid);
+  } else if (!result.success) {
+    console.error('[Tombstone] Dataverse create failed:', result.error);
+    throw new Error(result.error?.message ?? 'Dataverse create failed');
   }
 }
 
