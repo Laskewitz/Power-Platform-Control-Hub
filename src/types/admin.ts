@@ -10,6 +10,7 @@ export interface AdvisorRecommendation {
     resourceCount: number;
     lastRefreshedTimestamp: string;
     expectedNextRefreshTimestamp: string;
+    actions?: { actionType?: string; actionName?: string }[];
   };
 }
 

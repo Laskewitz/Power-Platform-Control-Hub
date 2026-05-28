@@ -161,7 +161,26 @@ function mapWebsite(website: WebsiteDto): PowerPagesWebsite {
 
 export async function fetchAdvisorRecommendations(): Promise<AdvisorRecommendation[]> {
   const result = await PowerPlatformforAdminsV2Service.GetRecommendations(API_VERSION);
-  return (unwrapOperationResult(result).value ?? []).map(mapRecommendation);
+  const recs = (unwrapOperationResult(result).value ?? []).map(mapRecommendation);
+
+  // Fetch allowed actions for each scenario in parallel (best-effort — ignore failures)
+  await Promise.all(
+    recs.map(async (rec) => {
+      try {
+        const actionsResult = await PowerPlatformforAdminsV2Service.GetScenarioActions(rec.scenario, API_VERSION);
+        if (actionsResult.success && !actionsResult.error) {
+          rec.details.actions = (actionsResult.data ?? []).map((a) => ({
+            actionType: a.actionType,
+            actionName: a.actionName,
+          }));
+        }
+      } catch {
+        // Actions not available for this scenario — leave empty
+      }
+    }),
+  );
+
+  return recs;
 }
 
 export async function fetchRoleAssignments(): Promise<RoleAssignment[]> {
