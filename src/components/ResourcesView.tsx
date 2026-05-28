@@ -18,7 +18,7 @@ import type { Resource } from '../types/inventory.ts';
 import { RESOURCE_TYPE_LABELS, RESOURCE_TYPES_FILTER } from '../types/inventory.ts';
 import ConfirmDialog from './ConfirmDialog.tsx';
 import { useMutation } from '../hooks/useMutation.tsx';
-import { deleteCopilotAgent, deleteFlow } from '../services/resourceMutations.ts';
+import { deleteCopilotAgent } from '../services/resourceMutations.ts';
 import { fetchTombstonedIds, addTombstone, removeTombstone } from '../services/tombstoneService.ts';
 type SortField = 'name' | 'type' | 'environment' | 'region' | 'created';
 type SortDir = 'asc' | 'desc';
@@ -108,7 +108,6 @@ function getFieldValue(r: Resource, field: SortField): string {
 }
 
 const DELETABLE_TYPES = new Set([
-  'microsoft.powerautomate/cloudflows',
   'microsoft.copilotstudio/agents',
 ]);
 
@@ -134,19 +133,6 @@ export default function ResourcesView({
   }, []);
   const pendingDeleteRef = useRef<string | null>(null);
 
-  const { execute: execDeleteFlow } = useMutation(deleteFlow, {
-    successMessage: 'Flow deleted.',
-    onSuccess: () => setPendingResourceName(null),
-    onError: () => {
-      // Roll back the optimistic removal on failure
-      if (pendingDeleteRef.current) {
-        removeTombstone(pendingDeleteRef.current);
-        setDeletedNames((prev) => { const n = new Set(prev); n.delete(pendingDeleteRef.current!); return n; });
-        pendingDeleteRef.current = null;
-      }
-      setPendingResourceName(null);
-    },
-  });
   const { execute: execDeleteAgent } = useMutation(deleteCopilotAgent, {
     successMessage: 'Copilot agent deleted.',
     onSuccess: () => setPendingResourceName(null),
@@ -324,7 +310,7 @@ export default function ResourcesView({
 
       <ConfirmDialog
         open={Boolean(confirmDelete)}
-        title={confirmDelete?.type.toLowerCase() === 'microsoft.copilotstudio/agents' ? 'Delete Copilot Agent' : 'Delete Flow'}
+        title="Delete Copilot Agent"
         message={`Delete "${confirmDelete?.properties.displayName ?? confirmDelete?.name}"? This action cannot be undone.`}
         confirmLabel="Delete"
         isDangerous
@@ -335,7 +321,6 @@ export default function ResourcesView({
             const displayName = confirmDelete.properties.displayName ?? name;
             setPendingResourceName(name);
             pendingDeleteRef.current = name;
-            // Optimistically remove from list and persist to localStorage
             addTombstone({
               resourceId: name,
               resourceType: confirmDelete.type,
@@ -344,12 +329,7 @@ export default function ResourcesView({
               deletedBy: '',
             });
             setDeletedNames((prev) => new Set([...prev, name]));
-            const type = confirmDelete.type.toLowerCase();
-            if (type === 'microsoft.copilotstudio/agents') {
-              void execDeleteAgent(confirmDelete.properties.environmentId ?? '', name);
-            } else {
-              void execDeleteFlow(name);
-            }
+            void execDeleteAgent(confirmDelete.properties.environmentId ?? '', name);
           }
           setConfirmDelete(null);
         }}
