@@ -191,7 +191,7 @@ export default function EnvironmentsView({
   } | null>(null);
   const [backupEnv, setBackupEnv] = useState<Resource | null>(null);
   const [pendingEnvId, setPendingEnvId] = useState<string | null>(null);
-  const [groupDialog, setGroupDialog] = useState<{ mode: 'add' | 'remove'; env: Resource } | null>(null);
+  const [groupDialog, setGroupDialog] = useState<{ mode: 'add' | 'remove'; env: Resource; groupId?: string } | null>(null);
 
   const { execute: execEnable } = useMutation(enableEnvironment, {
     successMessage: 'Enable environment request submitted.',
@@ -331,6 +331,7 @@ export default function EnvironmentsView({
               ? new Date(e.properties.createdAt as string).toLocaleDateString()
               : null;
             const isPending = pendingEnvId === e.name;
+            const envGroupId = e.properties['environmentGroupId'] as string | undefined;
 
             return (
               <Card
@@ -392,18 +393,22 @@ export default function EnvironmentsView({
                         >
                           Create Backup
                         </MenuItem>
-                        <MenuItem
-                          icon={<LayerRegular />}
-                          onClick={(ev) => { ev.stopPropagation(); setGroupDialog({ mode: 'add', env: e }); }}
-                        >
-                          Add to Group
-                        </MenuItem>
-                        <MenuItem
-                          icon={<SubtractCircleRegular />}
-                          onClick={(ev) => { ev.stopPropagation(); setGroupDialog({ mode: 'remove', env: e }); }}
-                        >
-                          Remove from Group
-                        </MenuItem>
+                        {!envGroupId && (
+                          <MenuItem
+                            icon={<LayerRegular />}
+                            onClick={(ev) => { ev.stopPropagation(); setGroupDialog({ mode: 'add', env: e }); }}
+                          >
+                            Add to Group
+                          </MenuItem>
+                        )}
+                        {envGroupId && (
+                          <MenuItem
+                            icon={<SubtractCircleRegular />}
+                            onClick={(ev) => { ev.stopPropagation(); setGroupDialog({ mode: 'remove', env: e, groupId: envGroupId }); }}
+                          >
+                            Remove from Group
+                          </MenuItem>
+                        )}
                       </MenuList>
                     </MenuPopover>
                   </Menu>
@@ -416,6 +421,11 @@ export default function EnvironmentsView({
                   {isManaged && (
                     <Badge appearance="outline" color="success" size="small" icon={<LockClosedRegular />}>
                       Managed
+                    </Badge>
+                  )}
+                  {envGroupId && (
+                    <Badge appearance="outline" color="informative" size="small" icon={<LayerRegular />}>
+                      In Group
                     </Badge>
                   )}
                   {isPending && <Spinner size="tiny" />}
@@ -495,6 +505,7 @@ export default function EnvironmentsView({
           mode={groupDialog.mode}
           environmentId={groupDialog.env.name}
           environmentName={groupDialog.env.properties.displayName ?? groupDialog.env.name}
+          preselectedGroupId={groupDialog.groupId}
           onClose={() => setGroupDialog(null)}
         />
       )}

@@ -26,6 +26,8 @@ interface EnvironmentGroupDialogProps {
   environmentName: string;
   /** The environment's GUID (name field from Resource). */
   environmentId: string;
+  /** When provided in remove mode, the group is pre-selected and the dropdown is locked. */
+  preselectedGroupId?: string;
   onClose: () => void;
   onSuccess?: () => void;
 }
@@ -62,6 +64,7 @@ export default function EnvironmentGroupDialog({
   mode,
   environmentName,
   environmentId,
+  preselectedGroupId,
   onClose,
   onSuccess,
 }: EnvironmentGroupDialogProps): ReactElement {
@@ -70,16 +73,16 @@ export default function EnvironmentGroupDialog({
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
 
-  // Lazy-load groups when dialog opens
+  // Lazy-load groups when dialog opens; auto-select when preselectedGroupId is set
   useEffect(() => {
     if (!open) return;
-    setSelectedGroupId('');
+    setSelectedGroupId(preselectedGroupId ?? '');
     setLoadingGroups(true);
     fetchEnvironmentGroups()
       .then(setGroups)
       .catch(() => setGroups([]))
       .finally(() => setLoadingGroups(false));
-  }, [open]);
+  }, [open, preselectedGroupId]);
 
   const { execute: execAdd, isLoading: isAdding } = useMutation(
     (groupId: string) => addEnvironmentToGroup(groupId, environmentId),
@@ -115,12 +118,15 @@ export default function EnvironmentGroupDialog({
   const confirmLabel = mode === 'add' ? 'Add to Group' : 'Remove from Group';
   const confirmAppearance = mode === 'add' ? 'primary' : 'primary';
   const confirmIcon = mode === 'add' ? <LayerRegular /> : <SubtractCircleRegular />;
-  const hint =
-    mode === 'add'
-      ? `Select a group to add "${environmentName}" to.`
-      : `Select the group to remove "${environmentName}" from.`;
 
   const selectedGroup = groups.find((g) => g.id === selectedGroupId);
+  const isLocked = mode === 'remove' && !!preselectedGroupId;
+
+  const hint = isLocked
+    ? `Remove "${environmentName}" from the group shown below.`
+    : mode === 'add'
+    ? `Select a group to add "${environmentName}" to.`
+    : `Select the group to remove "${environmentName}" from.`;
 
   return (
     <Dialog open={open} onOpenChange={(_, data) => { if (!data.open) onClose(); }}>
@@ -146,7 +152,7 @@ export default function EnvironmentGroupDialog({
                     value={selectedGroup?.displayName ?? ''}
                     selectedOptions={selectedGroupId ? [selectedGroupId] : []}
                     onOptionSelect={(_, data) => setSelectedGroupId(data.optionValue ?? '')}
-                    disabled={isBusy}
+                    disabled={isBusy || isLocked}
                   >
                     {groups.map((g) => (
                       <Option key={g.id} value={g.id} text={g.displayName}>
@@ -159,6 +165,9 @@ export default function EnvironmentGroupDialog({
                       </Option>
                     ))}
                   </Dropdown>
+                  {isLocked && (
+                    <Text className={styles.meta}>This environment is currently in this group.</Text>
+                  )}
                 </div>
               )}
             </div>
