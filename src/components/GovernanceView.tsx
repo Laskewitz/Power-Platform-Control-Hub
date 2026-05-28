@@ -31,6 +31,7 @@ import type {
 } from '../types/admin.ts';
 import ConfirmDialog from './ConfirmDialog.tsx';
 import { useMutation } from '../hooks/useMutation.tsx';
+import { useOwners } from '../services/ownerCache.ts';
 import {
   createEnvironmentGroup,
   deleteEnvironmentGroup,
@@ -209,6 +210,7 @@ function renderEnvironmentGroupsTable(
   styles: ReturnType<typeof useStyles>,
   envGroups: EnvironmentGroup[],
   pendingGroupId: string | null,
+  ownerNames: Map<string, string>,
   onEdit: (group: EnvironmentGroup) => void,
   onDelete: (group: EnvironmentGroup) => void,
 ): ReactElement {
@@ -237,7 +239,7 @@ function renderEnvironmentGroupsTable(
               <tr key={group.id}>
                 <td className={styles.td}>{group.displayName}</td>
                 <td className={styles.td}>{group.description || '—'}</td>
-                <td className={styles.td}>{group.createdBy.displayName ?? group.createdBy.email ?? group.createdBy.id}</td>
+                <td className={styles.td}>{ownerNames.get(group.createdBy.id?.toLowerCase()) ?? group.createdBy.displayName ?? group.createdBy.email ?? group.createdBy.id}</td>
                 <td className={styles.td}>{formatDate(group.createdTime)}</td>
                 <td className={styles.td}>{group.childrenGroupIds?.length ?? 0}</td>
                 <td className={styles.td}>
@@ -396,6 +398,12 @@ export default function GovernanceView({
   const [deleteGroup, setDeleteGroup] = useState<EnvironmentGroup | null>(null);
   const [pendingGroupId, setPendingGroupId] = useState<string | null>(null);
 
+  const groupOwnerGuids = useMemo(
+    () => envGroups.map((g) => g.createdBy?.id as string | undefined),
+    [envGroups],
+  );
+  const groupOwnerNames = useOwners(groupOwnerGuids);
+
   const { execute: execCreate, isLoading: isCreating } = useMutation(createEnvironmentGroup, {
     successMessage: 'Environment group created.',
     onSuccess: () => { setGroupFormOpen(false); void onRefreshAdmin?.(); },
@@ -444,7 +452,7 @@ export default function GovernanceView({
                 New Group
               </Button>
             </div>
-            {renderEnvironmentGroupsTable(styles, envGroups, pendingGroupId, (g) => setEditingGroup(g), (g) => setDeleteGroup(g))}
+            {renderEnvironmentGroupsTable(styles, envGroups, pendingGroupId, groupOwnerNames, (g) => setEditingGroup(g), (g) => setDeleteGroup(g))}
           </div>
         );
     }
