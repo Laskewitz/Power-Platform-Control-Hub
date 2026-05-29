@@ -82,7 +82,6 @@ CoE-Code/
 │   │   ├── inventoryApi.ts            # Inventory API calls
 │   │   ├── adminApi.ts                # Admin V2 API calls (connectors, groups…)
 │   │   ├── dlpService.ts              # DLP policy CRUD (Power Platform for Admins)
-│   │   ├── canvasAppService.ts        # Canvas app export + msapp ZIP parsing
 │   │   ├── canvasAppAnalyzer.ts       # 24 best-practice checks for canvas apps
 │   │   ├── canvasAppAdminService.ts   # Canvas app governance via Power Apps for Admins
 │   │   ├── flowManagementService.ts   # Flow enable/disable/delete
@@ -208,7 +207,6 @@ The CLI prints a Power Apps URL when the push succeeds.
 | [@microsoft/power-apps-vite](https://www.npmjs.com/package/@microsoft/power-apps-vite) | Vite plugin for Power Apps integration |
 | [@fluentui/react-components v9](https://react.fluentui.dev/) | Fluent UI component library |
 | [@fluentui/react-icons v2](https://github.com/microsoft/fluentui-system-icons) | Fluent UI icons |
-| [jszip](https://stuk.github.io/jszip/) | msapp ZIP parsing for canvas app analysis |
 
 ---
 
@@ -217,7 +215,6 @@ The CLI prints a Power Apps URL when the push succeeds.
 - The Inventory API is automatically paginated via `skipToken` — all pages are fetched transparently, so tenants with thousands of resources are fully supported.
 - The app requires the signed-in user to be a **Power Platform tenant admin** to read cross-environment data.
 - **DLP policy connector groups do not auto-populate** — when creating or updating a policy, all connector assignments must be explicitly provided. The create page handles this by loading connectors from a selected environment. See [known issues](https://learn.microsoft.com/en-us/connectors/powerplatformforadmins/#known-issues-and-limitations).
-- Canvas app definition export (msapp) uses an undocumented API and may be blocked by CORS or DLP policies in some tenants. Governance data (from the Power Apps for Admins connector) still loads in that case.
 - Code apps are **not** supported in the Power Apps mobile app or Power Apps for Windows.
 - Code apps **do not** support Power Platform Git integration.
 - The `src/generated/` folder is gitignored — every collaborator must run `npx power-apps add-data-source` for all four connectors after cloning.
