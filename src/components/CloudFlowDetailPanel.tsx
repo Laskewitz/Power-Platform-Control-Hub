@@ -726,6 +726,7 @@ function AddOwnerDialog({
   const { dispatchToast } = useToastController('coe-toaster');
   const [users, setUsers] = useState<Aaduser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [selectedUser, setSelectedUser] = useState<Aaduser | null>(null);
   const [saving, setSaving] = useState(false);
@@ -736,10 +737,21 @@ function AddOwnerDialog({
     setSearch('');
     setSelectedUser(null);
     setSaveError(null);
+    setLoadError(null);
     setLoadingUsers(true);
-    AaduserService.getAll({ top: 500, orderBy: ['displayname asc'], filter: "not contains(userprincipalname, '#EXT#')" })
-      .then((res) => { if (res.success && res.data) setUsers(res.data); })
-      .catch(() => { /* graceful */ })
+    // Load without server-side filter — the #EXT# contains() filter causes OData encoding issues
+    // Filter out external/guest accounts client-side instead
+    AaduserService.getAll({ top: 500, orderBy: ['displayname asc'] })
+      .then((res) => {
+        if (res.success && res.data) {
+          setUsers(res.data.filter(u => !u.userprincipalname?.includes('#EXT#')));
+        } else {
+          setLoadError(res.error?.message ?? 'Failed to load users');
+        }
+      })
+      .catch((e: unknown) => {
+        setLoadError(e instanceof Error ? e.message : 'Failed to load users');
+      })
       .finally(() => setLoadingUsers(false));
   }, [open]);
 
@@ -794,11 +806,17 @@ function AddOwnerDialog({
               />
               {loadingUsers ? (
                 <Spinner size="small" label="Loading users…" />
+              ) : loadError ? (
+                <MessageBar intent="error">
+                  <MessageBarBody>Failed to load users: {loadError}</MessageBarBody>
+                </MessageBar>
               ) : (
                 <div className={styles.userList}>
                   {filteredUsers.length === 0 ? (
                     <div style={{ padding: tokens.spacingVerticalM, textAlign: 'center', color: tokens.colorNeutralForeground3 }}>
-                      <Text style={{ fontSize: tokens.fontSizeBase200 }}>No users found</Text>
+                      <Text style={{ fontSize: tokens.fontSizeBase200 }}>
+                        {search.trim() ? `No users found matching "${search}"` : 'No users found'}
+                      </Text>
                     </div>
                   ) : filteredUsers.map((u) => {
                     const isSelected = selectedUser?.aaduserid === u.aaduserid;
