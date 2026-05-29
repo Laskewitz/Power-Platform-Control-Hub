@@ -10,6 +10,7 @@ export interface FlowDefinition {
 export interface FlowTrigger {
   type?: string;
   kind?: string;
+  description?: string;
   recurrence?: {
     frequency?: string;
     interval?: number;
@@ -557,7 +558,61 @@ function checkTerminateWithoutFailedStatus(allActions: Array<[string, FlowAction
   };
 }
 
-// ─── Main Analyzer ────────────────────────────────────────────────────────────
+const DEFAULT_TRIGGER_NAME_PATTERNS = [
+  /^manual(_\d+)?$/i,
+  /^recurrence(_\d+)?$/i,
+  /^Trigger(_\d+)?$/i,
+  /^When_a_HTTP_request_is_received(_\d+)?$/i,
+];
+
+function checkTriggerDefaultName(triggers: Record<string, FlowTrigger>): AnalysisResult | null {
+  const defaultNamed = Object.keys(triggers).filter((name) =>
+    DEFAULT_TRIGGER_NAME_PATTERNS.some((p) => p.test(name))
+  );
+  if (defaultNamed.length === 0) return null;
+  return {
+    id: 'trigger-default-name',
+    severity: 'info',
+    title: 'Trigger uses a default name',
+    description: `${defaultNamed.length} trigger(s) use auto-generated names, making the flow harder to understand at a glance.`,
+    recommendation: 'Rename triggers with a descriptive name that explains what initiates the flow (e.g. "On new SharePoint item" instead of "manual").',
+    affectedItems: defaultNamed,
+  };
+}
+
+function checkUndocumentedActions(
+  allActions: Array<[string, FlowAction]>,
+  triggers: Record<string, FlowTrigger>,
+): AnalysisResult | null {
+  // Need at least 5 actions+triggers to make this meaningful
+  const total = allActions.length + Object.keys(triggers).length;
+  if (total < 5) return null;
+
+  const undocumentedActions = allActions
+    .filter(([, a]) => !a.description?.trim())
+    .map(([name]) => name);
+
+  const undocumentedTriggers = Object.entries(triggers)
+    .filter(([, t]) => !t.description?.trim())
+    .map(([name]) => name);
+
+  const undocumented = [...undocumentedTriggers, ...undocumentedActions];
+  const ratio = undocumented.length / total;
+
+  // Only flag when 80%+ are undocumented
+  if (ratio < 0.8) return null;
+
+  return {
+    id: 'no-action-descriptions',
+    severity: 'info',
+    title: 'Most steps have no description (comment)',
+    description: `${undocumented.length} of ${total} actions and triggers have no description. Comments help future makers understand the purpose of each step without opening it.`,
+    recommendation: 'Add a description to key actions — especially complex expressions, HTTP calls, variables, and any step whose purpose isn\'t obvious from its name.',
+    affectedItems: undocumented.slice(0, 10),
+  };
+}
+
+
 
 export function analyzeFlowDefinition(definition: FlowDefinition): AnalysisResult[] {
   const results: AnalysisResult[] = [];
@@ -587,6 +642,9 @@ export function analyzeFlowDefinition(definition: FlowDefinition): AnalysisResul
     checkHardcodedUrls(allActions),
     checkDeepNesting(definition),
     checkTerminateWithoutFailedStatus(allActions),
+    // Naming & documentation
+    checkTriggerDefaultName(triggers),
+    checkUndocumentedActions(allActions, triggers),
   ];
 
   for (const r of checks) {
