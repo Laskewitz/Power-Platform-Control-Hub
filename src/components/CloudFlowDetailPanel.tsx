@@ -1562,33 +1562,64 @@ export default function CloudFlowDetailPanel({
               <AccordionPanel>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalL, paddingBottom: tokens.spacingVerticalL }}>
                     {/* Trigger */}
-                    {triggersSummary.length > 0 && (
+                    {(Object.keys(defTriggers).length > 0 || triggersSummary.length > 0) && (
                       <div>
                         <Text className={styles.sectionTitle}>Trigger</Text>
                         <div className={styles.triggerList}>
-                          {triggersSummary.map((t, i) => {
-                            const label = TRIGGER_TYPE_LABELS[t.type ?? ''] ?? t.type ?? 'Unknown trigger';
-                            const isConnectorTrigger = (t.type ?? '').toLowerCase().includes('apiconnection') || (t.type ?? '').toLowerCase().includes('openapiconnection');
-                            const isRecurrence = t.type === 'Recurrence';
-                            return (
-                              <div key={i} className={styles.triggerItem}>
-                                <FlowRegular fontSize={16} style={{ color: tokens.colorBrandForeground1, flexShrink: 0 }} />
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                  <Text style={{ fontWeight: tokens.fontWeightSemibold }}>{label}</Text>
-                                  {isRecurrence && recurrenceLabel && (
-                                    <Text style={{ fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground3 }}>
-                                      ⏱ {recurrenceLabel}
-                                    </Text>
-                                  )}
-                                  {isConnectorTrigger && t.kind && (
-                                    <Text style={{ fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground3 }}>
-                                      {`Trigger kind: ${t.kind}`}
-                                    </Text>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
+                          {Object.keys(defTriggers).length > 0
+                            ? Object.entries(defTriggers).map(([triggerKey, t], i) => {
+                                const type = t.type ?? '';
+                                const isConnectorTrigger = CONN_TYPES.has(type);
+                                const isRecurrence = type === 'Recurrence';
+                                const host = (t.inputs as Record<string, unknown> | undefined)?.host as Record<string, unknown> | undefined;
+                                const connName = (host?.connectionName as string) ?? '';
+                                const operationId = humanizeOperationId((host?.operationId as string) ?? '');
+                                const connectorLabel = connName ? resolveConnectorName(connName) : null;
+                                const triggerName = humanizeOperationId(triggerKey);
+                                return (
+                                  <div key={i} className={styles.triggerItem}>
+                                    <PlugConnectedRegular fontSize={16} style={{ color: tokens.colorBrandForeground1, flexShrink: 0 }} />
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                      {isConnectorTrigger && connectorLabel ? (
+                                        <>
+                                          <Text style={{ fontWeight: tokens.fontWeightSemibold }}>{connectorLabel}</Text>
+                                          {operationId && (
+                                            <Text style={{ fontSize: tokens.fontSizeBase300 }}>{operationId}</Text>
+                                          )}
+                                          <Text style={{ fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground3 }}>{triggerName}</Text>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Text style={{ fontWeight: tokens.fontWeightSemibold }}>
+                                            {TRIGGER_TYPE_LABELS[type] ?? triggerName}
+                                          </Text>
+                                          {isRecurrence && recurrenceLabel && (
+                                            <Text style={{ fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground3 }}>⏱ {recurrenceLabel}</Text>
+                                          )}
+                                          {!isRecurrence && t.kind && (
+                                            <Text style={{ fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground3 }}>Kind: {t.kind}</Text>
+                                          )}
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            : triggersSummary.map((t, i) => {
+                                const label = TRIGGER_TYPE_LABELS[t.type ?? ''] ?? t.type ?? 'Unknown trigger';
+                                return (
+                                  <div key={i} className={styles.triggerItem}>
+                                    <FlowRegular fontSize={16} style={{ color: tokens.colorBrandForeground1, flexShrink: 0 }} />
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                      <Text style={{ fontWeight: tokens.fontWeightSemibold }}>{label}</Text>
+                                      {t.kind && (
+                                        <Text style={{ fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground3 }}>Kind: {t.kind}</Text>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })
+                          }
                         </div>
                       </div>
                     )}
