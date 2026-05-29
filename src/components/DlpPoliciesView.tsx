@@ -367,8 +367,6 @@ const useStyles = makeStyles({
     display: 'flex',
     flexWrap: 'wrap',
     gap: tokens.spacingHorizontalS,
-    maxHeight: '160px',
-    overflowY: 'auto',
     paddingRight: tokens.spacingHorizontalXS,
   },
   accordion: {
@@ -1348,30 +1346,39 @@ export default function DlpPoliciesView({
           <Card>
             <div className={styles.formSection}>
               <Text className={styles.sectionTitle}>Connector Groups</Text>
-              {CONNECTOR_CLASSIFICATIONS.map((classification) => {
-                const group = currentPolicy.connectorGroups?.find((entry) => entry.classification === classification);
-                const connectors = group?.connectors ?? [];
+              <Accordion multiple defaultOpenItems={CONNECTOR_CLASSIFICATIONS.filter((c) => {
+                const group = currentPolicy.connectorGroups?.find((e) => e.classification === c);
+                return (group?.connectors ?? []).length > 0;
+              })}>
+                {CONNECTOR_CLASSIFICATIONS.map((classification) => {
+                  const group = currentPolicy.connectorGroups?.find((entry) => entry.classification === classification);
+                  const connectors = group?.connectors ?? [];
 
-                return (
-                  <div key={classification} className={styles.divider}>
-                    <div className={styles.titleRow}>
-                      <Text weight="semibold">{getClassificationLabel(classification)}</Text>
-                      <Badge appearance="tint" color={getClassificationColor(classification)}>{connectors.length} connector{connectors.length === 1 ? '' : 's'}</Badge>
-                    </div>
-                    {connectors.length === 0 ? (
-                      <Text className={styles.helperText}>No connectors assigned</Text>
-                    ) : (
-                      <div className={styles.connectorList}>
-                        {connectors.map((connector) => (
-                          <Badge key={`${classification}-${connector.id}`} className={styles.connectorTag} appearance="outline" color="informative">
-                            {connector.name || connector.id}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                  return (
+                    <AccordionItem key={classification} value={classification}>
+                      <AccordionHeader>
+                        <div className={styles.titleRow}>
+                          <Text weight="semibold">{getClassificationLabel(classification)}</Text>
+                          <Badge appearance="tint" color={getClassificationColor(classification)}>{connectors.length} connector{connectors.length === 1 ? '' : 's'}</Badge>
+                        </div>
+                      </AccordionHeader>
+                      <AccordionPanel>
+                        {connectors.length === 0 ? (
+                          <Text className={styles.helperText}>No connectors assigned</Text>
+                        ) : (
+                          <div className={styles.connectorList}>
+                            {connectors.map((connector) => (
+                              <Badge key={`${classification}-${connector.id}`} className={styles.connectorTag} appearance="outline" color="informative">
+                                {connector.name || connector.id}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </AccordionPanel>
+                    </AccordionItem>
+                  );
+                })}
+              </Accordion>
             </div>
           </Card>
 
@@ -1414,49 +1421,61 @@ export default function DlpPoliciesView({
                   </div>
 
                   {confidentialAdvisories.length > 0 && (
-                    <>
-                      <div className={styles.advisoryHeader}>
-                        <WarningRegular style={{ color: tokens.colorStatusWarningForeground1 }} />
-                        <Text weight="semibold">Move to Confidential (Business) — {confidentialAdvisories.length} connector{confidentialAdvisories.length !== 1 ? 's' : ''}</Text>
-                      </div>
-                      <Text className={styles.advisoryReason}>These Microsoft connectors handle business data and should not share a group with non-business connectors.</Text>
-                      <div style={{ maxHeight: '240px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalXS }}>
-                        {confidentialAdvisories.map((a) => (
-                          <div key={a.connectorName} className={styles.advisoryRow}>
-                            <div className={styles.advisoryBadges}>
-                              <Text weight="semibold">{a.connectorName}</Text>
-                              <Badge appearance="tint" color={getClassificationColor(a.currentClassification)} size="small">{getClassificationLabel(a.currentClassification)}</Badge>
-                              <Text>→</Text>
-                              <Badge appearance="tint" color={getClassificationColor(a.recommendedClassification)} size="small">{getClassificationLabel(a.recommendedClassification)}</Badge>
-                            </div>
-                            <Text className={styles.advisoryReason}>{a.reason}</Text>
+                    <Accordion multiple defaultOpenItems={['confidential']}>
+                      <AccordionItem value="confidential">
+                        <AccordionHeader>
+                          <div className={styles.advisoryHeader}>
+                            <WarningRegular style={{ color: tokens.colorStatusWarningForeground1 }} />
+                            <Text weight="semibold">Move to Confidential (Business) — {confidentialAdvisories.length} connector{confidentialAdvisories.length !== 1 ? 's' : ''}</Text>
                           </div>
-                        ))}
-                      </div>
-                    </>
+                        </AccordionHeader>
+                        <AccordionPanel>
+                          <Text className={styles.advisoryReason}>These Microsoft connectors handle business data and should not share a group with non-business connectors.</Text>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalXS, marginTop: tokens.spacingVerticalXS }}>
+                            {confidentialAdvisories.map((a) => (
+                              <div key={a.connectorName} className={styles.advisoryRow}>
+                                <div className={styles.advisoryBadges}>
+                                  <Text weight="semibold">{a.connectorName}</Text>
+                                  <Badge appearance="tint" color={getClassificationColor(a.currentClassification)} size="small">{getClassificationLabel(a.currentClassification)}</Badge>
+                                  <Text>→</Text>
+                                  <Badge appearance="tint" color={getClassificationColor(a.recommendedClassification)} size="small">{getClassificationLabel(a.recommendedClassification)}</Badge>
+                                </div>
+                                <Text className={styles.advisoryReason}>{a.reason}</Text>
+                              </div>
+                            ))}
+                          </div>
+                        </AccordionPanel>
+                      </AccordionItem>
+                    </Accordion>
                   )}
 
                   {blockedAdvisories.length > 0 && (
-                    <>
-                      <div className={styles.advisoryHeader} style={{ marginTop: confidentialAdvisories.length > 0 ? tokens.spacingVerticalM : undefined }}>
-                        <ProhibitedRegular style={{ color: tokens.colorStatusDangerForeground1 }} />
-                        <Text weight="semibold">Consider Blocking — {blockedAdvisories.length} connector{blockedAdvisories.length !== 1 ? 's' : ''}</Text>
-                      </div>
-                      <Text className={styles.advisoryReason}>These consumer/personal connectors are commonly blocked in enterprise tenants to prevent data exfiltration.</Text>
-                      <div style={{ maxHeight: '240px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalXS }}>
-                        {blockedAdvisories.map((a) => (
-                          <div key={a.connectorName} className={styles.advisoryRow}>
-                            <div className={styles.advisoryBadges}>
-                              <Text weight="semibold">{a.connectorName}</Text>
-                              <Badge appearance="tint" color={getClassificationColor(a.currentClassification)} size="small">{getClassificationLabel(a.currentClassification)}</Badge>
-                              <Text>→</Text>
-                              <Badge appearance="tint" color={getClassificationColor(a.recommendedClassification)} size="small">{getClassificationLabel(a.recommendedClassification)}</Badge>
-                            </div>
-                            <Text className={styles.advisoryReason}>{a.reason}</Text>
+                    <Accordion multiple defaultOpenItems={['blocked']}>
+                      <AccordionItem value="blocked">
+                        <AccordionHeader>
+                          <div className={styles.advisoryHeader}>
+                            <ProhibitedRegular style={{ color: tokens.colorStatusDangerForeground1 }} />
+                            <Text weight="semibold">Consider Blocking — {blockedAdvisories.length} connector{blockedAdvisories.length !== 1 ? 's' : ''}</Text>
                           </div>
-                        ))}
-                      </div>
-                    </>
+                        </AccordionHeader>
+                        <AccordionPanel>
+                          <Text className={styles.advisoryReason}>These consumer/personal connectors are commonly blocked in enterprise tenants to prevent data exfiltration.</Text>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalXS, marginTop: tokens.spacingVerticalXS }}>
+                            {blockedAdvisories.map((a) => (
+                              <div key={a.connectorName} className={styles.advisoryRow}>
+                                <div className={styles.advisoryBadges}>
+                                  <Text weight="semibold">{a.connectorName}</Text>
+                                  <Badge appearance="tint" color={getClassificationColor(a.currentClassification)} size="small">{getClassificationLabel(a.currentClassification)}</Badge>
+                                  <Text>→</Text>
+                                  <Badge appearance="tint" color={getClassificationColor(a.recommendedClassification)} size="small">{getClassificationLabel(a.recommendedClassification)}</Badge>
+                                </div>
+                                <Text className={styles.advisoryReason}>{a.reason}</Text>
+                              </div>
+                            ))}
+                          </div>
+                        </AccordionPanel>
+                      </AccordionItem>
+                    </Accordion>
                   )}
                 </div>
               </Card>
