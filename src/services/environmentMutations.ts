@@ -1,5 +1,4 @@
 import type { IOperationResult } from '@microsoft/power-apps/data';
-import type { CreateBackupRequest } from '../generated/models/PowerPlatformforAdminsV2Model.ts';
 import { PowerPlatformforAdminsV2Service } from '../generated/services/PowerPlatformforAdminsV2Service.ts';
 
 const API = '2024-10-01';
@@ -35,7 +34,7 @@ export async function createEnvironmentBackup(environmentId: string, notes: stri
   const result = await PowerPlatformforAdminsV2Service.CreateEnvironmentBackup(
     environmentId,
     API,
-    { notes } as unknown as CreateBackupRequest,
+    { label: notes },
   );
   unwrapOperationResult(result);
 }

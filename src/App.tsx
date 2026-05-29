@@ -37,6 +37,7 @@ import ConnectorsView from './components/ConnectorsView.tsx';
 import ppaLogo from './assets/ppa-logo.png';
 
 type TabValue = 'overview' | 'resources' | 'environments' | 'recommendations' | 'governance' | 'envgroups' | 'connectors';
+const VALID_TABS: readonly TabValue[] = ['overview', 'resources', 'environments', 'recommendations', 'governance', 'envgroups', 'connectors'];
 
 const useStyles = makeStyles({
   shell: {
@@ -137,9 +138,10 @@ export default function App(): ReactElement {
             <TabList
               selectedValue={activeTab}
               onTabSelect={(_, data) => {
-                const tab = data.value as TabValue;
+                const tab = data.value as string;
+                if (!VALID_TABS.includes(tab as TabValue)) return;
                 if (tab === 'resources') setResourceTypeFilter('all');
-                setActiveTab(tab);
+                setActiveTab(tab as TabValue);
               }}
             >
               <Tab value="overview" icon={<GridRegular />}>Overview</Tab>

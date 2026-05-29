@@ -225,8 +225,11 @@ export default function EnvironmentsView({
 
   async function runAction(envId: string, action: () => Promise<unknown>) {
     setPendingEnvId(envId);
-    await action();
-    setPendingEnvId(null);
+    try {
+      await action();
+    } finally {
+      setPendingEnvId(null);
+    }
   }
 
   const groupMap = useMemo(

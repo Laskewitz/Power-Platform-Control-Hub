@@ -17,9 +17,9 @@ export async function deleteFlow(flowId: string): Promise<void> {
 
 export async function deleteCopilotAgent(environmentId: string, botId: string): Promise<void> {
   const result = await PowerPlatformforAdminsV2Service.DeleteCopilotAgent(environmentId, botId, API);
-  // BotNotFound (ErrorCode 4105) means already deleted — treat as success
-  if (!result.success && result.error) {
-    const msg = result.error.message ?? '';
+  if (!result.success) {
+    // BotNotFound (ErrorCode 4105) means already deleted — treat as success
+    const msg = result.error?.message ?? '';
     if (msg.includes('BotNotFound') || msg.includes('4105') || msg.includes('Bot not found')) return;
     throw new Error(msg || 'Operation failed');
   }

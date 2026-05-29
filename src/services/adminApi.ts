@@ -192,8 +192,8 @@ export async function fetchRoleAssignments(): Promise<RoleAssignment[]> {
   const result = await PowerPlatformforAdminsV2Service.ListRoleAssignments(API_VERSION);
   return (unwrapOperationResult(result).value ?? []).map((assignment) => ({
     roleDefinitionId: assignment.roleDefinitionId ?? '',
-    roleDefinitionName: assignment.roleDefinitionId ?? '',
-    permissions: [],
+    roleDefinitionName: assignment.roleDefinitionName ?? '',
+    permissions: assignment.permissions ?? [],
   }));
 }
 

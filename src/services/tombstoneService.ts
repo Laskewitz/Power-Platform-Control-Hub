@@ -110,7 +110,7 @@ async function dvRemove(resourceId: string): Promise<void> {
   if (!id) {
     const lookup = await Ppa_resourcetombstonesService.getAll({
       select: ['ppa_resourcetombstoneid'],
-      filter: `ppa_resourceid eq '${resourceId}'`,
+      filter: `ppa_resourceid eq '${resourceId.replace(/'/g, "''")}'`,
     });
     id = lookup.data?.[0]?.ppa_resourcetombstoneid;
   }
