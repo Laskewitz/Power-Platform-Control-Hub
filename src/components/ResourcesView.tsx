@@ -124,9 +124,7 @@ function getFieldValue(r: Resource, field: SortField): string {
   }
 }
 
-const DELETABLE_TYPES = new Set([
-  'microsoft.copilotstudio/agents',
-]);
+const DELETABLE_TYPES = new Set<string>([]);
 
 const DETAIL_PANEL_TYPES = new Set([
   'microsoft.powerautomate/cloudflows',
@@ -134,6 +132,7 @@ const DETAIL_PANEL_TYPES = new Set([
   'microsoft.powerautomate/m365agentflows',
   'microsoft.powerapps/apps',
   'microsoft.powerapps/canvasapps',
+  'microsoft.copilotstudio/agents',
 ]);
 
 export default function ResourcesView({

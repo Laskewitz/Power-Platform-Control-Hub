@@ -37,13 +37,14 @@ import { useMutation } from '../hooks/useMutation.tsx';
 import { deleteCopilotAgent } from '../services/resourceMutations.ts';
 import { fetchTombstonedIds, addTombstone, removeTombstone } from '../services/tombstoneService.ts';
 
-const DELETABLE_TYPES = new Set(['microsoft.copilotstudio/agents']);
+const DELETABLE_TYPES = new Set<string>([]);
 const DETAIL_PANEL_TYPES = new Set([
   'microsoft.powerautomate/cloudflows',
   'microsoft.powerautomate/agentflows',
   'microsoft.powerautomate/m365agentflows',
   'microsoft.powerapps/apps',
   'microsoft.powerapps/canvasapps',
+  'microsoft.copilotstudio/agents',
 ]);
 
 interface DashboardProps {
