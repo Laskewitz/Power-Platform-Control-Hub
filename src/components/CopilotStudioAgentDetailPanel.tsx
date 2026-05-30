@@ -1012,16 +1012,10 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
                       </div>
                     )}
 
-                    <div className={styles.detailItemWide}>
+                    <div className={styles.detailItem}>
                       <span className={styles.detailLabel}>Environment</span>
                       <span className={styles.detailValue}>
-                        {resource.environmentName
-                          ? <span>
-                              <span style={{ fontWeight: tokens.fontWeightSemibold }}>{resource.environmentName}</span>
-                              <span style={{ display: 'block', color: tokens.colorNeutralForeground3, fontSize: tokens.fontSizeBase200, wordBreak: 'break-all' }}>{envId}</span>
-                            </span>
-                          : <span style={{ color: tokens.colorNeutralForeground2, fontSize: tokens.fontSizeBase200, wordBreak: 'break-all' }}>{envId}</span>
-                        }
+                        {resource.environmentName ?? envId}
                       </span>
                     </div>
 
