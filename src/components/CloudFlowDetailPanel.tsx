@@ -64,6 +64,7 @@ import { useToastController, Toast, ToastTitle, ToastBody } from '@fluentui/reac
 import ConfirmDialog from './ConfirmDialog.tsx';
 import { extractMessage } from '../utils/errorUtils.ts';
 import { getContext } from '@microsoft/power-apps/app';
+import AddSelfAsAdminBanner from './AddSelfAsAdminBanner.tsx';
 
 
 
@@ -1471,6 +1472,7 @@ export default function CloudFlowDetailPanel({
 
         {/* Accordion sections */}
         <div className={styles.body}>
+          <AddSelfAsAdminBanner environmentId={envId} />
           {detailsLoading && <Spinner size="small" label="Loading flow details…" style={{ marginBottom: tokens.spacingVerticalM }} />}
           {detailsError && (
             <CollapsibleError error={detailsError} style={{ marginBottom: tokens.spacingVerticalM }} />

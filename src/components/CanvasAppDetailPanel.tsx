@@ -35,6 +35,7 @@ import { getCanvasAppAdminInfo, getAppRoleAssignments, setAppQuarantineState } f
 import { analyzeCanvasApp } from '../services/canvasAppAnalyzer.ts';
 import type { AnalysisResult, AnalysisSeverity } from '../services/flowAnalyzer.ts';
 import { extractMessage } from '../utils/errorUtils.ts';
+import AddSelfAsAdminBanner from './AddSelfAsAdminBanner.tsx';
 
 interface Props {
   resource: Resource;
@@ -379,6 +380,8 @@ export default function CanvasAppDetailPanel({ resource, onClose }: Props): Reac
 
       {/* Body */}
       <div className={styles.body}>
+        <AddSelfAsAdminBanner environmentId={envId} />
+
         {error && (
           <MessageBar intent="warning" style={{ marginBottom: tokens.spacingVerticalS }}>
             <MessageBarBody style={{ wordBreak: 'break-word' }}>Admin API: {error}</MessageBarBody>

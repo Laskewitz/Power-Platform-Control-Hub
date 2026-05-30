@@ -58,6 +58,7 @@ import type { AnalysisResult, AnalysisSeverity } from '../services/flowAnalyzer.
 import { resolveUserIds } from '../services/userService.ts';
 import { extractMessage } from '../utils/errorUtils.ts';
 import ConfirmDialog from './ConfirmDialog.tsx';
+import AddSelfAsAdminBanner from './AddSelfAsAdminBanner.tsx';
 
 interface Props {
   resource: Resource;
@@ -735,6 +736,7 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
 
         {/* Body */}
         <div className={styles.body}>
+          <AddSelfAsAdminBanner environmentId={envId} />
           {botLoading && (
             <Spinner size="small" label="Loading agent details…" style={{ marginBottom: tokens.spacingVerticalM }} />
           )}

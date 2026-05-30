@@ -66,6 +66,7 @@ import { fetchEnvironmentSettings, updateEnvironmentSettings } from '../services
 import BackupDialog from './BackupDialog.tsx';
 import EnvironmentGroupDialog from './EnvironmentGroupDialog.tsx';
 import { useOwners } from '../services/ownerCache.ts';
+import AddSelfAsAdminBanner from './AddSelfAsAdminBanner.tsx';
 
 interface EnvironmentDetailViewProps {
   environment: Resource;
@@ -594,6 +595,11 @@ export default function EnvironmentDetailView({
           <Tab value="settings" icon={<SettingsRegular />}>Settings</Tab>
         </TabList>
       </div>
+
+      <AddSelfAsAdminBanner
+        environmentId={env.name}
+        onAdded={() => void onRefreshEnvironments?.()}
+      />
 
       <div className={styles.content}>
         {contentTab === 'settings' ? (
