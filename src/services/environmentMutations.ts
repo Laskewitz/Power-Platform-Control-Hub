@@ -43,14 +43,44 @@ export async function createEnvironmentBackup(environmentId: string, notes: stri
 /** Module-level cache so we don't call ListRoleDefinitions more than once. */
 let cachedSysAdminRoleId: string | undefined;
 
-async function getSysAdminRoleId(): Promise<string> {
+async function getSysAdminRoleId(environmentId?: string): Promise<string> {
   if (cachedSysAdminRoleId) return cachedSysAdminRoleId;
+
+  // Try ListRoleDefinitions first (global tenant-level definitions)
   const rolesResult = await PowerPlatformforAdminsV2Service.ListRoleDefinitions(API);
-  const roles = unwrapOperationResult(rolesResult);
-  const role = roles.value?.find((r) => r.roleDefinitionName?.toLowerCase() === 'system administrator');
-  if (!role?.roleDefinitionId) throw new Error('Could not find System Administrator role definition.');
-  cachedSysAdminRoleId = role.roleDefinitionId;
-  return cachedSysAdminRoleId;
+  if (rolesResult.success && rolesResult.data?.value?.length) {
+    const role = rolesResult.data.value.find((r) => {
+      const name = r.roleDefinitionName?.toLowerCase().trim() ?? '';
+      return (
+        name === 'system administrator' ||
+        name === 'systemadministrator' ||
+        (name.includes('system') && name.includes('admin'))
+      );
+    });
+    if (role?.roleDefinitionId) {
+      cachedSysAdminRoleId = role.roleDefinitionId;
+      return cachedSysAdminRoleId;
+    }
+    // Surface what names were returned so we can diagnose mismatches
+    const available = rolesResult.data.value.map((r) => `"${r.roleDefinitionName}"`).join(', ');
+    throw new Error(`Could not find System Administrator role. Available role definitions: ${available || 'none'}`);
+  }
+
+  // Fallback: derive the role ID from an existing admin assignment in this environment
+  if (environmentId) {
+    const assignResult = await PowerPlatformforAdminsV2Service.ListEnvironmentRoleAssignments(environmentId, API);
+    if (assignResult.success) {
+      const ids = [...new Set(assignResult.data?.value?.map((a) => a.roleDefinitionId).filter(Boolean))];
+      if (ids.length === 1) {
+        // If there's only one distinct role definition in use, it's System Administrator
+        cachedSysAdminRoleId = ids[0]!;
+        return cachedSysAdminRoleId;
+      }
+    }
+  }
+
+  const apiError = rolesResult.success ? 'returned empty list' : (rolesResult.error?.message ?? 'API call failed');
+  throw new Error(`Could not find System Administrator role definition (ListRoleDefinitions ${apiError}).`);
 }
 
 /**
@@ -59,7 +89,7 @@ async function getSysAdminRoleId(): Promise<string> {
  */
 export async function checkCurrentUserIsEnvAdmin(environmentId: string): Promise<boolean> {
   if (!environmentId) return false;
-  const [ctx, sysAdminRoleId] = await Promise.all([getContext(), getSysAdminRoleId()]);
+  const [ctx, sysAdminRoleId] = await Promise.all([getContext(), getSysAdminRoleId(environmentId)]);
   const objectId = ctx.user.objectId?.toLowerCase();
   if (!objectId) return false;
 
@@ -86,7 +116,7 @@ export async function addSelfAsEnvironmentAdmin(environmentId: string): Promise<
   const objectId = ctx.user.objectId;
   if (!objectId) throw new Error('Could not determine current user object ID.');
 
-  const sysAdminRoleId = await getSysAdminRoleId();
+  const sysAdminRoleId = await getSysAdminRoleId(environmentId);
 
   const assignResult = await PowerPlatformforAdminsV2Service.CreateEnvironmentRoleAssignment(
     environmentId,
