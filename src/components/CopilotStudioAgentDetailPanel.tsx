@@ -659,6 +659,21 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
     }
   }
 
+  // Called from the botError block — adminCheck is already 'admin' so we call loadDetails directly
+  async function handleMakeAdminAndRetry() {
+    setAddingAdmin(true);
+    setAddAdminError(null);
+    try {
+      await addSelfAsEnvironmentAdmin(envId);
+      setBotError(null);
+      void loadDetails();
+    } catch (e) {
+      setAddAdminError(extractMessage(String(e)));
+    } finally {
+      setAddingAdmin(false);
+    }
+  }
+
   async function handleDelete() {
     setActionLoading('delete');
     try {
@@ -853,28 +868,56 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
           {botLoading && (
             <Spinner size="small" label="Loading agent details…" style={{ marginBottom: tokens.spacingVerticalM }} />
           )}
-          {botError && (
-            <MessageBar intent="warning" style={{ marginBottom: tokens.spacingVerticalM }}>
-              <MessageBarBody>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalXS }}>
-                  <span>
-                    Could not load bot record from Dataverse.{' '}
-                    <a
-                      href={`https://copilotstudio.microsoft.com/environments/${envId}/bots/${botName}/overview`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ color: tokens.colorBrandForegroundLink }}
+          {botError && (() => {
+            const isPrivilegeError =
+              botError.includes('0x80040220') ||
+              botError.includes('prvRead') ||
+              (botError.includes('missing') && botError.includes('privilege'));
+            return (
+              <MessageBar intent={isPrivilegeError ? 'error' : 'warning'} style={{ marginBottom: tokens.spacingVerticalM }}>
+                <MessageBarBody>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalXS }}>
+                    <span>
+                      {isPrivilegeError
+                        ? 'You are missing the required Dataverse privilege to load this bot record. Add yourself as System Administrator to access it.'
+                        : 'Could not load bot record from Dataverse.'}{' '}
+                      <a
+                        href={`https://copilotstudio.microsoft.com/environments/${envId}/bots/${botName}/overview`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: tokens.colorBrandForegroundLink }}
+                      >
+                        View in Copilot Studio ↗
+                      </a>
+                    </span>
+                    {addAdminError && (
+                      <Text style={{ fontSize: tokens.fontSizeBase200, color: tokens.colorStatusDangerForeground1 }}>
+                        {addAdminError}
+                      </Text>
+                    )}
+                    {!isPrivilegeError && (
+                      <Text style={{ fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground3 }}>
+                        {botError}
+                      </Text>
+                    )}
+                  </div>
+                </MessageBarBody>
+                {isPrivilegeError && (
+                  <MessageBarActions>
+                    <Button
+                      size="small"
+                      appearance="primary"
+                      icon={addingAdmin ? <Spinner size="tiny" /> : <PersonAddRegular />}
+                      disabled={addingAdmin}
+                      onClick={() => void handleMakeAdminAndRetry()}
                     >
-                      View in Copilot Studio ↗
-                    </a>
-                  </span>
-                  <Text style={{ fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground3 }}>
-                    {botError}
-                  </Text>
-                </div>
-              </MessageBarBody>
-            </MessageBar>
-          )}
+                      {addingAdmin ? 'Adding…' : 'Add me as System Administrator'}
+                    </Button>
+                  </MessageBarActions>
+                )}
+              </MessageBar>
+            );
+          })()}
 
           <Accordion
             multiple
@@ -1166,6 +1209,7 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
             </AccordionItem>
 
             {/* ── Configuration / Definition ── */}
+            {(!botError || bot) && (
             <AccordionItem value="configuration" className={styles.accordionCard}>
               <AccordionHeader expandIconPosition="end" icon={<CodeRegular />} className={styles.accordionHeaderTinted}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS }}>
@@ -1204,8 +1248,10 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
                 </div>
               </AccordionPanel>
             </AccordionItem>
+            )}
 
             {/* ── Best Practice Analysis ── */}
+            {(!botError || bot) && (
             <AccordionItem value="analysis" className={styles.accordionCard}>
               <AccordionHeader expandIconPosition="end" icon={<ShieldCheckmarkRegular />} className={styles.accordionHeaderTinted}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS }}>
@@ -1283,8 +1329,10 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
                 </div>
               </AccordionPanel>
             </AccordionItem>
+            )}
 
             {/* ── Components ── */}
+            {(!botError || bot) && (
             <AccordionItem value="components" className={styles.accordionCard}>
               <AccordionHeader expandIconPosition="end" icon={<AppsListRegular />} className={styles.accordionHeaderTinted}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS }}>
@@ -1298,10 +1346,6 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
                 <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalM, paddingBottom: tokens.spacingVerticalL }}>
                   {(botLoading || componentsLoading) ? (
                     <Spinner size="tiny" label="Loading components…" />
-                  ) : !bot ? (
-                    <Text style={{ color: tokens.colorNeutralForeground3 }}>
-                      Bot record not available — components cannot be loaded.
-                    </Text>
                   ) : components.length === 0 ? (
                     <Text style={{ color: tokens.colorNeutralForeground3 }}>No components found for this agent.</Text>
                   ) : (
@@ -1310,6 +1354,7 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
                 </div>
               </AccordionPanel>
             </AccordionItem>
+            )}
           </Accordion>
             </>
           )}
