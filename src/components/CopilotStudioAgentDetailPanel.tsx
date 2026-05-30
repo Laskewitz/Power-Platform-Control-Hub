@@ -13,6 +13,7 @@ import {
   AccordionPanel,
   MessageBar,
   MessageBarBody,
+  MessageBarActions,
   Tooltip,
   useToastController,
   Toast,
@@ -39,6 +40,7 @@ import {
   AppsListRegular,
   ShieldPersonRegular,
   BookOpenRegular,
+  PersonAddRegular,
 } from '@fluentui/react-icons';
 import type { InventorySharingSummary, Resource } from '../types/inventory.ts';
 import type { Bots } from '../generated/models/BotsModel.ts';
@@ -57,8 +59,8 @@ import type { BotEnvironmentInfo } from '../services/copilotStudioService.ts';
 import type { AnalysisResult, AnalysisSeverity } from '../services/flowAnalyzer.ts';
 import { resolveUserIds } from '../services/userService.ts';
 import { extractMessage } from '../utils/errorUtils.ts';
+import { checkCurrentUserIsEnvAdmin, addSelfAsEnvironmentAdmin } from '../services/environmentMutations.ts';
 import ConfirmDialog from './ConfirmDialog.tsx';
-import AddSelfAsAdminBanner from './AddSelfAsAdminBanner.tsx';
 
 interface Props {
   resource: Resource;
@@ -552,6 +554,11 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
   const [expandedAnalysis, setExpandedAnalysis] = useState<Set<string>>(new Set());
   const [openSections, setOpenSections] = useState<string[]>(['details', 'inventory', 'analysis']);
 
+  // Admin access gate — check before attempting any Dataverse call
+  const [adminCheck, setAdminCheck] = useState<'loading' | 'admin' | 'notAdmin'>('loading');
+  const [addingAdmin, setAddingAdmin] = useState(false);
+  const [addAdminError, setAddAdminError] = useState<string | null>(null);
+
   function handleSectionToggle(_: unknown, data: { openItems: string[] }) {
     setOpenSections(data.openItems);
   }
@@ -617,7 +624,30 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
     }
   }
 
-  useEffect(() => { void loadDetails(); }, []);
+  useEffect(() => {
+    if (!envId) { setAdminCheck('admin'); return; }
+    checkCurrentUserIsEnvAdmin(envId)
+      .then(isAdmin => setAdminCheck(isAdmin ? 'admin' : 'notAdmin'))
+      .catch(() => setAdminCheck('admin')); // on check failure, proceed anyway
+  }, []);
+
+  // Only load Dataverse data once admin access is confirmed
+  useEffect(() => {
+    if (adminCheck === 'admin') void loadDetails();
+  }, [adminCheck]);
+
+  async function handleMakeAdmin() {
+    setAddingAdmin(true);
+    setAddAdminError(null);
+    try {
+      await addSelfAsEnvironmentAdmin(envId);
+      setAdminCheck('admin'); // triggers loadDetails via useEffect
+    } catch (e) {
+      setAddAdminError(extractMessage(String(e)));
+    } finally {
+      setAddingAdmin(false);
+    }
+  }
 
   async function handleDelete() {
     setActionLoading('delete');
@@ -782,7 +812,34 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
 
         {/* Body */}
         <div className={styles.body}>
-          <AddSelfAsAdminBanner environmentId={envId} />
+          {/* Access gate: check admin before loading any Dataverse data */}
+          {adminCheck === 'loading' && (
+            <Spinner size="small" label="Checking environment access…" style={{ marginBottom: tokens.spacingVerticalM }} />
+          )}
+          {adminCheck === 'notAdmin' && (
+            <MessageBar intent={addAdminError ? 'error' : 'warning'} style={{ marginBottom: tokens.spacingVerticalM, flexShrink: 0 }}>
+              <MessageBarBody>
+                {addAdminError
+                  ? `Failed to add you as System Administrator: ${addAdminError}`
+                  : 'You are not a System Administrator on this environment. Bot details require Dataverse access.'}
+              </MessageBarBody>
+              {!addAdminError && (
+                <MessageBarActions>
+                  <Button
+                    size="small"
+                    appearance="primary"
+                    icon={addingAdmin ? <Spinner size="tiny" /> : <PersonAddRegular />}
+                    disabled={addingAdmin}
+                    onClick={() => void handleMakeAdmin()}
+                  >
+                    {addingAdmin ? 'Adding…' : 'Add me as System Administrator'}
+                  </Button>
+                </MessageBarActions>
+              )}
+            </MessageBar>
+          )}
+          {adminCheck === 'admin' && (
+            <>
           {botLoading && (
             <Spinner size="small" label="Loading agent details…" style={{ marginBottom: tokens.spacingVerticalM }} />
           )}
@@ -1248,6 +1305,8 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
               </AccordionPanel>
             </AccordionItem>
           </Accordion>
+            </>
+          )}
         </div>
       </div>
 
