@@ -442,6 +442,13 @@ export default function EnvironmentDetailView({
   const envGroupId = env.properties['environmentGroupId'] as string | undefined;
   const groupMap = useMemo(() => new Map(envGroups.map((g) => [g.id, g.displayName])), [envGroups]);
 
+  // Runtime state from Inventory API: properties.states.runtime.id = 'Enabled' | 'Disabled'
+  const runtimeState = ((env.properties['states'] as Record<string, unknown> | undefined)
+    ?.['runtime'] as Record<string, unknown> | undefined)
+    ?.['id'] as string | undefined;
+  const isDisabled = runtimeState?.toLowerCase() === 'disabled';
+  const isEnabled = !runtimeState || runtimeState?.toLowerCase() === 'enabled';
+
   const { execute: execEnable } = useMutation(enableEnvironment, {
     successMessage: 'Enable environment request submitted.',
     onSuccess: () => void onRefreshEnvironments?.(),
@@ -542,8 +549,8 @@ export default function EnvironmentDetailView({
             </MenuTrigger>
             <MenuPopover>
               <MenuList>
-                <MenuItem icon={<PlayRegular />} onClick={() => void runAction(() => execEnable(env.name))}>Enable</MenuItem>
-                <MenuItem icon={<StopRegular />} onClick={() => setConfirmAction({ type: 'disable' })}>Disable</MenuItem>
+                {isDisabled && <MenuItem icon={<PlayRegular />} onClick={() => void runAction(() => execEnable(env.name))}>Enable</MenuItem>}
+                {isEnabled && <MenuItem icon={<StopRegular />} onClick={() => setConfirmAction({ type: 'disable' })}>Disable</MenuItem>}
                 {isManaged
                   ? <MenuItem icon={<ShieldDismissRegular />} onClick={() => setConfirmAction({ type: 'disableManaged' })}>Disable Managed</MenuItem>
                   : <MenuItem icon={<ShieldRegular />} onClick={() => void runAction(() => execEnableManaged(env.name))}>Enable Managed</MenuItem>
