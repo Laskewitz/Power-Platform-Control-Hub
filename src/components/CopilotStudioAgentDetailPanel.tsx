@@ -415,7 +415,7 @@ function analyzeCopilotAgent(bot: Bots | null, components: BotComponent[]): Anal
         title: 'No test cases defined',
         description: 'This agent has no test cases. Test cases help validate that the agent responds correctly after changes.',
         recommendation: 'Add test cases in Copilot Studio to catch regressions and verify agent behaviour before publishing.',
-        severity: 'info',
+        severity: 'warning',
       });
     }
   }
