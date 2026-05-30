@@ -51,18 +51,37 @@ export function useInventory(): UseInventoryResult {
         fetchEnvironments(),
       ]);
 
+      // Build a map of envId (lower-cased) → instanceUrl from the full environment
+      // properties. The JOIN projection in fetchResources may not support deeply
+      // nested paths, so this is the reliable source of truth.
+      const instanceUrlByEnv = new Map<string, string>();
+      for (const env of fetchedEnvironments) {
+        const key = env.name.toLowerCase();
+        const p = env.properties as Record<string, unknown>;
+        const linked = p.linkedEnvironmentMetadata as { instanceUrl?: string } | undefined;
+        if (linked?.instanceUrl) instanceUrlByEnv.set(key, linked.instanceUrl);
+      }
+
       // Collect unique owner GUIDs and resolve them to display names
       setLoadingLabel('Resolving owner names…');
       const ownerGuids = [...new Set(fetchedResources.map(extractOwnerGuid).filter(Boolean) as string[])];
       const nameMap = await resolveUserIds(ownerGuids);
 
-      // Enrich resources with the resolved display name
+      // Enrich resources with resolved owner name + reliable environmentInstanceUrl
       const enriched = fetchedResources.map((r) => {
         const guid = extractOwnerGuid(r);
-        if (!guid) return r;
-        const resolved = nameMap.get(guid);
-        if (!resolved || resolved === guid) return r;
-        return { ...r, properties: { ...r.properties, resolvedOwnerName: resolved } };
+        const resolved = guid ? nameMap.get(guid) : undefined;
+        const envUrl = r.joinKey ? instanceUrlByEnv.get(r.joinKey) : undefined;
+
+        if ((!resolved || resolved === guid) && !envUrl) return r;
+        return {
+          ...r,
+          ...(envUrl ? { environmentInstanceUrl: envUrl } : {}),
+          properties: {
+            ...r.properties,
+            ...(resolved && resolved !== guid ? { resolvedOwnerName: resolved } : {}),
+          },
+        };
       });
 
       setResources(enriched);
