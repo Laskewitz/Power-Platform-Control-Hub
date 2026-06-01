@@ -263,6 +263,27 @@ This app requires **five connectors**. For each one, create a connection in [mak
 | Flow Management | `shared_flowmanagement` | [Reference](https://learn.microsoft.com/en-us/connectors/flowmanagement/) |
 | Microsoft Dataverse | `shared_commondataserviceforapps` | [Reference](https://learn.microsoft.com/en-us/connectors/commondataserviceforapps/) |
 
+### Data sources by resource
+
+Each resource type pulls from one or more connectors (and optionally a Dataverse table):
+
+| Resource | List / inventory | Detail & mutations | Notes |
+|---|---|---|---|
+| **Environments** | Admin V2 → `QueryResources` | Admin V2 → `GetEnvironmentByIdForUser` | Domain/URL data lazy-fetched on Analysis tab open |
+| **Canvas Apps** | Admin V2 → `QueryResources` | Power Apps for Admins → `GetApp`, `GetAppRoleAssignment` | Connection refs, owner, shared-with counts |
+| **Model-Driven Apps** | Admin V2 → `QueryResources` | _(inventory metadata only)_ | No separate detail API |
+| **Cloud Flows** | Admin V2 → `QueryResources` | Flow Management → `GetAdminFlowWithConnectionReferences`, `GetFlowPermissions` | Full trigger/action graph |
+| **Agent Flows** | Admin V2 → `QueryResources` | Flow Management (same as Cloud Flows) | |
+| **M365 Agent Flows** | Admin V2 → `QueryResources` | Flow Management (same as Cloud Flows) | |
+| **Code Apps** | Admin V2 → `QueryResources` | _(inventory metadata only)_ | |
+| **Copilot Studio Agents** | Admin V2 → `QueryResources` | 1. Dataverse `bot` table (admin env) via Bots connector<br>2. Cross-env Dataverse connector → `bot` + `botcomponent` tables | Falls back to cross-env query when agent is not in admin env |
+| **DLP Policies** | Power Platform for Admins → `ListPoliciesV2` | Power Platform for Admins → `CreatePolicyV2 / UpdatePolicyV2 / DeletePolicyV2` | Advisory recommendations via Admin V2 |
+| **Connectors & Connections** | Admin V2 → `GetConnectorById`, connections list | Admin V2 | Per-environment view |
+| **Environment Groups** | Admin V2 → `ListEnvironmentGroups` | Admin V2 → create / update / delete | |
+| **Billing Policies** | Admin V2 | Admin V2 | |
+| **Tombstones** (soft-delete) | Dataverse `ppa_resourcetombstone` table | Dataverse `ppa_resourcetombstone` table | Falls back to `localStorage` when Dataverse is unavailable |
+| **User display names** | Azure AD User connector → user lookup by GUID | — | Used to resolve owner/created-by names across all resource types |
+
 ### Steps after cloning
 
 ```bash
