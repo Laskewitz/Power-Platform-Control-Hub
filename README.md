@@ -282,7 +282,7 @@ Each resource type pulls from one or more connectors (and optionally a Dataverse
 | **Environment Groups** | Admin V2 → `ListEnvironmentGroups` | Admin V2 → create / update / delete | |
 | **Billing Policies** | Admin V2 | Admin V2 | |
 | **Tombstones** (soft-delete) | Dataverse `ppa_resourcetombstone` table | Dataverse `ppa_resourcetombstone` table | Falls back to `localStorage` when Dataverse is unavailable |
-| **User display names** | Azure AD User connector → user lookup by GUID | — | Used to resolve owner/created-by names across all resource types |
+| **User display names** | Microsoft Dataverse → `aadusers` virtual table (AAD-backed virtual entity) | — | Used to resolve owner/created-by GUIDs across all resource types |
 
 ### Steps after cloning
 
