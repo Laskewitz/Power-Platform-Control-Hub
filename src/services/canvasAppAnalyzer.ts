@@ -1,11 +1,11 @@
 import type { AnalysisResult } from './flowAnalyzer.ts';
-import type { CanvasAppAdminInfo } from './canvasAppAdminService.ts';
+import type { CanvasAppAdminInfo, AppRoleAssignment } from './canvasAppAdminService.ts';
 
 /**
  * Runs best-practice analysis on a canvas app using only data available from the
  * Power Apps for Admins connector (no .msapp download required).
  */
-export function analyzeCanvasApp(adminInfo?: CanvasAppAdminInfo): AnalysisResult[] {
+export function analyzeCanvasApp(adminInfo?: CanvasAppAdminInfo, roleAssignments?: AppRoleAssignment[]): AnalysisResult[] {
   const results: AnalysisResult[] = [];
   if (!adminInfo) return results;
 
@@ -88,6 +88,58 @@ export function analyzeCanvasApp(adminInfo?: CanvasAppAdminInfo): AnalysisResult
       recommendation: 'Only enable bypass consent for internal enterprise apps where users are informed about data access through other means.',
       severity: 'warning',
     });
+  }
+
+  // -- 7. Stale app
+  if (adminInfo.lastModifiedTime) {
+    const daysSince = (Date.now() - new Date(adminInfo.lastModifiedTime).getTime()) / (1000 * 60 * 60 * 24);
+    if (daysSince > 365) {
+      results.push({
+        id: 'canvas-stale-app',
+        title: 'App not modified in over a year',
+        description: `The app was last modified ${Math.floor(daysSince)} days ago. Stale apps may contain outdated logic, broken connectors, or unpatched security issues.`,
+        recommendation: 'Verify the app is still actively used. Archive or delete it if it is no longer needed, or update it to current platform standards.',
+        severity: 'warning',
+      });
+    } else if (daysSince > 180) {
+      results.push({
+        id: 'canvas-stale-app',
+        title: 'App not modified in over 6 months',
+        description: `The app was last modified ${Math.floor(daysSince)} days ago. Apps inactive for extended periods may have stale connections or outdated logic.`,
+        recommendation: 'Review the app to confirm it is still required and working correctly, or document its status.',
+        severity: 'info',
+      });
+    }
+  }
+
+  // -- 8. Shared with entire organisation
+  if (roleAssignments) {
+    const tenantShare = roleAssignments.find(r => r.principalType === 'Tenant');
+    if (tenantShare) {
+      results.push({
+        id: 'canvas-shared-with-tenant',
+        title: 'App is shared with the entire organisation',
+        description: 'This app has been shared with "Everyone in the organisation". All users — including guests, depending on tenant settings — can access it.',
+        recommendation: 'Only share organisation-wide if the app is genuinely intended for all users. Use Entra ID security groups for targeted access control.',
+        severity: 'warning',
+      });
+    }
+  }
+
+  // -- 9. No co-owners (single point of failure)
+  if (roleAssignments) {
+    const coOwners = roleAssignments.filter(
+      r => r.roleName === 'CanEdit' && r.principalType !== 'Tenant',
+    );
+    if (coOwners.length === 0) {
+      results.push({
+        id: 'canvas-no-co-owners',
+        title: 'App has no co-owners (co-developers)',
+        description: 'Only the original creator has edit access to this app. If that person leaves or loses access, the app cannot be maintained.',
+        recommendation: 'Share the app as a co-developer with at least one additional user, group, or service principal to prevent a single point of failure.',
+        severity: 'info',
+      });
+    }
   }
 
   return results;

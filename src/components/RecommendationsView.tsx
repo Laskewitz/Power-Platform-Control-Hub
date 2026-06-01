@@ -94,7 +94,7 @@ const useStyles = makeStyles({
     fontWeight: tokens.fontWeightSemibold,
     lineHeight: tokens.lineHeightBase400,
     wordBreak: 'normal',
-    overflowWrap: 'break-word',
+    overflowWrap: 'normal',
     hyphens: 'none',
   },
   cardCount: {
@@ -160,13 +160,11 @@ function formatScenarioName(value: string): string {
   return value
     // Replace underscores/hyphens with spaces
     .replace(/[_-]/g, ' ')
-    // Split lowercase prepositions embedded between words (e.g. "Accessfor Agents" or "AccessforAgents")
+    // Split lowercase prepositions embedded between words (e.g. "AccessforAgents")
     .replace(/([A-Za-z])(for|on|with|by|in|to|at|of)([A-Z])/g, '$1 $2 $3')
     // Standard camelCase split: lowercase→uppercase and UPPER→Uppercase
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
     .replace(/([A-Z])([A-Z][a-z])/g, '$1 $2')
-    // Safety net: fix any remaining "letterPrep" patterns (e.g. "Accessfor" not caught above)
-    .replace(/([a-z])(for|on|with|by|in|to|at|of)\b/gi, '$1 $2')
     // Collapse multiple spaces
     .replace(/\s+/g, ' ')
     .trim();

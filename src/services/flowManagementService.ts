@@ -40,6 +40,35 @@ export interface AdminFlowWithDefinition extends AdminFlowWithConnectionReferenc
 }
 
 /**
+ * Fetch basic flow details (no definition) — fast path for initial render.
+ */
+export async function getFlowDetailsOnly(
+  environmentName: string,
+  flowName: string,
+): Promise<AdminFlowWithDefinition> {
+  const result = await PowerAutomateManagementService.AdminGetFlow(environmentName, flowName, false);
+  return unwrap(result) as AdminFlowWithDefinition;
+}
+
+/**
+ * Fetch the flow definition for analysis. Returns null if not available
+ * (some flow types do not expose their definition via the admin API).
+ */
+export async function getFlowDefinitionForAnalysis(
+  environmentName: string,
+  flowName: string,
+): Promise<FlowDefinition | null> {
+  try {
+    const result = await PowerAutomateManagementService.AdminGetFlow(environmentName, flowName, true);
+    const data = unwrap(result) as AdminFlowWithDefinition;
+    return data.properties?.definition ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * @deprecated Use getFlowDetailsOnly + getFlowDefinitionForAnalysis for better performance.
  * Fetch full flow details as admin, always including the flow definition
  * so static analysis and best-practice checks can be performed on it.
  * Falls back to fetching without the definition if the API rejects the request

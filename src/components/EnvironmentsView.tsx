@@ -41,7 +41,11 @@ import ConfirmDialog from './ConfirmDialog.tsx';
 import BackupDialog from './BackupDialog.tsx';
 import EnvironmentDetailView from './EnvironmentDetailView.tsx';
 import EnvironmentGroupDialog from './EnvironmentGroupDialog.tsx';
+import CloudFlowDetailPanel from './CloudFlowDetailPanel.tsx';
+import CanvasAppDetailPanel from './CanvasAppDetailPanel.tsx';
+import CopilotStudioAgentDetailPanel from './CopilotStudioAgentDetailPanel.tsx';
 import { useMutation } from '../hooks/useMutation.tsx';
+import { formatDate } from '../utils/formatDate.ts';
 import {
   enableEnvironment,
   disableEnvironment,
@@ -191,6 +195,7 @@ export default function EnvironmentsView({
 }: EnvironmentsViewProps): ReactElement {
   const styles = useStyles();
   const [selectedEnv, setSelectedEnv] = useState<Resource | null>(null);
+  const [detailResource, setDetailResource] = useState<Resource | null>(null);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [regionFilter, setRegionFilter] = useState('all');
@@ -279,6 +284,36 @@ export default function EnvironmentsView({
   }
 
   if (selectedEnv) {
+    // If a resource detail panel is open on top of the environment view
+    if (detailResource) {
+      const typeLower = detailResource.type.toLowerCase();
+      if (typeLower.includes('powerapps') || typeLower.includes('canvasapps')) {
+        return (
+          <CanvasAppDetailPanel
+            resource={detailResource}
+            onClose={() => setDetailResource(null)}
+          />
+        );
+      }
+      if (typeLower.includes('cloudflows') || typeLower.includes('agentflows') || typeLower.includes('m365agent')) {
+        return (
+          <CloudFlowDetailPanel
+            resource={detailResource}
+            onClose={() => setDetailResource(null)}
+            onDeleted={() => setDetailResource(null)}
+          />
+        );
+      }
+      if (typeLower.includes('agents')) {
+        return (
+          <CopilotStudioAgentDetailPanel
+            resource={detailResource}
+            onClose={() => setDetailResource(null)}
+            onDeleted={() => setDetailResource(null)}
+          />
+        );
+      }
+    }
     return (
       <EnvironmentDetailView
         environment={selectedEnv}
@@ -286,6 +321,7 @@ export default function EnvironmentsView({
         envGroups={envGroups}
         onBack={() => setSelectedEnv(null)}
         onRefreshEnvironments={onRefreshEnvironments}
+        onResourceSelect={(r) => setDetailResource(r)}
       />
     );
   }
@@ -345,9 +381,7 @@ export default function EnvironmentsView({
             const isManaged = e.properties.isManaged === true;
             const region = e.location ?? '—';
             const resourceCount = countByEnv.get(displayName.toLowerCase()) ?? 0;
-            const createdAt = e.properties.createdAt
-              ? new Date(e.properties.createdAt as string).toLocaleDateString()
-              : null;
+            const createdAt = formatDate(e.properties.createdAt as string | undefined);
             const isPending = pendingEnvId === e.name;
             const envGroupId = e.properties['environmentGroupId'] as string | undefined;
             const runtimeState = ((e.properties['states'] as Record<string, unknown> | undefined)
@@ -468,7 +502,7 @@ export default function EnvironmentsView({
                   <Text style={{ fontWeight: tokens.fontWeightSemibold }}>{resourceCount}</Text>
                 </div>
 
-                {createdAt && (
+                {createdAt !== '—' && (
                   <div className={styles.metaRow}>
                     <span className={styles.metaIcon}>
                       <AppsListRegular style={{ fontSize: '0.9rem' }} />

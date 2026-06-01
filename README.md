@@ -13,48 +13,148 @@ A **Center of Excellence (CoE) Starter Kit dashboard replacement** built as a [P
 | Tab | What it shows |
 |---|---|
 | 🏠 **Overview** | Metric cards per resource type + recently created resources table |
-| 📋 **Resources** | Sortable, searchable, filterable table of all resources across all environments. Click any canvas app, cloud flow, or agent flow to open a detail panel. |
-| 🌍 **Environments** | Card grid of every environment with type badge, managed-environment indicator, region, and resource count |
-| 💡 **Recommendations** | Advisor recommendations from the admin API |
+| 📋 **Resources** | Sortable, searchable, filterable table of all resources across all environments. Click any canvas app, cloud flow, or agent to open a full detail panel. |
+| 🌍 **Environments** | Card grid of every environment with type badge, managed-environment indicator, region, and resource count. Click any environment to open the environment detail view. |
 | 🛡️ **Tenant Policies** | DLP policies (list, create, detail), billing policies, and cross-tenant connection reports |
 | 🗂️ **Environment Groups** | Environment groups, rule-based policies, and rule sets (CRUD) |
 | 🔌 **Connectors** | Per-environment connections, connectors, and Power Pages websites |
+| 💡 **Recommendations** | Advisor recommendations from the admin API |
 
-### 🔍 Resource detail panels
+---
 
-**🎨 Canvas App detail panel** (click any canvas app in Resources):
-- Best-practice analysis: 24 checks across nested galleries, delegation risks, hardcoded URLs/emails, media size, OnError handling, and more
-- Governance data: sharing stats (users + groups), active connections, bypass consent flag, premium/on-premises connectors
-- Role assignments list (owner, co-owner, viewer)
-- 🔒 Quarantine / Unquarantine actions
-- ➕ Add owner (searches AAD users)
-**🤖 Copilot Studio Agent detail panel** (click any Copilot Studio agent in Resources):
-- **Agent Details**: display name, schema name, status badge, language, authentication mode, last published, created/modified, owner, environment, Dataverse instance URL, agent ID, quarantine status
-- **Definition (Configuration)**: the `configuration` column from the Dataverse `bots` table, rendered as formatted JSON
-- **Best Practice Analysis**: checks for inactive agents, unpublished agents, unauthenticated access, missing language, and empty configuration
-- 🔒 Quarantine / Unquarantine (Power Platform Admin V2, cross-environment)
-- 🗑️ Delete (Power Platform Admin V2, cross-environment)
-- Bot record fetched from the admin environment's Dataverse (`bots` table); Dataverse instance URL resolved via the Power Platform for Admins connector
+## 🔍 Detail panels
 
-**⚡ Cloud Flow / Agent Flow / M365 Agent Flow detail panel**:
-- **Triggers & Actions** accordion section with a recursive tree view:
-  - Conditions shown with **True** / **False** branches side-by-side
-  - Loops (`Apply to each`, `Do until`), scopes, and switch/case blocks rendered as collapsible containers with nested children
-  - Connector actions display the resolved connector name + humanised operation
-  - Trigger display: connector name, human-readable trigger event, and internal trigger key (for connector triggers); schedule details (recurrence); or kind label (manual/instant)
-- **Best Practice Analysis**: 22 checks across trigger naming, undocumented actions, error handling, nested conditions, hardcoded values, missing timeout/retry, and more
-- ▶️ Enable / ⏹️ Disable / 🗑️ Delete actions
-- Owner resolution
-- ➕ Add owner action
+Each supported resource type has a full-page detail panel with structured sections, action bar, and **Best Practice Analysis (BPA)** checks.
+
+---
+
+### 🎨 Canvas App
+
+**Sections:** App Details · Inventory · Governance & Sharing · Role Assignments · Best Practice Analysis
+
+**Actions:** Quarantine / Unquarantine · Add owner (AAD user search) · Elevated admin access / Remove access
+
+**Best Practice Analysis — 9 checks:**
+
+| # | Severity | Check |
+|---|---|---|
+| 1 | ℹ️ Info | Missing app description |
+| 2 | ⚠️ Warning | Excessive connector usage (>10 connections) |
+| 3 | ℹ️ Info | Premium connector(s) in use |
+| 4 | ℹ️ Info | On-premises gateway connection(s) |
+| 5 | ⚠️ Warning | App shared with >500 individual users |
+| 6 | ℹ️ Info | App shared with >100 individual users |
+| 7 | ⚠️ Warning | Consent bypass is enabled |
+| 8 | ⚠️ Warning | App not modified in over a year (stale) |
+| 9 | ℹ️ Info | App not modified in over 6 months |
+| 10 | ⚠️ Warning | App is shared with the entire organisation |
+| 11 | ℹ️ Info | App has no co-owners / co-developers |
+
+---
+
+### ⚡ Cloud Flow / Agent Flow / M365 Agent Flow
+
+**Sections:** Flow Details · Inventory · Triggers & Actions (recursive tree) · Owners · Run-Only Users · Best Practice Analysis
+
+**Actions:** Enable · Disable · Delete · Add owner · Elevated admin access / Remove access
+
+The **Triggers & Actions** section renders the complete flow graph:
+- Conditions with **True / False** branches side-by-side
+- Loops (`Apply to each`, `Do until`), scopes, and switch/case blocks as collapsible containers
+- Connector actions with resolved connector name and humanised operation label
+- Trigger: connector + event, schedule details, or kind label (manual/instant)
+
+**Best Practice Analysis — 26 checks:**
+
+| # | Severity | Check |
+|---|---|---|
+| 1 | 🔴 Critical | No error handling detected |
+| 2 | ℹ️ Info | No trigger conditions set |
+| 3 | ⚠️ Warning | Very high-frequency recurrence trigger |
+| 4 | ℹ️ Info | Trigger concurrency limit not set |
+| 5 | ℹ️ Info | Many actions have default names |
+| 6 | ⚠️ Warning | HTTP actions without timeout |
+| 7 | 🔴 Critical | Possible sensitive data in unprotected inputs |
+| 8 | ℹ️ Info | "Apply to each" loops run sequentially |
+| 9 | ℹ️ Info | List actions may not retrieve all items (pagination) |
+| 10 | ℹ️ Info | Flow has no description |
+| 11 | ⚠️ Warning | Nested "Apply to each" loops detected |
+| 12 | ⚠️ Warning | Notification or messaging actions inside a loop |
+| 13 | ⚠️ Warning | HTTP actions have retries disabled |
+| 14 | ℹ️ Info | Flow is very large (>50 actions) |
+| 15 | ⚠️ Warning | Switch actions missing a default case |
+| 16 | ℹ️ Info | Recurrence trigger has no explicit start time / time zone |
+| 17 | ⚠️ Warning | "Do Until" loops without a meaningful iteration limit |
+| 18 | ℹ️ Info | HTTP actions use hardcoded URLs |
+| 19 | ℹ️ Info | Deeply nested actions detected |
+| 20 | ℹ️ Info | Error-path Terminate actions do not use "Failed" status |
+| 21 | ℹ️ Info | Trigger uses a default name |
+| 22 | ℹ️ Info | Most steps have no description (comment) |
+| 23 | 🔴 Critical | HTTP trigger has no Response action |
+| 24 | ⚠️ Warning | Parse JSON action(s) without a schema |
+| 25 | ⚠️ Warning | Variables used in a concurrent flow |
+| 26 | ℹ️ Info | Empty scope(s) found |
+
+---
+
+### 🤖 Copilot Studio Agent
+
+**Sections:** Agent Details · Inventory · Definition (Configuration) · Best Practice Analysis
+
+**Actions:** Quarantine / Unquarantine · Delete · Elevated admin access / Remove access
+
+**Agent Details** includes: display name, schema name, status, language, authentication mode, access control, quarantine state, last published, created/modified, owner, environment, Dataverse URL, and agent ID (Entra + Dataverse).
+
+**Inventory section** shows: orchestration type, model, authentication, channels, capabilities, sharing (viewers/editors), published date, and creator tool.
+
+**Best Practice Analysis — 13 checks:**
+
+| # | Severity | Check |
+|---|---|---|
+| 1 | ⚠️ Warning | Agent is inactive |
+| 2 | ⚠️ Warning | Agent has never been published |
+| 3 | ⚠️ Warning | Authentication mode is None or Unspecified |
+| 4 | ℹ️ Info | No configuration data found |
+| 5 | ℹ️ Info | No primary language configured |
+| 6 | ⚠️ Warning | Access control allows anyone |
+| 7 | 🔴 Critical | Group membership access control has no groups configured |
+| 8 | ⚠️ Warning | Agent allows multi-tenant access |
+| 9 | ℹ️ Info | Agent not re-published in N months (stale) |
+| 10 | ℹ️ Info | Inactive topic(s) found |
+| 11 | ⚠️ Warning | High percentage of topics are disabled (>50%) |
+| 12 | ℹ️ Info | No knowledge sources configured |
+| 13 | ℹ️ Info | No test cases defined |
+
+---
+
+### 🌍 Environment detail view
+
+**Sections:** Resources tab (table of all resources in the environment) · Settings tab · Analysis tab
+
+**Actions (Actions menu):** Enable / Disable · Enable / Disable Managed Environment · Create Backup · Apply admin access · Add to / Remove from Group
+
+The **Resources table** includes Name, Type, Created, Modified, Owner columns. Clicking the ↗ icon on a Canvas App, Cloud Flow, or Agent row opens that resource's full detail panel.
+
+The **Settings tab** exposes the environment's management settings (Power Apps AI features, Copilot Studio capabilities, Power Pages Copilot, Dynamics 365 AI, Security) and allows saving changes.
+
+**Best Practice Analysis — 5 checks:**
+
+| # | Severity | Check |
+|---|---|---|
+| 1 | ⚠️ Warning | This is the Default environment |
+| 2 | ⚠️ Warning | Trial environment will expire |
+| 3 | ℹ️ Info | Not a Managed Environment |
+| 4 | ℹ️ Info | Not assigned to an Environment Group |
+| 5 | ℹ️ Info | Large environment (>200 resources) |
+
+---
 
 ### 🛡️ DLP Policy management
 
 - Full-page list of all tenant DLP policies (V2 API)
-- **➕ Create page**: two-stage flow — basic settings (name, scope, default classification) then a connector classification stage that loads all connectors from a selected environment, appends the 4 hardcoded connectors required by the API (Spatial Services, HTTP Request, HTTP Webhook, HTTP), and lets you classify connectors into Confidential / General / Blocked buckets
-- **📄 Detail page** (Flow-style layout): compact header with policy name + badges, action bar (Edit / Delete), collapsible accordion sections for Policy Details, Connector Groups, Environments, and Advisories
-- **✨ Apply Best Practices**: analyses the current policy against a set of advisory rules (e.g. HTTP connector should be Blocked, SharePoint should be Confidential) and proposes changes in a confirmation dialog; after approval the updated policy is shown for review before saving
-- Advisories displayed as single-line rows (connector name + classification badges + reason)
-- Follows the [known DLP API limitations](https://learn.microsoft.com/en-us/connectors/powerplatformforadmins/#known-issues-and-limitations) — connector groups are always submitted explicitly (no auto-population)
+- **➕ Create page**: two-stage flow — basic settings (name, scope, default classification) then connector classification (Confidential / General / Blocked buckets)
+- **📄 Detail page**: collapsible accordion sections for Policy Details, Connector Groups, Environments, and Advisories
+- **✨ Apply Best Practices**: analyses the policy against advisory rules (e.g. HTTP connector → Blocked, SharePoint → Confidential) and proposes changes before saving
 
 ### 🗂️ Environment Groups
 
@@ -65,7 +165,7 @@ A **Center of Excellence (CoE) Starter Kit dashboard replacement** built as a [P
 
 ### 🎨 Additional UX
 
-- 🌙 Light / dark mode toggle
+- 🌙 Light / dark mode toggle (preference saved to `localStorage`)
 - 📱 Responsive layout (mobile hamburger menu)
 - Fluent UI v9 — consistent with Microsoft 365 design language
 - ♿ Accessible (WCAG-compliant contrast, ARIA labels, keyboard navigation)
@@ -90,34 +190,38 @@ CoE-Code/
 │   │   ├── inventoryApi.ts            # Inventory API calls
 │   │   ├── adminApi.ts                # Admin V2 API calls (connectors, groups…)
 │   │   ├── dlpService.ts              # DLP policy CRUD (Power Platform for Admins)
-│   │   ├── canvasAppAnalyzer.ts       # 24 best-practice checks for canvas apps
+│   │   ├── canvasAppAnalyzer.ts       # 11 best-practice checks for canvas apps
 │   │   ├── canvasAppAdminService.ts   # Canvas app governance via Power Apps for Admins
 │   │   ├── flowManagementService.ts   # Flow enable/disable/delete
-│   │   ├── flowAnalyzer.ts            # 22 best-practice checks for cloud/agent flows
+│   │   ├── flowAnalyzer.ts            # 26 best-practice checks for cloud/agent flows
 │   │   ├── copilotStudioService.ts    # Copilot Studio bot Dataverse queries + Admin V2 actions
 │   │   ├── governanceMutations.ts     # Env group / policy / rule set write ops
 │   │   ├── environmentMutations.ts    # Environment write ops
 │   │   ├── ownerCache.ts              # AAD user display name resolution
-│   │   └── settingsService.ts        # App settings persistence
-│   ├── components/
-│   │   ├── Dashboard.tsx              # Overview / metric cards
-│   │   ├── ResourcesView.tsx          # Resources table + detail panel routing
-│   │   ├── CanvasAppDetailPanel.tsx   # Canvas app detail + analysis
-│   │   ├── CloudFlowDetailPanel.tsx   # Cloud/agent flow detail + analysis
-│   │   ├── CopilotStudioAgentDetailPanel.tsx  # Copilot Studio agent detail + analysis
-│   │   ├── EnvironmentsView.tsx       # Environment cards
-│   │   ├── EnvironmentDetailView.tsx  # Single environment detail
-│   │   ├── RecommendationsView.tsx    # Advisor recommendations
-│   │   ├── GovernanceView.tsx         # Tenant Policies tab (DLP, billing, reports)
-│   │   ├── DlpPoliciesView.tsx        # Full-page DLP list / create / detail
-│   │   ├── EnvironmentGroupsView.tsx  # Environment Groups tab
-│   │   ├── ConnectorsView.tsx         # Connectors / connections tab
-│   │   └── ConfirmDialog.tsx          # Reusable confirmation dialog
-│   ├── generated/                     # Auto-generated connector clients (gitignored)
-│   │   ├── models/
-│   │   └── services/
-│   └── utils/
-│       └── errorUtils.ts              # Error message extraction helpers
+│   │   ├── settingsService.ts         # Environment management settings (read/write)
+│   │   └── tombstoneService.ts        # Soft-delete tracking for resources
+│   ├── utils/
+│   │   ├── errorUtils.ts              # Error message extraction helpers
+│   │   ├── formatDate.ts              # Date formatting helpers
+│   │   └── inventoryFormatters.ts     # Shared inventory data formatting helpers
+│   └── components/
+│       ├── Dashboard.tsx              # Overview / metric cards
+│       ├── ResourcesView.tsx          # Resources table + detail panel routing
+│       ├── CanvasAppDetailPanel.tsx   # Canvas app detail + analysis
+│       ├── CloudFlowDetailPanel.tsx   # Cloud/agent flow detail + analysis
+│       ├── CopilotStudioAgentDetailPanel.tsx  # Copilot Studio agent detail + analysis
+│       ├── EnvironmentsView.tsx       # Environment cards
+│       ├── EnvironmentDetailView.tsx  # Single environment detail + settings + analysis
+│       ├── RecommendationsView.tsx    # Advisor recommendations
+│       ├── GovernanceView.tsx         # Tenant Policies tab (DLP, billing, reports)
+│       ├── DlpPoliciesView.tsx        # Full-page DLP list / create / detail
+│       ├── EnvironmentGroupsView.tsx  # Environment Groups tab
+│       ├── ConnectorsView.tsx         # Connectors / connections tab
+│       ├── AddSelfAsAdminBanner.tsx   # Elevated access button (inline + menu variants)
+│       └── ConfirmDialog.tsx          # Reusable confirmation dialog
+├── generated/                         # Auto-generated connector clients (gitignored)
+│   ├── models/
+│   └── services/
 ├── index.html
 ├── vite.config.ts
 ├── package.json
@@ -149,7 +253,7 @@ CoE-Code/
 
 ## 🔌 Connector Setup
 
-This app requires **four connectors**. For each one, create a connection in [make.powerapps.com](https://make.powerapps.com) (**Connections → New connection**), note the Connection ID from the URL, then run `add-data-source`.
+This app requires **five connectors**. For each one, create a connection in [make.powerapps.com](https://make.powerapps.com) (**Connections → New connection**), note the Connection ID from the URL, then run `add-data-source`.
 
 | Connector | API ID | Docs |
 |---|---|---|
@@ -157,6 +261,7 @@ This app requires **four connectors**. For each one, create a connection in [mak
 | Power Platform for Admins | `shared_powerplatformforadmins` | [Reference](https://learn.microsoft.com/en-us/connectors/powerplatformforadmins/) |
 | Power Apps for Admins | `shared_powerappsforadmins` | [Reference](https://learn.microsoft.com/en-us/connectors/powerappsforadmins/) |
 | Flow Management | `shared_flowmanagement` | [Reference](https://learn.microsoft.com/en-us/connectors/flowmanagement/) |
+| Microsoft Dataverse | `shared_commondataserviceforapps` | [Reference](https://learn.microsoft.com/en-us/connectors/commondataserviceforapps/) |
 
 ### Steps after cloning
 
@@ -172,6 +277,7 @@ npx power-apps add-data-source -a shared_powerplatformadminv2    -c <connection-
 npx power-apps add-data-source -a shared_powerplatformforadmins  -c <connection-id>
 npx power-apps add-data-source -a shared_powerappsforadmins      -c <connection-id>
 npx power-apps add-data-source -a shared_flowmanagement          -c <connection-id>
+npx power-apps add-data-source -a shared_commondataserviceforapps -c <connection-id>
 ```
 
 The `src/generated/` folder is **gitignored** — every collaborator must run `add-data-source` after cloning to regenerate the typed service clients.
@@ -227,7 +333,7 @@ The CLI prints a Power Apps URL when the push succeeds.
 - **DLP policy connector groups do not auto-populate** — when creating or updating a policy, all connector assignments must be explicitly provided. The create page handles this by loading connectors from a selected environment. See [known issues](https://learn.microsoft.com/en-us/connectors/powerplatformforadmins/#known-issues-and-limitations).
 - Code apps are **not** supported in the Power Apps mobile app or Power Apps for Windows.
 - Code apps **do not** support Power Platform Git integration.
-- The `src/generated/` folder is gitignored — every collaborator must run `npx power-apps add-data-source` for all four connectors after cloning.
+- The `src/generated/` folder is gitignored — every collaborator must run `npx power-apps add-data-source` for all five connectors after cloning.
 
 ---
 

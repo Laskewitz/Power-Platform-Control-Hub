@@ -147,7 +147,6 @@ const SHOULD_BE_CONFIDENTIAL: AdvisoryRule[] = [
 const SHOULD_BE_BLOCKED: AdvisoryRule[] = [
   { id: 'shared_dropbox',    name: 'Dropbox',        reason: 'Personal cloud storage — high risk of uncontrolled data exfiltration' },
   { id: 'shared_twitter',    name: 'Twitter / X',    reason: 'Public social media — business data could be posted publicly' },
-  { id: 'shared_facebook',   name: 'Facebook',       reason: 'Personal social network — risk of data leakage to external platform' },
   { id: 'shared_gmail',      name: 'Gmail',          reason: 'Personal email — bypasses corporate email DLP controls' },
   { id: 'shared_googledrive',name: 'Google Drive',   reason: 'Unmanaged cloud storage — business data can leave the corporate tenant' },
   { id: 'shared_instagram',  name: 'Instagram',      reason: 'Consumer social media platform — not appropriate for business data' },

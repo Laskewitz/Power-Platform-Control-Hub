@@ -7,16 +7,18 @@ import {
   Input,
   Dropdown,
   Option,
+  OptionGroup,
   Badge,
   Button,
   Spinner,
   MessageBar,
   MessageBarBody,
 } from '@fluentui/react-components';
-import { DeleteRegular, SearchRegular, ArrowClockwiseRegular, OpenRegular } from '@fluentui/react-icons';
+import { DeleteRegular, SearchRegular, ArrowClockwiseRegular, OpenRegular, FilterRegular } from '@fluentui/react-icons';
 import CloudFlowDetailPanel from './CloudFlowDetailPanel.tsx';
 import CanvasAppDetailPanel from './CanvasAppDetailPanel.tsx';
 import CopilotStudioAgentDetailPanel from './CopilotStudioAgentDetailPanel.tsx';
+import EmptyState from './EmptyState.tsx';
 import type { Resource } from '../types/inventory.ts';
 import { RESOURCE_TYPE_LABELS, RESOURCE_TYPE_SHORT_LABELS, RESOURCE_TYPES_FILTER, getTypeBadgeColor } from '../types/inventory.ts';
 import ConfirmDialog from './ConfirmDialog.tsx';
@@ -24,6 +26,7 @@ import { extractMessage } from '../utils/errorUtils.ts';
 import { useMutation } from '../hooks/useMutation.tsx';
 import { deleteCopilotAgent } from '../services/resourceMutations.ts';
 import { fetchTombstonedIds, addTombstone, removeTombstone } from '../services/tombstoneService.ts';
+import { formatDate } from '../utils/formatDate.ts';
 type SortField = 'name' | 'type' | 'environment' | 'region' | 'owner' | 'created' | 'lastModified';
 type SortDir = 'asc' | 'desc';
 
@@ -57,7 +60,6 @@ const useStyles = makeStyles({
   title: {
     fontSize: tokens.fontSizeBase500,
     fontWeight: tokens.fontWeightSemibold,
-    marginRight: 'auto',
   },
   count: {
     fontSize: tokens.fontSizeBase200,
@@ -91,6 +93,10 @@ const useStyles = makeStyles({
     cursor: 'pointer',
     userSelect: 'none',
     whiteSpace: 'nowrap',
+    ':hover': {
+      color: tokens.colorNeutralForeground1,
+      backgroundColor: tokens.colorNeutralBackground3Hover,
+    },
   },
   td: {
     padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`,
@@ -111,6 +117,20 @@ const useStyles = makeStyles({
     alignItems: 'center',
     gap: tokens.spacingHorizontalXS,
     minWidth: 0,
+  },
+  tr: {
+    cursor: 'pointer',
+    ':hover td': {
+      backgroundColor: tokens.colorNeutralBackground1Hover,
+    },
+    ':focus-within td': {
+      backgroundColor: tokens.colorNeutralBackground1Hover,
+    },
+  },
+  trNonClickable: {
+    ':hover td': {
+      backgroundColor: tokens.colorNeutralBackground1Hover,
+    },
   },
   centered: {
     display: 'flex',
@@ -145,7 +165,7 @@ function getFieldValue(r: Resource, field: SortField): string {
     case 'region': return (r.environmentRegion ?? r.location ?? '').toLowerCase();
     case 'owner': return getOwnerDisplay(r).toLowerCase();
     case 'created': return r.properties.createdAt ?? '';
-    case 'lastModified': return r.properties.lastModifiedAt ?? r.properties.modifiedAt ?? '';
+    case 'lastModified': return r.properties.lastModifiedAt ?? r.properties.modifiedAt ?? r.properties.lastPublishedAt ?? '';
   }
 }
 
@@ -177,6 +197,7 @@ export default function ResourcesView({
   const [deletedNames, setDeletedNames] = useState<Set<string>>(new Set());
   const [detailResource, setDetailResource] = useState<Resource | null>(null);
   const [ownerFilter, setOwnerFilter] = useState('all');
+  const [envFilter, setEnvFilter] = useState('all');
 
   // Load tombstones from Dataverse (+ localStorage fallback) on mount
   useEffect(() => {
@@ -208,12 +229,12 @@ export default function ResourcesView({
       if (deletedNames.has(r.name)) return false;
       const matchesType = typeFilter === 'all' || r.type.toLowerCase() === typeFilter;
       const name = (r.properties.displayName ?? r.name).toLowerCase();
-      const owner = getOwnerDisplay(r).toLowerCase();
-      const matchesSearch = !term || name.includes(term) || (r.environmentName ?? '').toLowerCase().includes(term) || owner.includes(term);
+      const matchesSearch = !term || name.includes(term);
       const matchesOwner = ownerFilter === 'all' || getOwnerDisplay(r) === ownerFilter;
-      return matchesType && matchesSearch && matchesOwner;
+      const matchesEnv = envFilter === 'all' || (r.environmentName ?? '') === envFilter;
+      return matchesType && matchesSearch && matchesOwner && matchesEnv;
     });
-  }, [resources, search, typeFilter, ownerFilter, deletedNames]);
+  }, [resources, search, typeFilter, ownerFilter, envFilter, deletedNames]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
@@ -233,6 +254,15 @@ export default function ResourcesView({
     return Array.from(seen).sort((a, b) => a.localeCompare(b));
   }, [resources]);
 
+  const uniqueEnvironments = useMemo(() => {
+    const seen = new Set<string>();
+    for (const r of resources) {
+      const e = r.environmentName ?? '';
+      if (e) seen.add(e);
+    }
+    return Array.from(seen).sort((a, b) => a.localeCompare(b));
+  }, [resources]);
+
   function handleSort(field: SortField) {
     if (field === sortField) {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -245,6 +275,11 @@ export default function ResourcesView({
   function sortIndicator(field: SortField) {
     if (field !== sortField) return ' ↕';
     return sortDir === 'asc' ? ' ↑' : ' ↓';
+  }
+
+  function ariaSortAttr(field: SortField): 'ascending' | 'descending' | 'none' {
+    if (field !== sortField) return 'none';
+    return sortDir === 'asc' ? 'ascending' : 'descending';
   }
 
   const selectedLabel =
@@ -306,13 +341,26 @@ export default function ResourcesView({
       <div className={styles.toolbar}>
         <Text className={styles.title}>Resources</Text>
         <Input
-          placeholder="Search by name or environment…"
+          placeholder="Search by name…"
           value={search}
           onChange={(_, data) => setSearch(data.value)}
           contentBefore={<SearchRegular />}
           size="small"
           style={{ minWidth: '220px' }}
         />
+        <div style={{ flex: 1 }} />
+        <Dropdown
+          value={envFilter === 'all' ? 'All Environments' : envFilter}
+          selectedOptions={[envFilter]}
+          onOptionSelect={(_, data) => setEnvFilter(data.optionValue ?? 'all')}
+          size="small"
+          style={{ minWidth: '180px' }}
+        >
+          <Option value="all">All Environments</Option>
+          {uniqueEnvironments.map((e) => (
+            <Option key={e} value={e}>{e}</Option>
+          ))}
+        </Dropdown>
         <Dropdown
           value={selectedLabel}
           selectedOptions={[typeFilter]}
@@ -320,9 +368,17 @@ export default function ResourcesView({
           size="small"
           style={{ minWidth: '160px' }}
         >
-          {RESOURCE_TYPES_FILTER.map((t) => (
-            <Option key={t.key} value={t.key}>{t.label}</Option>
-          ))}
+          <OptionGroup label="Overall">
+            <Option value="all">All Types</Option>
+          </OptionGroup>
+          <OptionGroup label="By Type">
+            {[...RESOURCE_TYPES_FILTER.filter(t => t.key !== 'all')]
+              .sort((a, b) => a.label.localeCompare(b.label))
+              .map((t) => (
+                <Option key={t.key} value={t.key}>{t.label}</Option>
+              ))
+            }
+          </OptionGroup>
         </Dropdown>
         <Dropdown
           value={ownerFilter === 'all' ? 'All Owners' : ownerFilter}
@@ -366,25 +422,25 @@ export default function ResourcesView({
           </colgroup>
           <thead>
             <tr>
-              <th className={styles.th} onClick={() => handleSort('name')}>
+              <th className={styles.th} onClick={() => handleSort('name')} aria-sort={ariaSortAttr('name')}>
                 Name{sortIndicator('name')}
               </th>
-              <th className={styles.th} onClick={() => handleSort('type')}>
+              <th className={styles.th} onClick={() => handleSort('type')} aria-sort={ariaSortAttr('type')}>
                 Type{sortIndicator('type')}
               </th>
-              <th className={styles.th} onClick={() => handleSort('environment')}>
+              <th className={styles.th} onClick={() => handleSort('environment')} aria-sort={ariaSortAttr('environment')}>
                 Environment{sortIndicator('environment')}
               </th>
-              <th className={styles.th} onClick={() => handleSort('region')}>
+              <th className={styles.th} onClick={() => handleSort('region')} aria-sort={ariaSortAttr('region')}>
                 Region{sortIndicator('region')}
               </th>
-              <th className={styles.th} onClick={() => handleSort('owner')}>
+              <th className={styles.th} onClick={() => handleSort('owner')} aria-sort={ariaSortAttr('owner')}>
                 Owner{sortIndicator('owner')}
               </th>
-              <th className={styles.th} onClick={() => handleSort('created')}>
+              <th className={styles.th} onClick={() => handleSort('created')} aria-sort={ariaSortAttr('created')}>
                 Created{sortIndicator('created')}
               </th>
-              <th className={styles.th} onClick={() => handleSort('lastModified')}>
+              <th className={styles.th} onClick={() => handleSort('lastModified')} aria-sort={ariaSortAttr('lastModified')}>
                 Modified{sortIndicator('lastModified')}
               </th>
               <th className={styles.th}></th>
@@ -393,12 +449,15 @@ export default function ResourcesView({
           <tbody>
             {sorted.length === 0 ? (
               <tr>
-                <td
-                  className={styles.td}
-                  colSpan={8}
-                  style={{ textAlign: 'center', color: tokens.colorNeutralForeground3 }}
-                >
-                  No resources match your filters.
+                <td colSpan={8} style={{ padding: 0 }}>
+                  <EmptyState
+                    icon={<FilterRegular />}
+                    title="No resources match your filters"
+                    subtitle="Try adjusting your search term, environment, type, or owner filter."
+                    action={search || typeFilter !== 'all' || envFilter !== 'all' || ownerFilter !== 'all'
+                      ? { label: 'Clear filters', onClick: () => { setSearch(''); setTypeFilter('all'); setEnvFilter('all'); setOwnerFilter('all'); } }
+                      : undefined}
+                  />
                 </td>
               </tr>
             ) : (
@@ -406,8 +465,16 @@ export default function ResourcesView({
                 const displayName = r.properties.displayName ?? r.name;
                 const envName = r.environmentName;
                 const typeLower = r.type.toLowerCase();
+                const isClickable = DETAIL_PANEL_TYPES.has(typeLower);
                 return (
-                  <tr key={r.id ?? `${r.type}-${r.name}-${i}`}>
+                  <tr
+                    key={r.id ?? `${r.type}-${r.name}-${i}`}
+                    className={isClickable ? styles.tr : styles.trNonClickable}
+                    onClick={isClickable ? () => setDetailResource(r) : undefined}
+                    tabIndex={isClickable ? 0 : undefined}
+                    onKeyDown={isClickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDetailResource(r); } } : undefined}
+                    aria-label={isClickable ? `Open details for ${displayName}` : undefined}
+                  >
                     <td className={styles.td} title={displayName}>
                       <span className={styles.nameCell}>
                         <span className={styles.tdText}>{displayName}</span>
@@ -439,20 +506,12 @@ export default function ResourcesView({
                       <span className={styles.tdText}>{getOwnerDisplay(r)}</span>
                     </td>
                     <td className={styles.td}>
-                      <span className={styles.tdText}>
-                        {r.properties.createdAt
-                          ? new Date(r.properties.createdAt).toLocaleDateString()
-                          : '—'}
-                      </span>
+                      <span className={styles.tdText}>{formatDate(r.properties.createdAt)}</span>
                     </td>
                     <td className={styles.td}>
-                      <span className={styles.tdText}>
-                        {r.properties.lastModifiedAt ?? r.properties.modifiedAt
-                          ? new Date((r.properties.lastModifiedAt ?? r.properties.modifiedAt) as string).toLocaleDateString()
-                          : '—'}
-                      </span>
+                      <span className={styles.tdText}>{formatDate((r.properties.lastModifiedAt ?? r.properties.modifiedAt ?? r.properties.lastPublishedAt) as string | undefined)}</span>
                     </td>
-                    <td className={styles.td}>
+                    <td className={styles.td} onClick={(e) => e.stopPropagation()}>
                       {DELETABLE_TYPES.has(typeLower) && (
                         <Button
                           appearance="subtle"
@@ -464,13 +523,13 @@ export default function ResourcesView({
                           onClick={() => setConfirmDelete(r)}
                         />
                       )}
-                      {DETAIL_PANEL_TYPES.has(typeLower) && (
+                      {isClickable && (
                         <Button
                           appearance="subtle"
                           size="small"
                           icon={<OpenRegular />}
                           title="View details"
-                          onClick={() => setDetailResource(r)}
+                          onClick={(e) => { e.stopPropagation(); setDetailResource(r); }}
                         />
                       )}
                     </td>

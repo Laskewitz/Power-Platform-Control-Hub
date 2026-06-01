@@ -24,11 +24,10 @@ import {
   ArrowLeftRegular,
   DeleteRegular,
   ArrowClockwiseRegular,
-  InfoRegular,
+  InfoFilled,
   ShieldCheckmarkRegular,
-  WarningRegular,
-  ErrorCircleRegular,
-  CheckmarkRegular,
+  WarningFilled,
+  ErrorCircleFilled,
   CheckmarkCircleRegular,
   DismissCircleRegular,
   BotRegular,
@@ -42,7 +41,7 @@ import {
   BookOpenRegular,
   PersonAddRegular,
 } from '@fluentui/react-icons';
-import type { InventorySharingSummary, Resource } from '../types/inventory.ts';
+import type { Resource } from '../types/inventory.ts';
 import type { Bots } from '../generated/models/BotsModel.ts';
 import type { BotComponent } from '../services/dataverseConnectorService.ts';
 import { COMPONENT_TYPE_LABELS } from '../services/dataverseConnectorService.ts';
@@ -59,8 +58,11 @@ import type { BotEnvironmentInfo } from '../services/copilotStudioService.ts';
 import type { AnalysisResult, AnalysisSeverity } from '../services/flowAnalyzer.ts';
 import { resolveUserIds } from '../services/userService.ts';
 import { extractMessage } from '../utils/errorUtils.ts';
-import { checkCurrentUserIsEnvAdmin, addSelfAsEnvironmentAdmin } from '../services/environmentMutations.ts';
+import { lcidToLabel } from '../utils/lcidUtils.ts';
+import { addSelfAsEnvironmentAdmin } from '../services/environmentMutations.ts';
+import AddSelfAsAdminBanner from './AddSelfAsAdminBanner.tsx';
 import ConfirmDialog from './ConfirmDialog.tsx';
+import { hasText, formatSharedSummary, getStringArray, getCapabilityEntries } from '../utils/inventoryFormatters.ts';
 
 interface Props {
   resource: Resource;
@@ -116,7 +118,6 @@ const useStyles = makeStyles({
     display: 'flex',
     alignItems: 'center',
     gap: tokens.spacingHorizontalS,
-    flexWrap: 'wrap',
     padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalXL}`,
     borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
     flexShrink: 0,
@@ -137,7 +138,7 @@ const useStyles = makeStyles({
   detailGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(2, 1fr)',
-    gap: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalXXL}`,
+    gap: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalXL}`,
     alignItems: 'start',
     '@media (max-width: 768px)': {
       gridTemplateColumns: '1fr',
@@ -265,40 +266,23 @@ function formatDate(iso?: string): string {
   try { return new Date(iso).toLocaleString(); } catch { return iso; }
 }
 
-function hasText(value: unknown): value is string {
-  return typeof value === 'string' && value.trim().length > 0;
-}
-
-function formatSharedSummary(summary?: InventorySharingSummary): string | null {
-  if (!summary) return null;
-  if (summary.entireTenant) return 'Entire tenant';
-
-  const parts: string[] = [];
-  if (typeof summary.userCount === 'number') {
-    parts.push(`${summary.userCount} user${summary.userCount === 1 ? '' : 's'}`);
-  }
-  if (typeof summary.groupCount === 'number') {
-    parts.push(`${summary.groupCount} group${summary.groupCount === 1 ? '' : 's'}`);
-  }
-
-  return parts.length > 0 ? parts.join(', ') : null;
-}
-
-function getStringArray(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
-}
-
-function getCapabilityEntries(value: unknown): Array<[string, number]> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
-  return Object.entries(value).filter((entry): entry is [string, number] => typeof entry[1] === 'number');
-}
-
 function severityIcon(severity: AnalysisSeverity): ReactElement {
-  if (severity === 'critical') return <ErrorCircleRegular style={{ color: tokens.colorStatusDangerForeground1, flexShrink: 0 }} fontSize={16} />;
-  if (severity === 'warning') return <WarningRegular style={{ color: tokens.colorStatusWarningForeground1, flexShrink: 0 }} fontSize={16} />;
-  return <CheckmarkRegular style={{ color: tokens.colorStatusSuccessForeground1, flexShrink: 0 }} fontSize={16} />;
+  if (severity === 'critical') return <ErrorCircleFilled style={{ color: tokens.colorStatusDangerForeground1, flexShrink: 0 }} fontSize={16} />;
+  if (severity === 'warning') return <WarningFilled style={{ color: tokens.colorStatusWarningForeground1, flexShrink: 0 }} fontSize={16} />;
+  return <InfoFilled style={{ color: tokens.colorStatusSuccessForeground1, flexShrink: 0 }} fontSize={16} />;
 }
+
+const SEVERITY_LABEL: Record<AnalysisSeverity, string> = {
+  critical: 'Error',
+  warning: 'Warning',
+  info: 'Info',
+};
+
+const SEVERITY_BADGE_COLOR: Record<AnalysisSeverity, 'danger' | 'warning' | 'success'> = {
+  critical: 'danger',
+  warning: 'warning',
+  info: 'success',
+};
 
 // ── Best practice analysis for Copilot Studio agents ──────────────────────────
 
@@ -351,7 +335,7 @@ function analyzeCopilotAgent(bot: Bots | null, components: BotComponent[]): Anal
       title: 'No configuration data found',
       description: 'The agent\'s configuration field in Dataverse is empty. The agent may not have been set up or the data may be incomplete.',
       recommendation: 'Verify the agent is correctly saved in Copilot Studio and that the Dataverse bots table is accessible.',
-      severity: 'warning',
+      severity: 'info',
     });
   }
 
@@ -362,7 +346,7 @@ function analyzeCopilotAgent(bot: Bots | null, components: BotComponent[]): Anal
       title: 'No primary language configured',
       description: 'The agent does not have a primary language set in Dataverse.',
       recommendation: 'Ensure the agent has a configured primary language for accurate language routing.',
-      severity: 'warning',
+      severity: 'info',
     });
   }
 
@@ -389,9 +373,34 @@ function analyzeCopilotAgent(bot: Bots | null, components: BotComponent[]): Anal
     });
   }
 
+  // 8. Multi-tenant access
+  if (acp === 3) {
+    results.push({
+      id: 'agent-multitenant-access',
+      title: 'Agent allows multi-tenant access',
+      description: 'The access control policy is set to "Any (multi-tenant)" — users from any Azure AD tenant can interact with this agent.',
+      recommendation: 'Only enable multi-tenant access for agents intentionally serving external organisations. Restrict to your own tenant for internal agents.',
+      severity: 'warning',
+    });
+  }
+
+  // 9. Stale agent (published more than 6 months ago)
+  if (bot.publishedon) {
+    const daysSince = (Date.now() - new Date(bot.publishedon).getTime()) / (1000 * 60 * 60 * 24);
+    if (daysSince > 180) {
+      results.push({
+        id: 'agent-stale',
+        title: `Agent not re-published in ${Math.floor(daysSince / 30)} months`,
+        description: `The agent was last published ${Math.floor(daysSince)} days ago. Outdated agents may have stale topics, broken knowledge sources, or missing improvements.`,
+        recommendation: "Review the agent's topics and knowledge sources, make any necessary updates, and re-publish to ensure users receive the latest experience.",
+        severity: 'info',
+      });
+    }
+  }
+
   // Component-based checks (only when components were loaded)
   if (components.length > 0) {
-    // 8. Inactive custom topics
+    // 10. Inactive custom topics
     const inactiveTopics = components.filter(
       c => (c.componenttype === 0 || c.componenttype === 9) && Number(c.statecode) !== 0,
     );
@@ -405,19 +414,34 @@ function analyzeCopilotAgent(bot: Bots | null, components: BotComponent[]): Anal
       });
     }
 
-    // 9. No knowledge sources
+    // 11. High inactive topic ratio
+    const allTopics = components.filter(c => c.componenttype === 0 || c.componenttype === 9);
+    if (allTopics.length >= 5 && inactiveTopics.length > 0) {
+      const ratio = inactiveTopics.length / allTopics.length;
+      if (ratio > 0.5) {
+        results.push({
+          id: 'agent-high-inactive-ratio',
+          title: `${Math.round(ratio * 100)}% of topics are disabled`,
+          description: `${inactiveTopics.length} of ${allTopics.length} topics are inactive. A high proportion of disabled topics suggests the agent may be poorly maintained or partially decommissioned.`,
+          recommendation: 'Review all disabled topics. Enable the ones that should be active, and delete any that are obsolete.',
+          severity: 'warning',
+        });
+      }
+    }
+
+    // 12. No knowledge sources
     const knowledgeSources = components.filter(c => c.componenttype === 16);
     if (knowledgeSources.length === 0) {
       results.push({
         id: 'no-knowledge-sources',
         title: 'No knowledge sources configured',
         description: 'This agent has no knowledge sources. Without grounding data, the agent relies solely on its topics and generative AI defaults.',
-        recommendation: 'Consider adding knowledge sources (SharePoint, websites, uploaded files) to ground the agent\'s responses in your organisation\'s data.',
+        recommendation: "Consider adding knowledge sources (SharePoint, websites, uploaded files) to ground the agent's responses in your organisation's data.",
         severity: 'info',
       });
     }
 
-    // 10. No test cases
+    // 13. No test cases
     const testCases = components.filter(c => c.componenttype === 19);
     if (testCases.length === 0) {
       results.push({
@@ -564,8 +588,6 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
   const [expandedAnalysis, setExpandedAnalysis] = useState<Set<string>>(new Set());
   const [openSections, setOpenSections] = useState<string[]>(['details', 'inventory', 'analysis']);
 
-  // Admin access gate — check before attempting any Dataverse call
-  const [adminCheck, setAdminCheck] = useState<'loading' | 'admin' | 'notAdmin'>('loading');
   const [addingAdmin, setAddingAdmin] = useState(false);
   const [addAdminError, setAddAdminError] = useState<string | null>(null);
 
@@ -634,41 +656,28 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
     }
   }
 
+  // Load immediately — privilege errors are detected from the actual Dataverse call result
   useEffect(() => {
-    if (!envId) { setAdminCheck('admin'); return; }
-    checkCurrentUserIsEnvAdmin(envId)
-      .then(isAdmin => setAdminCheck(isAdmin ? 'admin' : 'notAdmin'))
-      .catch(() => setAdminCheck('admin')); // on check failure, proceed anyway
+    void loadDetails();
   }, []);
-
-  // Only load Dataverse data once admin access is confirmed
-  useEffect(() => {
-    if (adminCheck === 'admin') void loadDetails();
-  }, [adminCheck]);
 
   async function handleMakeAdmin() {
     setAddingAdmin(true);
     setAddAdminError(null);
     try {
       await addSelfAsEnvironmentAdmin(envId);
-      setAdminCheck('admin'); // triggers loadDetails via useEffect
-    } catch (e) {
-      setAddAdminError(extractMessage(String(e)));
-    } finally {
-      setAddingAdmin(false);
-    }
-  }
-
-  // Called from the botError block — adminCheck is already 'admin' so we call loadDetails directly
-  async function handleMakeAdminAndRetry() {
-    setAddingAdmin(true);
-    setAddAdminError(null);
-    try {
-      await addSelfAsEnvironmentAdmin(envId);
       setBotError(null);
       void loadDetails();
+      dispatchToast(
+        <Toast><ToastTitle>Admin access applied</ToastTitle><ToastBody>Your admin role has been applied for this environment.</ToastBody></Toast>,
+        { intent: 'success' },
+      );
     } catch (e) {
       setAddAdminError(extractMessage(String(e)));
+      dispatchToast(
+        <Toast><ToastTitle>Failed to apply admin access</ToastTitle><ToastBody>{extractMessage(String(e))}</ToastBody></Toast>,
+        { intent: 'error' },
+      );
     } finally {
       setAddingAdmin(false);
     }
@@ -725,8 +734,6 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
   }
 
   const analysis = analyzeCopilotAgent(bot, components);
-  const issueCount = analysis.filter((r) => r.severity !== 'info').length;
-  const hasIssues = issueCount > 0;
 
   // Parse configuration JSON for display
   let configDisplay = '—';
@@ -804,24 +811,26 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
         <div className={styles.actionBar}>
           <Button
             appearance="subtle"
-            icon={actionLoading === 'quarantine' || actionLoading === 'unquarantine'
-              ? <Spinner size="tiny" />
-              : isQuarantined ? <LockOpenRegular /> : <LockClosedRegular />}
-            disabled={actionLoading !== null || isQuarantined === null}
-            onClick={() => void handleQuarantine()}
-            size="small"
-          >
-            {isQuarantined ? 'Unquarantine' : 'Quarantine'}
-          </Button>
-          <Button
-            appearance="subtle"
-            icon={<ArrowClockwiseRegular />}
+            icon={botLoading ? <Spinner size="tiny" /> : <ArrowClockwiseRegular />}
             disabled={actionLoading !== null || botLoading}
             onClick={() => void loadDetails()}
             size="small"
-            title="Refresh"
-          />
-          <div style={{ marginLeft: 'auto' }}>
+          >
+            {botLoading ? 'Analyzing…' : 'Re-analyze'}
+          </Button>
+          <AddSelfAsAdminBanner environmentId={envId} variant="inline" onChanged={() => void loadDetails()} />
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS }}>
+            <Button
+              appearance="subtle"
+              icon={actionLoading === 'quarantine' || actionLoading === 'unquarantine'
+                ? <Spinner size="tiny" />
+                : isQuarantined ? <LockOpenRegular /> : <LockClosedRegular />}
+              disabled={actionLoading !== null || isQuarantined === null}
+              onClick={() => void handleQuarantine()}
+              size="small"
+            >
+              {isQuarantined ? 'Unquarantine' : 'Quarantine'}
+            </Button>
             <Button
               appearance="subtle"
               icon={actionLoading === 'delete' ? <Spinner size="tiny" /> : <DeleteRegular />}
@@ -837,34 +846,6 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
 
         {/* Body */}
         <div className={styles.body}>
-          {/* Access gate: check admin before loading any Dataverse data */}
-          {adminCheck === 'loading' && (
-            <Spinner size="small" label="Checking environment access…" style={{ marginBottom: tokens.spacingVerticalM }} />
-          )}
-          {adminCheck === 'notAdmin' && (
-            <MessageBar intent={addAdminError ? 'error' : 'warning'} style={{ marginBottom: tokens.spacingVerticalM, flexShrink: 0 }}>
-              <MessageBarBody>
-                {addAdminError
-                  ? `Failed to add you as System Administrator: ${addAdminError}`
-                  : 'You are not a System Administrator on this environment. Bot details require Dataverse access.'}
-              </MessageBarBody>
-              {!addAdminError && (
-                <MessageBarActions>
-                  <Button
-                    size="small"
-                    appearance="primary"
-                    icon={addingAdmin ? <Spinner size="tiny" /> : <PersonAddRegular />}
-                    disabled={addingAdmin}
-                    onClick={() => void handleMakeAdmin()}
-                  >
-                    {addingAdmin ? 'Adding…' : 'Add me as System Administrator'}
-                  </Button>
-                </MessageBarActions>
-              )}
-            </MessageBar>
-          )}
-          {adminCheck === 'admin' && (
-            <>
           {botLoading && (
             <Spinner size="small" label="Loading agent details…" style={{ marginBottom: tokens.spacingVerticalM }} />
           )}
@@ -879,7 +860,7 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
                   <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalXS }}>
                     <span>
                       {isPrivilegeError
-                        ? 'You are missing the required Dataverse privilege to load this bot record. Add yourself as System Administrator to access it.'
+                        ? 'You are missing the required Dataverse privilege to load this bot record. Apply your admin role to gain access.'
                         : 'Could not load bot record from Dataverse.'}{' '}
                       <a
                         href={`https://copilotstudio.microsoft.com/environments/${envId}/bots/${botName}/overview`}
@@ -909,9 +890,9 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
                       appearance="primary"
                       icon={addingAdmin ? <Spinner size="tiny" /> : <PersonAddRegular />}
                       disabled={addingAdmin}
-                      onClick={() => void handleMakeAdminAndRetry()}
+                      onClick={() => void handleMakeAdmin()}
                     >
-                      {addingAdmin ? 'Adding…' : 'Add me as System Administrator'}
+                      {addingAdmin ? 'Applying…' : 'Apply admin access'}
                     </Button>
                   </MessageBarActions>
                 )}
@@ -927,11 +908,11 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
           >
             {/* ── Agent Details ── */}
             <AccordionItem value="details" className={styles.accordionCard}>
-              <AccordionHeader expandIconPosition="end" icon={<InfoRegular />} className={styles.accordionHeaderTinted}>
+              <AccordionHeader expandIconPosition="end" icon={<InfoFilled />} className={styles.accordionHeaderTinted}>
                 Agent Details
               </AccordionHeader>
               <AccordionPanel>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalL, paddingBottom: tokens.spacingVerticalL }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalM, paddingBottom: tokens.spacingVerticalM }}>
                   <div className={styles.detailGrid}>
                     <div className={styles.detailItem}>
                       <span className={styles.detailLabel}>Display Name</span>
@@ -952,8 +933,8 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
 
                     {bot?.language !== undefined && bot.language !== null && (
                       <div className={styles.detailItem}>
-                        <span className={styles.detailLabel}>Language (LCID)</span>
-                        <span className={styles.detailValue}>{bot.language}</span>
+                        <span className={styles.detailLabel}>Language</span>
+                        <span className={styles.detailValue}>{lcidToLabel(Number(bot.language))}</span>
                       </div>
                     )}
 
@@ -1023,10 +1004,10 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
                       </div>
                     )}
 
-                    {(bot?.owneridname ?? resolvedOwner ?? bot?._ownerid_value) && (
+                    {(bot?.owneridname ?? resolvedOwner ?? resource.properties.resolvedOwnerName ?? bot?._ownerid_value) && (
                       <div className={styles.detailItem}>
                         <span className={styles.detailLabel}>Owner</span>
-                        <span className={styles.detailValue}>{bot?.owneridname ?? resolvedOwner ?? bot?._ownerid_value}</span>
+                        <span className={styles.detailValue}>{bot?.owneridname ?? resolvedOwner ?? resource.properties.resolvedOwnerName ?? bot?._ownerid_value}</span>
                       </div>
                     )}
 
@@ -1107,7 +1088,7 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
                 Inventory
               </AccordionHeader>
               <AccordionPanel>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalL, paddingBottom: tokens.spacingVerticalL }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalM, paddingBottom: tokens.spacingVerticalM }}>
                   {hasInventoryDetails ? (
                     <div className={styles.detailGrid}>
                       {hasText(inventoryProps.orchestration) && (
@@ -1164,7 +1145,7 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
                       )}
 
                       {hasText(inventoryProps.entraAppId) && (
-                        <div className={styles.detailItemWide}>
+                        <div className={styles.detailItem}>
                           <span className={styles.detailLabel}>Entra App ID</span>
                           <span className={styles.detailValue} style={{ fontSize: tokens.fontSizeBase200, wordBreak: 'break-all', fontFamily: 'Consolas, "Courier New", monospace', color: tokens.colorNeutralForeground3 }}>
                             {inventoryProps.entraAppId}
@@ -1173,7 +1154,7 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
                       )}
 
                       {hasText(inventoryProps.entraAgentId) && (
-                        <div className={styles.detailItemWide}>
+                        <div className={styles.detailItem}>
                           <span className={styles.detailLabel}>Entra Agent ID</span>
                           <span className={styles.detailValue} style={{ fontSize: tokens.fontSizeBase200, wordBreak: 'break-all', fontFamily: 'Consolas, "Courier New", monospace', color: tokens.colorNeutralForeground3 }}>
                             {inventoryProps.entraAgentId}
@@ -1182,7 +1163,7 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
                       )}
 
                       {hasText(inventoryProps.entraAgentBlueprintId) && (
-                        <div className={styles.detailItemWide}>
+                        <div className={styles.detailItem}>
                           <span className={styles.detailLabel}>Entra Blueprint ID</span>
                           <span className={styles.detailValue} style={{ fontSize: tokens.fontSizeBase200, wordBreak: 'break-all', fontFamily: 'Consolas, "Courier New", monospace', color: tokens.colorNeutralForeground3 }}>
                             {inventoryProps.entraAgentBlueprintId}
@@ -1256,11 +1237,18 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
               <AccordionHeader expandIconPosition="end" icon={<ShieldCheckmarkRegular />} className={styles.accordionHeaderTinted}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS }}>
                   Best Practice Analysis
-                  {!botLoading && analysis.length > 0 && (
-                    <Badge appearance="filled" size="small" color={hasIssues ? 'warning' : 'success'}>
-                      {hasIssues ? `${issueCount} issue${issueCount !== 1 ? 's' : ''}` : 'OK'}
-                    </Badge>
-                  )}
+                  {!botLoading && analysis.length > 0 && (() => {
+                    const errs = analysis.filter(a => a.severity === 'critical').length;
+                    const warns = analysis.filter(a => a.severity === 'warning').length;
+                    const infs = analysis.filter(a => a.severity === 'info').length;
+                    return (
+                      <>
+                        <Badge appearance="filled" color="subtle" size="small">{errs} error{errs !== 1 ? 's' : ''}</Badge>
+                        <Badge appearance="filled" color="subtle" size="small">{warns} warning{warns !== 1 ? 's' : ''}</Badge>
+                        <Badge appearance="filled" color="subtle" size="small">{infs} info</Badge>
+                      </>
+                    );
+                  })()}
                 </span>
               </AccordionHeader>
               <AccordionPanel>
@@ -1279,18 +1267,6 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
                     </div>
                   ) : (
                     <>
-                      <div className={styles.analysisSummary}>
-                        {hasIssues
-                          ? <WarningRegular fontSize={20} style={{ color: tokens.colorStatusWarningForeground1 }} />
-                          : <CheckmarkCircleRegular fontSize={20} style={{ color: tokens.colorStatusSuccessForeground1 }} />
-                        }
-                        <Text>
-                          {hasIssues
-                            ? `${issueCount} issue${issueCount !== 1 ? 's' : ''} found`
-                            : 'All checks passed'}
-                          {analysis.length > issueCount && ` (${analysis.length - issueCount} info)`}
-                        </Text>
-                      </div>
                       <div className={styles.analysisList}>
                         {[...analysis].sort((a, b) => {
                           const order = { critical: 0, warning: 1, info: 2 };
@@ -1305,11 +1281,8 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
                               >
                                 {severityIcon(item.severity)}
                                 <Text className={styles.analysisTitle}>{item.title}</Text>
-                                <Badge appearance="tint" color={
-                                  item.severity === 'critical' ? 'danger' :
-                                  item.severity === 'warning' ? 'warning' : 'informative'
-                                } size="small">
-                                  {item.severity}
+                                <Badge appearance="tint" color={SEVERITY_BADGE_COLOR[item.severity]} size="small">
+                                  {SEVERITY_LABEL[item.severity]}
                                 </Badge>
                               </div>
                               {isExpanded && (
@@ -1356,8 +1329,6 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
             </AccordionItem>
             )}
           </Accordion>
-            </>
-          )}
         </div>
       </div>
 

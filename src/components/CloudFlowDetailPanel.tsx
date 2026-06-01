@@ -36,13 +36,15 @@ import {
   CalendarRegular,
   FlowRegular,
   ShieldCheckmarkRegular,
-  WarningRegular,
-  ErrorCircleRegular,
+  WarningFilled,
+  ErrorCircleFilled,
+  InfoFilled,
   CheckmarkRegular,
   PlugConnectedRegular,
   PersonAddRegular,
   SearchRegular,
   OpenRegular,
+  AppsListRegular,
 } from '@fluentui/react-icons';
 import type { Resource } from '../types/inventory.ts';
 import type { FlowPermission } from '../generated/models/PowerAutomateManagementModel.ts';
@@ -50,7 +52,8 @@ import type { Aaduser } from '../generated/models/AaduserModel.ts';
 import { AaduserService } from '../generated/services/AaduserService.ts';
 import type { AdminFlowWithDefinition } from '../services/flowManagementService.ts';
 import {
-  getFlowAsAdmin,
+  getFlowDetailsOnly,
+  getFlowDefinitionForAnalysis,
   enableFlow,
   disableFlow,
   deleteFlow,
@@ -62,9 +65,10 @@ import { analyzeFlowDefinition } from '../services/flowAnalyzer.ts';
 import type { AnalysisResult, AnalysisSeverity } from '../services/flowAnalyzer.ts';
 import { useToastController, Toast, ToastTitle, ToastBody } from '@fluentui/react-components';
 import ConfirmDialog from './ConfirmDialog.tsx';
+import AddSelfAsAdminBanner from './AddSelfAsAdminBanner.tsx';
 import { extractMessage } from '../utils/errorUtils.ts';
 import { getContext } from '@microsoft/power-apps/app';
-import AddSelfAsAdminBanner from './AddSelfAsAdminBanner.tsx';
+import { formatSharedSummary } from '../utils/inventoryFormatters.ts';
 
 
 
@@ -115,6 +119,8 @@ const useStyles = makeStyles({
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
+    minWidth: 0,
+    flex: '1 1 0',
   },
   envText: {
     fontSize: tokens.fontSizeBase200,
@@ -124,7 +130,6 @@ const useStyles = makeStyles({
     display: 'flex',
     alignItems: 'center',
     gap: tokens.spacingHorizontalS,
-    flexWrap: 'wrap',
     padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalXL}`,
     borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
     flexShrink: 0,
@@ -144,12 +149,25 @@ const useStyles = makeStyles({
   },
   detailGrid: {
     display: 'grid',
-    gridTemplateColumns: '180px 1fr',
-    gap: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalL}`,
+    gridTemplateColumns: 'repeat(2, 1fr)',
+    gap: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalXL}`,
     alignItems: 'start',
-    '@media (max-width: 600px)': {
+    '@media (max-width: 768px)': {
       gridTemplateColumns: '1fr',
     },
+  },
+  detailItem: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: tokens.spacingVerticalXS,
+    minWidth: 0,
+  },
+  detailItemWide: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: tokens.spacingVerticalXS,
+    minWidth: 0,
+    gridColumn: 'span 2',
   },
   detailLabel: {
     fontSize: tokens.fontSizeBase200,
@@ -157,7 +175,6 @@ const useStyles = makeStyles({
     color: tokens.colorNeutralForeground3,
     textTransform: 'uppercase',
     letterSpacing: '0.04em',
-    paddingTop: '2px',
   },
   detailValue: {
     fontSize: tokens.fontSizeBase300,
@@ -758,21 +775,21 @@ function PermissionsList({
 }
 
 function severityIcon(severity: AnalysisSeverity): ReactElement {
-  if (severity === 'critical') return <ErrorCircleRegular fontSize={16} style={{ color: tokens.colorStatusDangerForeground1, flexShrink: 0 }} />;
-  if (severity === 'warning') return <WarningRegular fontSize={16} style={{ color: tokens.colorStatusWarningForeground1, flexShrink: 0 }} />;
-  return <InfoRegular fontSize={16} style={{ color: tokens.colorBrandForeground1, flexShrink: 0 }} />;
+  if (severity === 'critical') return <ErrorCircleFilled fontSize={16} style={{ color: tokens.colorStatusDangerForeground1, flexShrink: 0 }} />;
+  if (severity === 'warning') return <WarningFilled fontSize={16} style={{ color: tokens.colorStatusWarningForeground1, flexShrink: 0 }} />;
+  return <InfoFilled fontSize={16} style={{ color: tokens.colorStatusSuccessForeground1, flexShrink: 0 }} />;
 }
 
 const SEVERITY_LABEL: Record<AnalysisSeverity, string> = {
-  critical: 'Critical',
+  critical: 'Error',
   warning: 'Warning',
-  info: 'Tip',
+  info: 'Info',
 };
 
-const SEVERITY_BADGE_COLOR: Record<AnalysisSeverity, 'danger' | 'warning' | 'brand'> = {
+const SEVERITY_BADGE_COLOR: Record<AnalysisSeverity, 'danger' | 'warning' | 'success'> = {
   critical: 'danger',
   warning: 'warning',
-  info: 'brand',
+  info: 'success',
 };
 
 function AnalysisSection({
@@ -800,10 +817,6 @@ function AnalysisSection({
     );
   }
 
-  const criticals = results.filter((r) => r.severity === 'critical').length;
-  const warnings = results.filter((r) => r.severity === 'warning').length;
-  const tips = results.filter((r) => r.severity === 'info').length;
-
   const toggleRow = (id: string) => {
     setExpandedIds((prev) => {
       const next = new Set(prev);
@@ -826,28 +839,6 @@ function AnalysisSection({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalM }}>
-      {/* Summary */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS, flexWrap: 'wrap' }}>
-        {criticals > 0 && (
-          <Badge appearance="filled" color="danger" size="medium">
-            {criticals} critical
-          </Badge>
-        )}
-        {warnings > 0 && (
-          <Badge appearance="filled" color="warning" size="medium">
-            {warnings} warning{warnings !== 1 ? 's' : ''}
-          </Badge>
-        )}
-        {tips > 0 && (
-          <Badge appearance="filled" color="brand" size="medium">
-            {tips} tip{tips !== 1 ? 's' : ''}
-          </Badge>
-        )}
-        <Text style={{ fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground3, marginLeft: tokens.spacingHorizontalS }}>
-          Click a row to see details and recommendations
-        </Text>
-      </div>
-
       {/* Issue table */}
       <div className={styles.analysisList}>
         {results.map((r) => {
@@ -855,7 +846,7 @@ function AnalysisSection({
           const severityBorderColor =
             r.severity === 'critical' ? tokens.colorStatusDangerForeground1
             : r.severity === 'warning' ? tokens.colorStatusWarningForeground1
-            : tokens.colorBrandForeground1;
+            : tokens.colorStatusSuccessForeground1;
           return (
             <div key={r.id}>
               {/* Row */}
@@ -1126,6 +1117,7 @@ export default function CloudFlowDetailPanel({
   const [detailsLoading, setDetailsLoading] = useState(true);
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [analysisResults, setAnalysisResults] = useState<AnalysisResult[]>([]);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
   const [creatorDisplayName, setCreatorDisplayName] = useState<string | null>(null);
   const [creatorEmail, setCreatorEmail] = useState<string | null>(null);
 
@@ -1147,23 +1139,23 @@ export default function CloudFlowDetailPanel({
   // Derived status from flowDetails or fall back to inventory data
   const flowState = flowDetails?.properties?.state ?? null;
   const isStarted = flowState === 'Started';
-  const isStopped = flowState === 'Stopped';
+  const isStopped = flowState !== null && !isStarted;
 
   const loadDetails = useCallback(async () => {
     setDetailsLoading(true);
+    setAnalysisLoading(true); // keep true until Phase 2 finishes to avoid premature "not available" flash
     setDetailsError(null);
     setCreatorDisplayName(null);
     setCreatorEmail(null);
+    setAnalysisResults([]);
+    let basicData: AdminFlowWithDefinition | null = null;
+
+    // Phase 1: load basic flow info without definition (fast)
     try {
-      const data = await getFlowAsAdmin(envId, flowName);
-      setFlowDetails(data);
-      if (data.properties?.definition) {
-        setAnalysisResults(analyzeFlowDefinition(data.properties.definition));
-      } else {
-        setAnalysisResults([]);
-      }
-      // Resolve creator identity
-      const userId = data.properties?.creator?.userId ?? data.properties?.creator?.objectId;
+      basicData = await getFlowDetailsOnly(envId, flowName);
+      setFlowDetails(basicData);
+      // Resolve creator identity in background
+      const userId = basicData.properties?.creator?.userId ?? basicData.properties?.creator?.objectId;
       if (userId) {
         AaduserService.get(userId).then((res) => {
           if (res.success && res.data) {
@@ -1174,8 +1166,22 @@ export default function CloudFlowDetailPanel({
       }
     } catch (e) {
       setDetailsError(e instanceof Error ? e.message : 'Failed to load flow details');
+      return;
     } finally {
-      setDetailsLoading(false);
+      setDetailsLoading(false); // show basic content immediately
+    }
+
+    // Phase 2: load definition for analysis in background
+    try {
+      const definition = await getFlowDefinitionForAnalysis(envId, flowName);
+      if (definition) {
+        setFlowDetails(prev => prev
+          ? { ...prev, properties: { ...prev.properties, definition } }
+          : prev);
+        setAnalysisResults(analyzeFlowDefinition(definition));
+      }
+    } finally {
+      setAnalysisLoading(false);
     }
   }, [envId, flowName]);
 
@@ -1380,10 +1386,12 @@ export default function CloudFlowDetailPanel({
           <FlowRegular fontSize={20} style={{ color: tokens.colorBrandForeground1, flexShrink: 0 }} />
           <div className={styles.headerMeta}>
             <div className={styles.titleRow}>
-              <Tooltip content={displayName} relationship="label">
-                <Text className={styles.flowTitle}>{displayName}</Text>
-              </Tooltip>
-              <Badge appearance="tint" color="brand" size="small">{flowTypeLabel}</Badge>
+              <div style={{ overflow: 'hidden', minWidth: 0, flex: '1 1 auto' }}>
+                <Tooltip content={displayName} relationship="label">
+                  <Text className={styles.flowTitle}>{displayName}</Text>
+                </Tooltip>
+              </div>
+              <Badge appearance="tint" color="brand" size="small" style={{ flexShrink: 0 }}>{flowTypeLabel}</Badge>
               {flowState && (
                 <Badge
                   appearance="tint"
@@ -1403,36 +1411,15 @@ export default function CloudFlowDetailPanel({
 
         {/* Action bar */}
         <div className={styles.actionBar}>
-          {isStopped && (
-            <Button
-              appearance="primary"
-              icon={actionLoading === 'enable' ? <Spinner size="tiny" /> : <PlayRegular />}
-              disabled={actionLoading !== null}
-              onClick={() => void handleEnable()}
-              size="small"
-            >
-              Enable Flow
-            </Button>
-          )}
-          {isStarted && (
-            <Button
-              appearance="secondary"
-              icon={actionLoading === 'disable' ? <Spinner size="tiny" /> : <StopRegular />}
-              disabled={actionLoading !== null}
-              onClick={() => void handleDisable()}
-              size="small"
-            >
-              Disable Flow
-            </Button>
-          )}
           <Button
             appearance="subtle"
-            icon={<ArrowClockwiseRegular />}
-            disabled={actionLoading !== null || detailsLoading}
+            icon={detailsLoading || analysisLoading ? <Spinner size="tiny" /> : <ArrowClockwiseRegular />}
+            disabled={actionLoading !== null || detailsLoading || analysisLoading}
             onClick={() => void loadDetails()}
             size="small"
-            title="Refresh"
-          />
+          >
+            {detailsLoading || analysisLoading ? 'Analyzing…' : 'Re-analyze'}
+          </Button>
           <Button
             appearance="subtle"
             icon={actionLoading === 'addSelf' ? <Spinner size="tiny" /> : <PersonAddRegular />}
@@ -1452,19 +1439,42 @@ export default function CloudFlowDetailPanel({
           >
             Add Owner
           </Button>
-          <div style={{ marginLeft: 'auto' }}>
-            {flowUrl && (
+          {flowUrl && (
+            <Button
+              appearance="subtle"
+              icon={<OpenRegular />}
+              as="a"
+              href={flowUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              size="small"
+              title={`Open ${flowTypeLabel} in Power Automate`}
+            >
+              Open in Power Automate
+            </Button>
+          )}
+          <AddSelfAsAdminBanner environmentId={envId} variant="inline" onChanged={() => void loadDetails()} />
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS }}>
+            {isStopped && (
               <Button
                 appearance="subtle"
-                icon={<OpenRegular />}
-                as="a"
-                href={flowUrl}
-                target="_blank"
-                rel="noopener noreferrer"
+                icon={actionLoading === 'enable' ? <Spinner size="tiny" /> : <PlayRegular />}
+                disabled={actionLoading !== null}
+                onClick={() => void handleEnable()}
                 size="small"
-                title={`Open ${flowTypeLabel} in Power Automate`}
               >
-                Open in Power Automate
+                Enable Flow
+              </Button>
+            )}
+            {isStarted && (
+              <Button
+                appearance="subtle"
+                icon={actionLoading === 'disable' ? <Spinner size="tiny" /> : <StopRegular />}
+                disabled={actionLoading !== null}
+                onClick={() => void handleDisable()}
+                size="small"
+              >
+                Disable Flow
               </Button>
             )}
             <Button
@@ -1482,11 +1492,19 @@ export default function CloudFlowDetailPanel({
 
         {/* Accordion sections */}
         <div className={styles.body}>
-          <AddSelfAsAdminBanner environmentId={envId} />
-          {detailsLoading && <Spinner size="small" label="Loading flow details…" style={{ marginBottom: tokens.spacingVerticalM }} />}
-          {detailsError && (
-            <CollapsibleError error={detailsError} style={{ marginBottom: tokens.spacingVerticalM }} />
-          )}
+          {detailsError && (() => {
+            const isDataverseErr = detailsError.includes('InsufficientCdsPermissions');
+            if (isDataverseErr) {
+              return (
+                <MessageBar intent="warning" style={{ marginBottom: tokens.spacingVerticalM }}>
+                  <MessageBarBody>
+                    This M365 Agent Flow requires Dataverse access to load its details. Use <strong>Apply admin access</strong> in the toolbar above to gain access, then refresh.
+                  </MessageBarBody>
+                </MessageBar>
+              );
+            }
+            return <CollapsibleError error={detailsError} style={{ marginBottom: tokens.spacingVerticalM }} />;
+          })()}
           <Accordion
             multiple
             collapsible
@@ -1499,74 +1517,76 @@ export default function CloudFlowDetailPanel({
                 Flow Details
               </AccordionHeader>
               <AccordionPanel>
-                {!detailsLoading && !detailsError && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalL, paddingBottom: tokens.spacingVerticalL }}>
+                <div style={{ padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM} ${tokens.spacingVerticalM}` }}>
+                  {detailsLoading && <Spinner size="small" label="Loading flow details…" />}
+                  {!detailsLoading && !detailsError && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalM }}>
                     {/* Metadata grid */}
                     <div className={styles.detailGrid}>
-                      <span className={styles.detailLabel}>Status</span>
-                      <span className={styles.detailValue}>
-                        {flowState
-                          ? <Badge appearance="tint" color={isStarted ? 'success' : 'warning'} size="small"
-                              icon={isStarted ? <CheckmarkCircleRegular /> : <DismissCircleRegular />}>
-                              {isStarted ? 'Enabled' : 'Disabled'}
-                            </Badge>
-                          : '—'}
-                      </span>
+                      <div className={styles.detailItem}>
+                        <span className={styles.detailLabel}>Status</span>
+                        <span className={styles.detailValue}>
+                          {flowState
+                            ? <Badge appearance="tint" color={isStarted ? 'success' : 'warning'} size="small"
+                                icon={isStarted ? <CheckmarkCircleRegular /> : <DismissCircleRegular />}>
+                                {isStarted ? 'Enabled' : 'Disabled'}
+                              </Badge>
+                            : '—'}
+                        </span>
+                      </div>
 
-                      <span className={styles.detailLabel}>Created</span>
-                      <span className={styles.detailValue}>
-                        <CalendarInlineIcon /> {formatDate(props?.createdTime ?? resource.properties.createdAt)}
-                      </span>
+                      <div className={styles.detailItem}>
+                        <span className={styles.detailLabel}>Environment</span>
+                        <span className={styles.detailValue}>
+                          {resource.environmentName ?? <span style={{ color: tokens.colorNeutralForeground3, fontSize: tokens.fontSizeBase200, wordBreak: 'break-all' }}>{envId}</span>}
+                        </span>
+                      </div>
 
-                      <span className={styles.detailLabel}>Last Modified</span>
-                      <span className={styles.detailValue}>
-                        <CalendarInlineIcon /> {formatDate(props?.lastModifiedTime ?? resource.properties.lastModifiedAt ?? resource.properties.modifiedAt)}
-                      </span>
+                      <div className={styles.detailItem}>
+                        <span className={styles.detailLabel}>Created</span>
+                        <span className={styles.detailValue}>
+                          <CalendarInlineIcon /> {formatDate(props?.createdTime ?? resource.properties.createdAt)}
+                        </span>
+                      </div>
+
+                      <div className={styles.detailItem}>
+                        <span className={styles.detailLabel}>Last Modified</span>
+                        <span className={styles.detailValue}>
+                          <CalendarInlineIcon /> {formatDate(props?.lastModifiedTime ?? resource.properties.lastModifiedAt ?? resource.properties.modifiedAt)}
+                        </span>
+                      </div>
 
                       {creator && (
-                        <>
+                        <div className={styles.detailItem}>
                           <span className={styles.detailLabel}>Creator</span>
                           <span className={styles.detailValue}>
                             {creatorDisplayName
-                              ? <span>
-                                  <span style={{ fontWeight: tokens.fontWeightSemibold }}>{creatorDisplayName}</span>
-                                  {creatorEmail && <span style={{ color: tokens.colorNeutralForeground3, marginLeft: '8px', fontSize: tokens.fontSizeBase200 }}>{creatorEmail}</span>}
-                                </span>
-                              : <span style={{ color: tokens.colorNeutralForeground3, fontSize: tokens.fontSizeBase200 }}>
-                                  {creator.userId ?? creator.objectId ?? '—'}
-                                </span>
+                              ? `${creatorDisplayName}${creatorEmail ? ` (${creatorEmail})` : ''}`
+                              : (creator.userId ?? creator.objectId ?? '—')
                             }
                           </span>
-                        </>
+                        </div>
                       )}
 
-                      <span className={styles.detailLabel}>Environment</span>
-                      <span className={styles.detailValue}>
-                        {resource.environmentName
-                          ? <span>
-                              <span style={{ fontWeight: tokens.fontWeightSemibold }}>{resource.environmentName}</span>
-                              <span style={{ display: 'block', color: tokens.colorNeutralForeground3, fontSize: tokens.fontSizeBase200, wordBreak: 'break-all' }}>{envId}</span>
-                            </span>
-                          : <span style={{ color: tokens.colorNeutralForeground2, fontSize: tokens.fontSizeBase200, wordBreak: 'break-all' }}>{envId}</span>
-                        }
-                      </span>
-
-                      <span className={styles.detailLabel}>Flow ID</span>
-                      <span className={styles.detailValue} style={{ wordBreak: 'break-all', fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground3 }}>
-                        {flowName}
-                      </span>
+                      <div className={styles.detailItem}>
+                        <span className={styles.detailLabel}>Flow ID</span>
+                        <span className={styles.detailValue} style={{ wordBreak: 'break-all', fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground3, fontFamily: 'Consolas, "Courier New", monospace' }}>
+                          {flowName}
+                        </span>
+                      </div>
 
                       {resource.properties.workflowEntityId && (
-                        <>
+                        <div className={styles.detailItem}>
                           <span className={styles.detailLabel}>Workflow Entity ID</span>
                           <span className={styles.detailValue} style={{ wordBreak: 'break-all', fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground3, fontFamily: 'Consolas, "Courier New", monospace' }}>
                             {resource.properties.workflowEntityId}
                           </span>
-                        </>
+                        </div>
                       )}
                     </div>
                   </div>
-                )}
+                  )}
+                </div>
               </AccordionPanel>
             </AccordionItem>
 
@@ -1581,7 +1601,7 @@ export default function CloudFlowDetailPanel({
                 </span>
               </AccordionHeader>
               <AccordionPanel>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalL, paddingBottom: tokens.spacingVerticalL }}>
+                <div style={{ padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalM} ${tokens.spacingVerticalL}` }}>
                     {/* Trigger */}
                     {(Object.keys(defTriggers).length > 0 || triggersSummary.length > 0) && (
                       <div>
@@ -1664,29 +1684,60 @@ export default function CloudFlowDetailPanel({
               </AccordionPanel>
             </AccordionItem>
 
+            {/* ── Inventory ── */}
+            {(() => {
+              const props = resource.properties;
+              const viewersSummary = props?.sharedWithViewers ? formatSharedSummary(props.sharedWithViewers) : null;
+              const editorsSummary = props?.sharedWithEditors ? formatSharedSummary(props.sharedWithEditors) : null;
+              const hasData = viewersSummary || editorsSummary;
+              if (!hasData) return null;
+              return (
+                <AccordionItem value="inventory" className={styles.accordionCard}>
+                  <AccordionHeader expandIconPosition="end" icon={<AppsListRegular />} className={styles.accordionHeaderTinted}>Inventory</AccordionHeader>
+                  <AccordionPanel>
+                    <div className={styles.detailGrid}>
+                      {viewersSummary && (
+                        <div className={styles.detailItem}>
+                          <Text size={200} weight="semibold">Run-Only Users (Inventory)</Text>
+                          <Text size={300}>{viewersSummary}</Text>
+                        </div>
+                      )}
+                      {editorsSummary && (
+                        <div className={styles.detailItem}>
+                          <Text size={200} weight="semibold">Co-Owners (Inventory)</Text>
+                          <Text size={300}>{editorsSummary}</Text>
+                        </div>
+                      )}
+                    </div>
+                  </AccordionPanel>
+                </AccordionItem>
+              );
+            })()}
+
             {/* ── Best Practice Analysis ── */}
             <AccordionItem value="analysis" className={styles.accordionCard}>
               <AccordionHeader expandIconPosition="end" icon={<ShieldCheckmarkRegular />} className={styles.accordionHeaderTinted}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS }}>
                   Best Practice Analysis
-                  {analysisResults.length > 0 && !detailsLoading && (
-                    <Badge
-                      appearance="filled"
-                      size="small"
-                      color={analysisResults.some((r) => r.severity === 'critical') ? 'danger'
-                        : analysisResults.some((r) => r.severity === 'warning') ? 'warning'
-                        : 'brand'}
-                    >
-                      {analysisResults.length}
-                    </Badge>
-                  )}
+                  {!analysisLoading && analysisResults.length > 0 && (() => {
+                    const errs = analysisResults.filter((r) => r.severity === 'critical').length;
+                    const warns = analysisResults.filter((r) => r.severity === 'warning').length;
+                    const infs = analysisResults.filter((r) => r.severity === 'info').length;
+                    return (
+                      <>
+                        <Badge appearance="filled" color="subtle" size="small">{errs} error{errs !== 1 ? 's' : ''}</Badge>
+                        <Badge appearance="filled" color="subtle" size="small">{warns} warning{warns !== 1 ? 's' : ''}</Badge>
+                        <Badge appearance="filled" color="subtle" size="small">{infs} info</Badge>
+                      </>
+                    );
+                  })()}
                 </span>
               </AccordionHeader>
               <AccordionPanel>
-                <div style={{ paddingBottom: tokens.spacingVerticalL }}>
+                <div style={{ padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalM} ${tokens.spacingVerticalL}` }}>
                   <AnalysisSection
                     results={analysisResults}
-                    isLoading={detailsLoading}
+                    isLoading={analysisLoading}
                     hasDefinition={Boolean(flowDetails?.properties?.definition)}
                     flowTypeLabel={flowTypeLabel}
                   />
@@ -1698,7 +1749,7 @@ export default function CloudFlowDetailPanel({
             <AccordionItem value="owners" className={styles.accordionCard}>
               <AccordionHeader expandIconPosition="end" icon={<PersonRegular />} className={styles.accordionHeaderTinted}>Owners</AccordionHeader>
               <AccordionPanel>
-                <div style={{ paddingBottom: tokens.spacingVerticalL }}>
+                <div style={{ padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalM} ${tokens.spacingVerticalL}` }}>
                   <PermissionsList
                     permissions={owners}
                     isLoading={ownersLoading}
@@ -1714,7 +1765,7 @@ export default function CloudFlowDetailPanel({
             <AccordionItem value="runonlyusers" className={styles.accordionCard}>
               <AccordionHeader expandIconPosition="end" icon={<PeopleRegular />} className={styles.accordionHeaderTinted}>Run-Only Users</AccordionHeader>
               <AccordionPanel>
-                <div style={{ paddingBottom: tokens.spacingVerticalL }}>
+                <div style={{ padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalM} ${tokens.spacingVerticalL}` }}>
                   <PermissionsList
                     permissions={runOnlyUsers}
                     isLoading={runOnlyLoading}

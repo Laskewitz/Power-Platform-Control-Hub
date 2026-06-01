@@ -37,6 +37,7 @@ import ConfirmDialog from './ConfirmDialog.tsx';
 import { useMutation } from '../hooks/useMutation.tsx';
 import { deleteCopilotAgent } from '../services/resourceMutations.ts';
 import { fetchTombstonedIds, addTombstone, removeTombstone } from '../services/tombstoneService.ts';
+import { formatDate } from '../utils/formatDate.ts';
 
 const DELETABLE_TYPES = new Set<string>([]);
 function getOwnerDisplay(r: Resource): string {
@@ -565,11 +566,7 @@ export default function Dashboard({
                         <span className={styles.tdText}>{getOwnerDisplay(r)}</span>
                       </td>
                       <td className={tdClass}>
-                        <span className={styles.tdText}>
-                          {r.properties.createdAt
-                            ? new Date(r.properties.createdAt).toLocaleDateString()
-                            : '—'}
-                        </span>
+                        <span className={styles.tdText}>{formatDate(r.properties.createdAt)}</span>
                       </td>
                       <td className={tdClass}>
                         {DELETABLE_TYPES.has(typeLower) && (

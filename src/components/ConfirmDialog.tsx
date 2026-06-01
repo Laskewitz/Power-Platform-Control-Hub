@@ -9,6 +9,7 @@ import {
   DialogTitle,
   tokens,
 } from '@fluentui/react-components';
+import { WarningRegular } from '@fluentui/react-icons';
 
 export interface ConfirmDialogProps {
   open: boolean;
@@ -37,19 +38,26 @@ export default function ConfirmDialog({
     <Dialog open={open} onOpenChange={(_, data) => { if (!data.open) onCancel(); }}>
       <DialogSurface>
         <DialogBody>
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle
+            action={isDangerous
+              ? <WarningRegular style={{ color: tokens.colorStatusDangerForeground1, fontSize: '20px' }} />
+              : undefined}
+          >
+            {title}
+          </DialogTitle>
           <DialogContent>{message}</DialogContent>
           <DialogActions>
             <Button appearance="secondary" disabled={isLoading} onClick={onCancel}>
               Cancel
             </Button>
             <Button
-              appearance={isDangerous ? 'outline' : confirmAppearance}
+              appearance={isDangerous ? 'primary' : confirmAppearance}
               disabled={isLoading}
               onClick={onConfirm}
               style={isDangerous ? {
-                color: tokens.colorStatusDangerForeground1,
-                borderColor: tokens.colorStatusDangerForeground1,
+                backgroundColor: tokens.colorStatusDangerBackground3,
+                borderColor: tokens.colorStatusDangerBackground3,
+                color: tokens.colorNeutralForegroundOnBrand,
               } : undefined}
             >
               {isLoading ? 'Working…' : confirmLabel}

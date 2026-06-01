@@ -167,7 +167,7 @@ function checkErrorHandling(allActions: Array<[string, FlowAction]>): AnalysisRe
 
   return {
     id: 'no-error-handling',
-    severity: 'warning',
+    severity: 'critical',
     title: 'No error handling detected',
     description: 'This flow does not appear to handle action failures. If any step fails, the flow will fail silently without notification or cleanup.',
     recommendation: 'Add a "Scope" action around the main logic and a second scope that runs on failure (set runAfter to Failed/TimedOut) to send notifications or perform cleanup.',
@@ -284,7 +284,7 @@ function checkSensitiveDataExposure(allActions: Array<[string, FlowAction]>): An
 
   return {
     id: 'sensitive-data-exposure',
-    severity: 'warning',
+    severity: 'critical',
     title: 'Possible sensitive data in unprotected inputs',
     description: `${exposed.length} action(s) appear to reference sensitive values (passwords, tokens, keys) without enabling "Secure Inputs".`,
     recommendation: 'Enable "Secure Inputs" (and "Secure Outputs") on actions that handle credentials or secrets to prevent them from appearing in run history.',
@@ -613,6 +613,93 @@ function checkUndocumentedActions(
 }
 
 
+// ── New check: HTTP trigger without a Response action ─────────────────────────
+function checkHttpTriggerWithoutResponse(
+  triggers: Record<string, FlowTrigger>,
+  allActions: Array<[string, FlowAction]>,
+): AnalysisResult | null {
+  const hasHttpTrigger = Object.values(triggers).some(
+    t => t.type === 'Request' || t.kind === 'Http',
+  );
+  if (!hasHttpTrigger) return null;
+
+  const hasResponse = allActions.some(([, a]) => a.type === 'Response');
+  if (hasResponse) return null;
+
+  return {
+    id: 'http-trigger-no-response',
+    severity: 'critical',
+    title: 'HTTP trigger has no Response action',
+    description: 'This flow is triggered by an HTTP request but has no Response action. The caller will block until the default 120-second timeout elapses.',
+    recommendation: 'Add a Response action to return a result to the caller. For fire-and-forget patterns, use an HTTP trigger with the async response option enabled.',
+  };
+}
+
+// ── New check: Parse JSON without schema ──────────────────────────────────────
+function checkParseJsonWithoutSchema(
+  allActions: Array<[string, FlowAction]>,
+): AnalysisResult | null {
+  const affected: string[] = [];
+  for (const [name, action] of allActions) {
+    if (action.type !== 'ParseJson') continue;
+    const schema = (action.inputs as Record<string, unknown> | undefined)?.schema;
+    if (!schema || (typeof schema === 'object' && Object.keys(schema as object).length === 0)) {
+      affected.push(name);
+    }
+  }
+  if (affected.length === 0) return null;
+
+  return {
+    id: 'parse-json-no-schema',
+    severity: 'warning',
+    title: `${affected.length} Parse JSON action${affected.length !== 1 ? 's' : ''} without a schema`,
+    description: `${affected.length} "Parse JSON" action${affected.length !== 1 ? 's' : ''} ${affected.length === 1 ? 'has' : 'have'} no schema defined. Without a schema, dynamic content from these actions is unavailable in the designer and the flow may fail if the input structure changes.`,
+    recommendation: 'Click "Generate from sample" inside each Parse JSON action to create a schema from an example payload. This enables dynamic content and catches structural changes early.',
+    affectedItems: affected.slice(0, 8),
+  };
+}
+
+// ── New check: Variables used in a concurrent flow ────────────────────────────
+function checkVariablesWithConcurrency(
+  triggers: Record<string, FlowTrigger>,
+  allActions: Array<[string, FlowAction]>,
+): AnalysisResult | null {
+  const concurrency = Object.values(triggers)[0]?.runtimeConfiguration?.concurrency?.runs ?? 1;
+  if (concurrency <= 1) return null;
+
+  const varActions = allActions
+    .filter(([, a]) => a.type === 'InitializeVariable')
+    .map(([name]) => name);
+  if (varActions.length === 0) return null;
+
+  return {
+    id: 'variables-with-concurrency',
+    severity: 'warning',
+    title: 'Variables used in a concurrent flow',
+    description: `This flow allows up to ${concurrency} concurrent runs but initialises ${varActions.length} variable${varActions.length !== 1 ? 's' : ''}. Flow variables are shared across simultaneous runs, which can cause race conditions and unpredictable values.`,
+    recommendation: 'Disable concurrency control if you rely on variables, or replace variables with Compose actions that scope data locally to each run.',
+    affectedItems: varActions.slice(0, 6),
+  };
+}
+
+// ── New check: Empty scope ─────────────────────────────────────────────────────
+function checkEmptyScopes(
+  allActions: Array<[string, FlowAction]>,
+): AnalysisResult | null {
+  const empty = allActions
+    .filter(([, a]) => a.type === 'Scope' && (!a.actions || Object.keys(a.actions).length === 0))
+    .map(([name]) => name);
+  if (empty.length === 0) return null;
+
+  return {
+    id: 'empty-scope',
+    severity: 'info',
+    title: `${empty.length} empty scope${empty.length !== 1 ? 's' : ''} found`,
+    description: `${empty.length} Scope action${empty.length !== 1 ? 's' : ''} contain no steps. Empty scopes may be leftover from incomplete work or clean-up.`,
+    recommendation: 'Add actions inside the scope or remove it. Scopes are most valuable as try-catch error-handling blocks — an empty scope adds no value.',
+    affectedItems: empty.slice(0, 6),
+  };
+}
 
 export function analyzeFlowDefinition(definition: FlowDefinition): AnalysisResult[] {
   const results: AnalysisResult[] = [];
@@ -645,6 +732,11 @@ export function analyzeFlowDefinition(definition: FlowDefinition): AnalysisResul
     // Naming & documentation
     checkTriggerDefaultName(triggers),
     checkUndocumentedActions(allActions, triggers),
+    // Advanced reliability & correctness
+    checkHttpTriggerWithoutResponse(triggers, allActions),
+    checkParseJsonWithoutSchema(allActions),
+    checkVariablesWithConcurrency(triggers, allActions),
+    checkEmptyScopes(allActions),
   ];
 
   for (const r of checks) {

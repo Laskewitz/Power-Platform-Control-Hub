@@ -13,6 +13,7 @@ import {
   AccordionPanel,
   MessageBar,
   MessageBarBody,
+  Tooltip,
 } from '@fluentui/react-components';
 import {
   ArrowLeftRegular,
@@ -20,14 +21,16 @@ import {
   AppGenericRegular,
   InfoRegular,
   ShieldCheckmarkRegular,
-  ErrorCircleRegular,
-  WarningRegular,
+  ErrorCircleFilled,
+  WarningFilled,
+  InfoFilled,
   CheckmarkRegular,
   PeopleRegular,
   PlugConnectedRegular,
   PersonRegular,
   LockClosedRegular,
   LockOpenRegular,
+  AppsListRegular,
 } from '@fluentui/react-icons';
 import type { Resource } from '../types/inventory.ts';
 import type { CanvasAppAdminInfo, AppRoleAssignment } from '../services/canvasAppAdminService.ts';
@@ -36,6 +39,8 @@ import { analyzeCanvasApp } from '../services/canvasAppAnalyzer.ts';
 import type { AnalysisResult, AnalysisSeverity } from '../services/flowAnalyzer.ts';
 import { extractMessage } from '../utils/errorUtils.ts';
 import AddSelfAsAdminBanner from './AddSelfAsAdminBanner.tsx';
+import { formatDateTime } from '../utils/formatDate.ts';
+import { formatSharedSummary } from '../utils/inventoryFormatters.ts';
 
 interface Props {
   resource: Resource;
@@ -66,6 +71,12 @@ const useStyles = makeStyles({
     flex: 1,
     minWidth: 0,
   },
+  titleRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalS,
+    flexWrap: 'wrap',
+  },
   title: {
     fontSize: tokens.fontSizeBase500,
     fontWeight: tokens.fontWeightSemibold,
@@ -73,7 +84,7 @@ const useStyles = makeStyles({
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
   },
-  subtitle: {
+  envText: {
     fontSize: tokens.fontSizeBase200,
     color: tokens.colorNeutralForeground3,
   },
@@ -94,9 +105,25 @@ const useStyles = makeStyles({
   },
   detailGrid: {
     display: 'grid',
-    gridTemplateColumns: '180px 1fr',
-    gap: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalL}`,
+    gridTemplateColumns: 'repeat(2, 1fr)',
+    gap: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalXL}`,
     alignItems: 'start',
+    '@media (max-width: 768px)': {
+      gridTemplateColumns: '1fr',
+    },
+  },
+  detailItem: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: tokens.spacingVerticalXS,
+    minWidth: 0,
+  },
+  detailItemWide: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: tokens.spacingVerticalXS,
+    minWidth: 0,
+    gridColumn: 'span 2',
   },
   detailLabel: {
     fontSize: tokens.fontSizeBase200,
@@ -104,7 +131,6 @@ const useStyles = makeStyles({
     color: tokens.colorNeutralForeground3,
     textTransform: 'uppercase',
     letterSpacing: '0.04em',
-    paddingTop: '2px',
   },
   detailValue: {
     fontSize: tokens.fontSizeBase300,
@@ -183,13 +209,13 @@ const useStyles = makeStyles({
 });
 
 const SEV_ICON: Record<AnalysisSeverity, ReactElement> = {
-  critical: <ErrorCircleRegular fontSize={16} style={{ color: tokens.colorStatusDangerForeground1, flexShrink: 0 }} />,
-  warning: <WarningRegular fontSize={16} style={{ color: tokens.colorStatusWarningForeground1, flexShrink: 0 }} />,
-  info: <InfoRegular fontSize={16} style={{ color: tokens.colorBrandForeground1, flexShrink: 0 }} />,
+  critical: <ErrorCircleFilled fontSize={16} style={{ color: tokens.colorStatusDangerForeground1, flexShrink: 0 }} />,
+  warning: <WarningFilled fontSize={16} style={{ color: tokens.colorStatusWarningForeground1, flexShrink: 0 }} />,
+  info: <InfoFilled fontSize={16} style={{ color: tokens.colorStatusSuccessForeground1, flexShrink: 0 }} />,
 };
-const SEV_LABEL: Record<AnalysisSeverity, string> = { critical: 'Critical', warning: 'Warning', info: 'Tip' };
-const SEV_COLOR: Record<AnalysisSeverity, 'danger' | 'warning' | 'brand'> = {
-  critical: 'danger', warning: 'warning', info: 'brand',
+const SEV_LABEL: Record<AnalysisSeverity, string> = { critical: 'Error', warning: 'Warning', info: 'Info' };
+const SEV_COLOR: Record<AnalysisSeverity, 'danger' | 'warning' | 'success'> = {
+  critical: 'danger', warning: 'warning', info: 'success',
 };
 
 function AnalysisSection({ results }: { results: AnalysisResult[] }): ReactElement {
@@ -214,27 +240,15 @@ function AnalysisSection({ results }: { results: AnalysisResult[] }): ReactEleme
     );
   }
 
-  const criticals = results.filter(r => r.severity === 'critical').length;
-  const warnings = results.filter(r => r.severity === 'warning').length;
-  const tips = results.filter(r => r.severity === 'info').length;
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalM }}>
-      <div style={{ display: 'flex', gap: tokens.spacingHorizontalS, flexWrap: 'wrap', alignItems: 'center' }}>
-        {criticals > 0 && <Badge appearance="filled" color="danger" size="medium">{criticals} critical</Badge>}
-        {warnings > 0 && <Badge appearance="filled" color="warning" size="medium">{warnings} warning{warnings !== 1 ? 's' : ''}</Badge>}
-        {tips > 0 && <Badge appearance="filled" color="brand" size="medium">{tips} tip{tips !== 1 ? 's' : ''}</Badge>}
-        <Text style={{ fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground3 }}>
-          Click a row for details
-        </Text>
-      </div>
       <div className={styles.analysisList}>
         {results.map(r => {
           const expanded = expandedIds.has(r.id);
           const borderColor =
             r.severity === 'critical' ? tokens.colorStatusDangerForeground1
             : r.severity === 'warning' ? tokens.colorStatusWarningForeground1
-            : tokens.colorBrandForeground1;
+            : tokens.colorStatusSuccessForeground1;
           return (
             <div key={r.id}>
               <div
@@ -284,6 +298,8 @@ export default function CanvasAppDetailPanel({ resource, onClose }: Props): Reac
   const envId = resource.properties.environmentId ?? '';
   const appId = resource.name;
 
+  const isAppBuilderApp = resource.properties.subType === 'appBuilderApp';
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [adminInfo, setAdminInfo] = useState<CanvasAppAdminInfo | null>(null);
@@ -313,7 +329,10 @@ export default function CanvasAppDetailPanel({ resource, onClose }: Props): Reac
       }
 
       setAdminInfo(admin);
-      setAnalysisResults(analyzeCanvasApp(admin ?? undefined));
+      setAnalysisResults(analyzeCanvasApp(
+        admin ?? undefined,
+        rolesResult.status === 'fulfilled' ? rolesResult.value : undefined,
+      ));
     } finally {
       setLoading(false);
     }
@@ -343,12 +362,19 @@ export default function CanvasAppDetailPanel({ resource, onClose }: Props): Reac
         </Button>
         <AppGenericRegular fontSize={20} style={{ color: tokens.colorBrandForeground1, flexShrink: 0 }} />
         <div className={styles.headerMeta}>
-          <Text className={styles.title}>{displayName}</Text>
+          <div className={styles.titleRow}>
+            <Tooltip content={displayName} relationship="label">
+              <Text className={styles.title}>{displayName}</Text>
+            </Tooltip>
+            <Badge appearance="tint" color="brand" size="small" style={{ flexShrink: 0 }}>Canvas App</Badge>
+            {props.isQuarantined && (
+              <Badge appearance="tint" color="danger" size="small" icon={<LockClosedRegular />}>Quarantined</Badge>
+            )}
+          </div>
           {resource.environmentName && (
-            <Text className={styles.subtitle}>🌐 {resource.environmentName}</Text>
+            <Text className={styles.envText}>🌐 {resource.environmentName}</Text>
           )}
         </div>
-        <Badge appearance="tint" color="brand" size="small">Canvas App</Badge>
       </div>
 
       {/* Action bar */}
@@ -362,138 +388,171 @@ export default function CanvasAppDetailPanel({ resource, onClose }: Props): Reac
         >
           {loading ? 'Analyzing…' : 'Re-analyze'}
         </Button>
-        <Button
-          appearance="subtle"
-          icon={quarantining ? <Spinner size="tiny" /> : <LockClosedRegular />}
-          disabled={quarantining || loading}
-          onClick={() => void handleQuarantine(true)}
-          size="small"
-        >
-          Quarantine
-        </Button>
-        <Button
-          appearance="subtle"
-          icon={quarantining ? <Spinner size="tiny" /> : <LockOpenRegular />}
-          disabled={quarantining || loading}
-          onClick={() => void handleQuarantine(false)}
-          size="small"
-        >
-          Unquarantine
-        </Button>
-        {adminInfo && (
-          <Text style={{ fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground3, marginLeft: 'auto' }}>
-            Shared with {adminInfo.sharedUsersCount} user{adminInfo.sharedUsersCount !== 1 ? 's' : ''}
-            {adminInfo.sharedGroupsCount > 0 ? ` + ${adminInfo.sharedGroupsCount} group${adminInfo.sharedGroupsCount !== 1 ? 's' : ''}` : ''}
-          </Text>
-        )}
+        {!isAppBuilderApp && <AddSelfAsAdminBanner environmentId={envId} variant="inline" />}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS }}>
+          {adminInfo && (
+            <Text style={{ fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground3 }}>
+              Shared with {adminInfo.sharedUsersCount} user{adminInfo.sharedUsersCount !== 1 ? 's' : ''}
+              {adminInfo.sharedGroupsCount > 0 ? ` + ${adminInfo.sharedGroupsCount} group${adminInfo.sharedGroupsCount !== 1 ? 's' : ''}` : ''}
+            </Text>
+          )}
+          {!isAppBuilderApp && !props.isQuarantined && (
+            <Button
+              appearance="subtle"
+              icon={quarantining ? <Spinner size="tiny" /> : <LockClosedRegular />}
+              disabled={quarantining || loading}
+              onClick={() => void handleQuarantine(true)}
+              size="small"
+            >
+              Quarantine
+            </Button>
+          )}
+          {!isAppBuilderApp && props.isQuarantined && (
+            <Button
+              appearance="subtle"
+              icon={quarantining ? <Spinner size="tiny" /> : <LockOpenRegular />}
+              disabled={quarantining || loading}
+              onClick={() => void handleQuarantine(false)}
+              size="small"
+            >
+              Unquarantine
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Body */}
       <div className={styles.body}>
-        <AddSelfAsAdminBanner environmentId={envId} />
-
-        {error && (
-          <MessageBar intent="warning" style={{ marginBottom: tokens.spacingVerticalS }}>
-            <MessageBarBody style={{ wordBreak: 'break-word' }}>Admin API: {error}</MessageBarBody>
-          </MessageBar>
-        )}
+        {error && (() => {
+          const isM365Blocked = error.includes('PermissionBlockedByM365CopilotApp');
+          return (
+            <MessageBar
+              intent={isM365Blocked ? 'info' : 'warning'}
+              style={{ marginBottom: tokens.spacingVerticalS }}
+            >
+              <MessageBarBody style={{ wordBreak: 'break-word' }}>
+                {isM365Blocked
+                  ? 'Admin data is restricted for AI Builder apps (appBuilderApp). This is a platform limitation — some details and sharing information are not available for this app type.'
+                  : `Admin API: ${error}`}
+              </MessageBarBody>
+            </MessageBar>
+          );
+        })()}
 
         <Accordion multiple collapsible defaultOpenItems={['details', 'governance', 'roles', 'analysis']}>
           {/* ── App Details ── */}
           <AccordionItem value="details" className={styles.accordionCard}>
             <AccordionHeader expandIconPosition="end" icon={<InfoRegular />} className={styles.accordionHeaderTinted}>App Details</AccordionHeader>
             <AccordionPanel>
-              <div style={{ paddingBottom: tokens.spacingVerticalL }}>
+              <div style={{ padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM} ${tokens.spacingVerticalM}` }}>
                 {loading && !adminInfo && <Spinner size="small" />}
                 <div className={styles.detailGrid}>
-                  <span className={styles.detailLabel}>Name</span>
-                  <span className={styles.detailValue}>{displayName}</span>
+                  <div className={styles.detailItem}>
+                    <span className={styles.detailLabel}>Name</span>
+                    <span className={styles.detailValue}>{displayName}</span>
+                  </div>
 
-                  <span className={styles.detailLabel}>App ID</span>
-                  <span className={styles.detailValue} style={{ fontFamily: 'monospace', fontSize: tokens.fontSizeBase200 }}>{appId}</span>
+                  <div className={styles.detailItem}>
+                    <span className={styles.detailLabel}>Environment</span>
+                    <span className={styles.detailValue}>{resource.environmentName ?? '—'}</span>
+                  </div>
 
-                  <span className={styles.detailLabel}>Environment</span>
-                  <span className={styles.detailValue}>{resource.environmentName ?? '—'}</span>
+                  {adminInfo?.owner && (
+                    <div className={styles.detailItem}>
+                      <span className={styles.detailLabel}>Owner</span>
+                      <span className={styles.detailValue}>
+                        {adminInfo.owner.displayName ?? adminInfo.owner.email ?? adminInfo.owner.id ?? '—'}
+                        {adminInfo.owner.email && adminInfo.owner.displayName && (
+                          <span style={{ color: tokens.colorNeutralForeground3, fontSize: tokens.fontSizeBase200, display: 'block' }}>{adminInfo.owner.email}</span>
+                        )}
+                      </span>
+                    </div>
+                  )}
 
-                  {adminInfo?.owner && <>
-                    <span className={styles.detailLabel}>Owner</span>
+                  {adminInfo?.createdBy && (
+                    <div className={styles.detailItem}>
+                      <span className={styles.detailLabel}>Created by</span>
+                      <span className={styles.detailValue}>{adminInfo.createdBy.displayName ?? adminInfo.createdBy.email ?? '—'}</span>
+                    </div>
+                  )}
+
+                  <div className={styles.detailItem}>
+                    <span className={styles.detailLabel}>Created</span>
                     <span className={styles.detailValue}>
-                      {adminInfo.owner.displayName ?? adminInfo.owner.email ?? adminInfo.owner.id ?? '—'}
-                      {adminInfo.owner.email && adminInfo.owner.displayName && (
-                        <span style={{ color: tokens.colorNeutralForeground3, fontSize: tokens.fontSizeBase200, marginLeft: '6px' }}>({adminInfo.owner.email})</span>
-                      )}
+                      {formatDateTime(adminInfo?.createdTime ?? props.createdAt)}
                     </span>
-                  </>}
+                  </div>
 
-                  {adminInfo?.createdBy && <>
-                    <span className={styles.detailLabel}>Created by</span>
+                  <div className={styles.detailItem}>
+                    <span className={styles.detailLabel}>Last Modified</span>
                     <span className={styles.detailValue}>
-                      {adminInfo.createdBy.displayName ?? adminInfo.createdBy.email ?? '—'}
+                      {formatDateTime(adminInfo?.lastModifiedTime ?? props.lastModifiedAt ?? props.modifiedAt)}
                     </span>
-                  </>}
+                  </div>
 
-                  <span className={styles.detailLabel}>Created</span>
-                  <span className={styles.detailValue}>
-                    {adminInfo?.createdTime ? new Date(adminInfo.createdTime).toLocaleString() : props.createdAt ? new Date(props.createdAt).toLocaleString() : '—'}
-                  </span>
+                  {adminInfo?.lastModifiedBy && (
+                    <div className={styles.detailItem}>
+                      <span className={styles.detailLabel}>Modified by</span>
+                      <span className={styles.detailValue}>{adminInfo.lastModifiedBy.displayName ?? adminInfo.lastModifiedBy.email ?? '—'}</span>
+                    </div>
+                  )}
 
-                  <span className={styles.detailLabel}>Last Modified</span>
-                  <span className={styles.detailValue}>
-                    {adminInfo?.lastModifiedTime
-                      ? new Date(adminInfo.lastModifiedTime).toLocaleString()
-                      : props.lastModifiedAt
-                        ? new Date(props.lastModifiedAt).toLocaleString()
-                        : props.modifiedAt
-                          ? new Date(props.modifiedAt).toLocaleString()
-                          : '—'}
-                  </span>
+                  {props.subType && (
+                    <div className={styles.detailItem}>
+                      <span className={styles.detailLabel}>Sub Type</span>
+                      <span className={styles.detailValue}>{props.subType}</span>
+                    </div>
+                  )}
 
-                  {adminInfo?.lastModifiedBy && <>
-                    <span className={styles.detailLabel}>Modified by</span>
-                    <span className={styles.detailValue}>
-                      {adminInfo.lastModifiedBy.displayName ?? adminInfo.lastModifiedBy.email ?? '—'}
-                    </span>
-                  </>}
+                  {props.isQuarantined !== undefined && (
+                    <div className={styles.detailItem}>
+                      <span className={styles.detailLabel}>Quarantine Status</span>
+                      <span className={styles.detailValue}>
+                        <Badge appearance="tint" color={props.isQuarantined ? 'danger' : 'success'} size="small">
+                          {props.isQuarantined ? 'Quarantined' : 'Not Quarantined'}
+                        </Badge>
+                      </span>
+                    </div>
+                  )}
 
-                  {props.subType && <>
-                    <span className={styles.detailLabel}>Sub Type</span>
-                    <span className={styles.detailValue}>{props.subType}</span>
-                  </>}
+                  {adminInfo?.tags.primaryFormFactor && (
+                    <div className={styles.detailItem}>
+                      <span className={styles.detailLabel}>Form factor</span>
+                      <span className={styles.detailValue}>
+                        {adminInfo.tags.primaryFormFactor}
+                        {adminInfo.tags.supportsPortrait === 'true' && ' · Portrait'}
+                        {adminInfo.tags.supportsLandscape === 'true' && ' · Landscape'}
+                      </span>
+                    </div>
+                  )}
 
-                  {props.isQuarantined !== undefined && <>
-                    <span className={styles.detailLabel}>Quarantine Status</span>
-                    <span className={styles.detailValue}>
-                      <Badge appearance="tint" color={props.isQuarantined ? 'danger' : 'success'} size="small">
-                        {props.isQuarantined ? 'Quarantined' : 'Not Quarantined'}
-                      </Badge>
-                    </span>
-                  </>}
+                  {adminInfo?.appVersion && (
+                    <div className={styles.detailItem}>
+                      <span className={styles.detailLabel}>App version</span>
+                      <span className={styles.detailValue} style={{ fontFamily: 'monospace', fontSize: tokens.fontSizeBase200 }}>{adminInfo.appVersion}</span>
+                    </div>
+                  )}
 
-                  {adminInfo?.description && <>
-                    <span className={styles.detailLabel}>Description</span>
-                    <span className={styles.detailValue}>{adminInfo.description}</span>
-                  </>}
+                  {adminInfo?.bypassConsent && (
+                    <div className={styles.detailItem}>
+                      <span className={styles.detailLabel}>Consent bypass</span>
+                      <span className={styles.detailValue}>
+                        <Badge appearance="filled" color="warning" size="small">Enabled</Badge>
+                      </span>
+                    </div>
+                  )}
 
-                  {adminInfo?.appVersion && <>
-                    <span className={styles.detailLabel}>App version</span>
-                    <span className={styles.detailValue} style={{ fontFamily: 'monospace', fontSize: tokens.fontSizeBase200 }}>{adminInfo.appVersion}</span>
-                  </>}
+                  <div className={styles.detailItem}>
+                    <span className={styles.detailLabel}>App ID</span>
+                    <span className={styles.detailValue} style={{ fontFamily: 'monospace', fontSize: tokens.fontSizeBase200, wordBreak: 'break-all', color: tokens.colorNeutralForeground3 }}>{appId}</span>
+                  </div>
 
-                  {adminInfo?.tags.primaryFormFactor && <>
-                    <span className={styles.detailLabel}>Form factor</span>
-                    <span className={styles.detailValue}>
-                      {adminInfo.tags.primaryFormFactor}
-                      {adminInfo.tags.supportsPortrait === 'true' && ' · Portrait'}
-                      {adminInfo.tags.supportsLandscape === 'true' && ' · Landscape'}
-                    </span>
-                  </>}
-
-                  {adminInfo?.bypassConsent && <>
-                    <span className={styles.detailLabel}>Consent bypass</span>
-                    <span className={styles.detailValue}>
-                      <Badge appearance="filled" color="warning" size="small">Enabled</Badge>
-                    </span>
-                  </>}
+                  {adminInfo?.description && (
+                    <div className={styles.detailItemWide}>
+                      <span className={styles.detailLabel}>Description</span>
+                      <span className={styles.detailValue}>{adminInfo.description}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </AccordionPanel>
@@ -505,7 +564,7 @@ export default function CanvasAppDetailPanel({ resource, onClose }: Props): Reac
               Governance &amp; Sharing
             </AccordionHeader>
             <AccordionPanel>
-              <div style={{ paddingBottom: tokens.spacingVerticalL }}>
+              <div style={{ padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalM} ${tokens.spacingVerticalL}` }}>
                 {loading && !adminInfo && <Spinner size="small" label="Loading…" />}
                 {adminInfo && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalM }}>
@@ -525,7 +584,7 @@ export default function CanvasAppDetailPanel({ resource, onClose }: Props): Reac
                       </div>
                       {adminInfo.bypassConsent && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS, padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalM}`, borderRadius: tokens.borderRadiusMedium, border: `1px solid ${tokens.colorStatusWarningBorder1}`, backgroundColor: tokens.colorStatusWarningBackground1 }}>
-                          <WarningRegular fontSize={16} style={{ color: tokens.colorStatusWarningForeground1 }} />
+                          <WarningFilled fontSize={16} style={{ color: tokens.colorStatusWarningForeground1 }} />
                           <Text style={{ fontSize: tokens.fontSizeBase200, color: tokens.colorStatusWarningForeground3 }}>Consent bypass enabled</Text>
                         </div>
                       )}
@@ -576,7 +635,7 @@ export default function CanvasAppDetailPanel({ resource, onClose }: Props): Reac
               )}
             </AccordionHeader>
             <AccordionPanel>
-              <div style={{ paddingBottom: tokens.spacingVerticalL }}>
+              <div style={{ padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalM} ${tokens.spacingVerticalL}` }}>
                 {loading && <Spinner size="small" label="Loading…" />}
                 {!loading && roleAssignments.length === 0 && (
                   <div className={styles.emptyState}>
@@ -613,18 +672,69 @@ export default function CanvasAppDetailPanel({ resource, onClose }: Props): Reac
             </AccordionPanel>
           </AccordionItem>
 
+          {/* ── Inventory ── */}
+          {(() => {
+            const props = resource.properties;
+            const viewersSummary = props?.sharedWithViewers ? formatSharedSummary(props.sharedWithViewers) : null;
+            const editorsSummary = props?.sharedWithEditors ? formatSharedSummary(props.sharedWithEditors) : null;
+            const hasData = viewersSummary || editorsSummary || props?.lastPublishedAt || props?.createdIn;
+            if (!hasData) return null;
+            return (
+              <AccordionItem value="inventory" className={styles.accordionCard}>
+                <AccordionHeader expandIconPosition="end" icon={<AppsListRegular />} className={styles.accordionHeaderTinted}>Inventory</AccordionHeader>
+                <AccordionPanel>
+                  <div className={styles.detailGrid}>
+                    {props?.createdIn && (
+                      <div className={styles.detailItem}>
+                        <Text size={200} weight="semibold">Created In</Text>
+                        <Text size={300}>{props.createdIn}</Text>
+                      </div>
+                    )}
+                    {props?.lastPublishedAt && (
+                      <div className={styles.detailItem}>
+                        <Text size={200} weight="semibold">Last Published</Text>
+                        <Text size={300}>{formatDateTime(props.lastPublishedAt)}</Text>
+                      </div>
+                    )}
+                    {viewersSummary && (
+                      <div className={styles.detailItem}>
+                        <Text size={200} weight="semibold">Viewers (Inventory)</Text>
+                        <Text size={300}>{viewersSummary}</Text>
+                      </div>
+                    )}
+                    {editorsSummary && (
+                      <div className={styles.detailItem}>
+                        <Text size={200} weight="semibold">Editors (Inventory)</Text>
+                        <Text size={300}>{editorsSummary}</Text>
+                      </div>
+                    )}
+                  </div>
+                </AccordionPanel>
+              </AccordionItem>
+            );
+          })()}
+
           {/* ── Best Practice Analysis ── */}
           <AccordionItem value="analysis" className={styles.accordionCard}>
             <AccordionHeader expandIconPosition="end" icon={<ShieldCheckmarkRegular />} className={styles.accordionHeaderTinted}>
-              Best Practice Analysis
-              {analysisResults.length > 0 && (
-                <Badge appearance="filled" color="danger" size="small" style={{ marginLeft: tokens.spacingHorizontalS }}>
-                  {analysisResults.filter(r => r.severity === 'critical').length + analysisResults.filter(r => r.severity === 'warning').length} issues
-                </Badge>
-              )}
+              <span style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS }}>
+                Best Practice Analysis
+                {!loading && analysisResults.length > 0 && (() => {
+                  const errs = analysisResults.filter(r => r.severity === 'critical').length;
+                  const warns = analysisResults.filter(r => r.severity === 'warning').length;
+                  const infs = analysisResults.filter(r => r.severity === 'info').length;
+                  return (
+                    <>
+                      <Badge appearance="filled" color="subtle" size="small">{errs} error{errs !== 1 ? 's' : ''}</Badge>
+                      <Badge appearance="filled" color="subtle" size="small">{warns} warning{warns !== 1 ? 's' : ''}</Badge>
+                      <Badge appearance="filled" color="subtle" size="small">{infs} info</Badge>
+                    </>
+                  );
+                })()}
+              </span>
             </AccordionHeader>
             <AccordionPanel>
-              <div style={{ paddingBottom: tokens.spacingVerticalL }}>
+              <div style={{ padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalM} ${tokens.spacingVerticalL}` }}>
                 {loading && <Spinner size="small" label="Analyzing app…" />}
                 {!loading && adminInfo && <AnalysisSection results={analysisResults} />}
                 {!loading && !adminInfo && (

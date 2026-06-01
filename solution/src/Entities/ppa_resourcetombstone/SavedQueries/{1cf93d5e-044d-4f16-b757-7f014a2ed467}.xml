@@ -1,0 +1,50 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{1cf93d5e-044d-4f16-b757-7f014a2ed467}</savedqueryid>
+    <layoutxml>
+      <grid name="ppa_resourcetombstones" jump="ppa_resourceid" select="1" icon="1" preview="1">
+        <row name="ppa_resourcetombstone" id="ppa_resourcetombstoneid">
+          <cell name="ppa_resourceid" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="ppa_resourcetype" width="124" />
+          <cell name="ppa_resourcetombstoneid" width="158" />
+          <cell name="statecode" width="100" />
+          <cell name="ppa_displayname" width="121" />
+          <cell name="ppa_environmentid" width="132" />
+          <cell name="ppa_deletedon" width="105" />
+          <cell name="ppa_deletedby" width="104" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>2</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="ppa_resourcetombstone">
+          <attribute name="ppa_resourcetombstoneid" />
+          <attribute name="ppa_resourceid" />
+          <attribute name="createdon" />
+          <order attribute="ppa_resourceid" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="ppa_resourcetype" />
+          <attribute name="statecode" />
+          <attribute name="ppa_displayname" />
+          <attribute name="ppa_environmentid" />
+          <attribute name="ppa_deletedon" />
+          <attribute name="ppa_deletedby" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Resource Tombstone Associated View" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

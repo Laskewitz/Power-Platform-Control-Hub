@@ -94,7 +94,7 @@ export default function App(): ReactElement {
   const styles = useStyles();
   const [activeTab, setActiveTab] = useState<TabValue>('overview');
   const [resourceTypeFilter, setResourceTypeFilter] = useState<string>('all');
-  const [isDark, setIsDark] = useState(false);
+  const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') === 'dark');
 
   function navigateToResources(typeKey: string) {
     setResourceTypeFilter(typeKey);
@@ -144,12 +144,12 @@ export default function App(): ReactElement {
               }}
             >
               <Tab value="overview" icon={<GridRegular />}>Overview</Tab>
-              <Tab value="resources" icon={<TableRegular />}>Resources</Tab>
               <Tab value="environments" icon={<GlobeRegular />}>Environments</Tab>
-              <Tab value="recommendations" icon={<LightbulbRegular />}>Recommendations</Tab>
-              <Tab value="governance" icon={<ShieldRegular />}>Tenant Policies</Tab>
               <Tab value="envgroups" icon={<LayerRegular />}>Environment Groups</Tab>
+              <Tab value="resources" icon={<TableRegular />}>Resources</Tab>
               <Tab value="connectors" icon={<PlugConnectedRegular />}>Connectors</Tab>
+              <Tab value="governance" icon={<ShieldRegular />}>Tenant Policies</Tab>
+              <Tab value="recommendations" icon={<LightbulbRegular />}>Recommendations</Tab>
             </TabList>
           </div>
           <div className={styles.navRight}>
@@ -159,7 +159,7 @@ export default function App(): ReactElement {
             <Button
               appearance="subtle"
               icon={isDark ? <WeatherSunnyRegular /> : <WeatherMoonRegular />}
-              onClick={() => setIsDark((d) => !d)}
+              onClick={() => setIsDark((d) => { localStorage.setItem('theme', d ? 'light' : 'dark'); return !d; })}
               title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
             />
             <Button

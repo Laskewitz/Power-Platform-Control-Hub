@@ -19,10 +19,6 @@ import {
   MenuList,
   MenuItem,
   MenuPopover,
-  Switch,
-  Spinner,
-  MessageBar,
-  MessageBarBody,
   Tab,
   TabList,
 } from '@fluentui/react-components';
@@ -45,13 +41,26 @@ import {
   DatabaseRegular,
   LayerRegular,
   SubtractCircleRegular,
-  SettingsRegular,
-  PersonAddRegular,
+  ShieldCheckmarkRegular,
+  ErrorCircleRegular,
+  WarningRegular,
+  InfoRegular,
+  CheckmarkCircleRegular,
+  OpenRegular,
 } from '@fluentui/react-icons';
 import type { Resource } from '../types/inventory.ts';
 import type { EnvironmentGroup } from '../types/admin.ts';
-import type { EnvironmentManagementSetting } from '../generated/models/PowerPlatformforAdminsV2Model.ts';
+import type { AnalysisResult } from '../services/flowAnalyzer.ts';
 import { RESOURCE_TYPE_LABELS } from '../types/inventory.ts';
+
+const DETAIL_PANEL_TYPES = new Set([
+  'microsoft.powerautomate/cloudflows',
+  'microsoft.powerautomate/agentflows',
+  'microsoft.powerautomate/m365agentflows',
+  'microsoft.powerapps/apps',
+  'microsoft.powerapps/canvasapps',
+  'microsoft.copilotstudio/agents',
+]);
 import ConfirmDialog from './ConfirmDialog.tsx';
 import { useMutation } from '../hooks/useMutation.tsx';
 import {
@@ -60,13 +69,13 @@ import {
   enableManagedEnvironment,
   disableManagedEnvironment,
   createEnvironmentBackup,
-  addSelfAsEnvironmentAdmin,
 } from '../services/environmentMutations.ts';
-import { fetchEnvironmentSettings, updateEnvironmentSettings } from '../services/settingsService.ts';
+import { PowerPlatformforAdminsV2Service } from '../generated/services/PowerPlatformforAdminsV2Service.ts';
 import BackupDialog from './BackupDialog.tsx';
 import EnvironmentGroupDialog from './EnvironmentGroupDialog.tsx';
 import { useOwners } from '../services/ownerCache.ts';
 import AddSelfAsAdminBanner from './AddSelfAsAdminBanner.tsx';
+import { formatDate } from '../utils/formatDate.ts';
 
 interface EnvironmentDetailViewProps {
   environment: Resource;
@@ -74,6 +83,7 @@ interface EnvironmentDetailViewProps {
   envGroups?: EnvironmentGroup[];
   onBack: () => void;
   onRefreshEnvironments?: () => Promise<void>;
+  onResourceSelect?: (resource: Resource) => void;
 }
 
 const useStyles = makeStyles({
@@ -154,9 +164,20 @@ const useStyles = makeStyles({
     display: 'flex',
     flexDirection: 'column',
     flex: 1,
+    minHeight: 0,
     overflow: 'hidden',
     padding: `${tokens.spacingVerticalL} ${tokens.spacingHorizontalXL}`,
     gap: tokens.spacingVerticalL,
+  },
+  // Settings tab uses the content area as the scroll container directly
+  contentSettings: {
+    display: 'flex',
+    flexDirection: 'column',
+    flex: 1,
+    minHeight: 0,
+    overflowY: 'auto',
+    padding: `${tokens.spacingVerticalL} ${tokens.spacingHorizontalXL}`,
+    gap: tokens.spacingVerticalM,
   },
 
   // ── Info strip ────────────────────────────────────────────────────────────
@@ -270,13 +291,22 @@ const useStyles = makeStyles({
   },
 
   // ── Settings panel ────────────────────────────────────────────────────────
+  settingsOuter: {
+    display: 'flex',
+    flexDirection: 'column',
+    flex: 1,
+    minHeight: 0,
+    overflow: 'hidden',
+    gap: tokens.spacingVerticalM,
+  },
   settingsScroll: {
     flex: 1,
+    minHeight: 0,
     overflowY: 'auto',
     display: 'flex',
     flexDirection: 'column',
-    gap: tokens.spacingVerticalXL,
-    padding: `${tokens.spacingVerticalL} ${tokens.spacingHorizontalXL}`,
+    gap: tokens.spacingVerticalM,
+    paddingRight: tokens.spacingHorizontalXS,
   },
   settingsGroup: {
     display: 'flex',
@@ -322,8 +352,123 @@ const useStyles = makeStyles({
     justifyContent: 'flex-end',
     gap: tokens.spacingHorizontalM,
     flexShrink: 0,
+    position: 'sticky',
+    bottom: `-${tokens.spacingVerticalL}`,
+    backgroundColor: tokens.colorNeutralBackground2,
+    paddingTop: tokens.spacingVerticalM,
+    paddingBottom: tokens.spacingVerticalM,
+    marginTop: 'auto',
+    borderTopWidth: '1px',
+    borderTopStyle: 'solid',
+    borderTopColor: tokens.colorNeutralStroke2,
+  },
+
+  // ── BPA analysis ─────────────────────────────────────────────────────────
+  analysisScroll: {
+    flex: 1,
+    overflowY: 'auto',
+    padding: `${tokens.spacingVerticalL} ${tokens.spacingHorizontalXL}`,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: tokens.spacingVerticalM,
+  },
+  analysisRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalS,
+    padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`,
+    borderRadius: tokens.borderRadiusMedium,
+    backgroundColor: tokens.colorNeutralBackground1,
+    border: `1px solid ${tokens.colorNeutralStroke2}`,
+    cursor: 'pointer',
+    ':hover': { backgroundColor: tokens.colorNeutralBackground2 },
+  },
+  analysisRowDetail: {
+    padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM} ${tokens.spacingVerticalM}`,
+    backgroundColor: tokens.colorNeutralBackground1,
+    borderLeft: `1px solid ${tokens.colorNeutralStroke2}`,
+    borderRight: `1px solid ${tokens.colorNeutralStroke2}`,
+    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+    borderRadius: `0 0 ${tokens.borderRadiusMedium} ${tokens.borderRadiusMedium}`,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: tokens.spacingVerticalS,
   },
 });
+
+function analyzeEnvironment(
+  envType: string,
+  isManaged: boolean,
+  envGroupId: string | undefined,
+  resourceCount: number,
+  domainName: string | undefined,
+): AnalysisResult[] {
+  const results: AnalysisResult[] = [];
+
+  if (envType.toLowerCase() === 'default') {
+    results.push({
+      id: 'env-default',
+      severity: 'warning',
+      title: 'This is the Default environment',
+      description: 'The Default environment is shared by all users in the tenant and cannot be deleted. It is often used for ad-hoc development, making governance difficult. Resources created here are visible to all makers.',
+      recommendation: 'Avoid using the Default environment for production workloads or sensitive data. Create dedicated environments with appropriate DLP policies for specific use cases.',
+    });
+  }
+
+  if (envType.toLowerCase() === 'trial') {
+    results.push({
+      id: 'env-trial',
+      severity: 'warning',
+      title: 'Trial environment will expire',
+      description: 'Trial environments have a limited lifespan (typically 30 days). Any resources in this environment will be deleted when it expires.',
+      recommendation: 'Migrate production workloads to a permanent environment before the trial expires. Convert the environment to Sandbox or Production if the work should be preserved.',
+    });
+  }
+
+  if (!isManaged) {
+    results.push({
+      id: 'env-not-managed',
+      severity: 'info',
+      title: 'Not a Managed Environment',
+      description: 'Managed Environment features are not enabled. Managed Environments provide additional governance controls such as solution checker enforcement, sharing limits, usage insights, and weekly maker digests.',
+      recommendation: 'Consider enabling Managed Environments for better governance visibility. This requires a Power Apps / Power Automate Premium licence for makers in the environment.',
+    });
+  }
+
+  if (!envGroupId) {
+    results.push({
+      id: 'env-no-group',
+      severity: 'info',
+      title: 'Not assigned to an Environment Group',
+      description: 'This environment is not part of any Environment Group. Environment groups allow you to apply policies and settings consistently across multiple environments.',
+      recommendation: 'Assign this environment to an appropriate Environment Group so it inherits shared governance policies.',
+    });
+  }
+
+  if (resourceCount > 200) {
+    results.push({
+      id: 'env-large',
+      severity: 'info',
+      title: `Large environment (${resourceCount} resources)`,
+      description: `This environment contains ${resourceCount} resources. Large, unmanaged environments are difficult to govern and may contain stale or unused resources.`,
+      recommendation: 'Review the resources in this environment periodically. Remove or move unused resources to reduce complexity and licensing costs.',
+    });
+  }
+
+  // Auto-generated domain names start with "org" followed by 7-12 lowercase alphanumeric chars
+  // with no hyphens or underscores — e.g. "org1234567a". A manually set URL is meaningful.
+  if (domainName && /^org[a-z0-9]{6,12}$/.test(domainName)) {
+    results.push({
+      id: 'env-autogenerated-url',
+      severity: 'info',
+      title: 'Environment URL appears auto-generated',
+      description: `The environment URL domain is "${domainName}", which looks auto-generated by Power Platform. Auto-generated URLs are hard to remember and don't communicate the environment's purpose.`,
+      recommendation: 'Set a meaningful, descriptive environment URL (e.g. "contoso-production" or "hr-sandbox") via the Power Platform Admin Center under Environment > Edit. Note: the URL can only be changed once.',
+    });
+  }
+
+  return results;
+}
 
 function envTypeColor(envType: string): 'brand' | 'success' | 'warning' | 'important' | 'informative' {
   switch (envType.toLowerCase()) {
@@ -343,61 +488,91 @@ function resourceTypeIcon(type: string): ReactElement {
   return <BoxRegular />;
 }
 
-type SettingFieldDef = { key: keyof EnvironmentManagementSetting; label: string; type: 'boolean' | 'string' };
-type SettingGroupDef = { label: string; fields: SettingFieldDef[] };
+type BpaStyles = ReturnType<typeof useStyles>;
 
-const SETTING_GROUPS: SettingGroupDef[] = [
-  {
-    label: 'Power Apps',
-    fields: [
-      { key: 'powerApps_CopilotChat', label: 'Copilot Chat', type: 'boolean' },
-      { key: 'powerApps_NLSearch', label: 'Natural Language Search', type: 'boolean' },
-      { key: 'powerApps_AllowCodeApps', label: 'Code Apps', type: 'boolean' },
-      { key: 'powerApps_EnableFormInsights', label: 'Form Insights', type: 'boolean' },
-      { key: 'powerApps_ChartVisualization', label: 'Chart Visualization AI', type: 'boolean' },
-      { key: 'powerApps_FormPredictSmartPaste', label: 'Smart Paste', type: 'boolean' },
-      { key: 'powerApps_FormPredictAutomatic', label: 'Automatic Form Predictions', type: 'boolean' },
-    ],
-  },
-  {
-    label: 'Copilot Studio',
-    fields: [
-      { key: 'copilotStudio_ConnectedAgents', label: 'Connected Agents', type: 'boolean' },
-      { key: 'copilotStudio_CodeInterpreter', label: 'Code Interpreter', type: 'boolean' },
-      { key: 'copilotStudio_ConversationAuditLoggingEnabled', label: 'Conversation Audit Logging', type: 'boolean' },
-      { key: 'copilotStudio_ComputerUseSharedMachines', label: 'Computer Use – Shared Machines', type: 'boolean' },
-      { key: 'copilotStudio_ComputerUseCredentialsAllowed', label: 'Computer Use – Credentials Allowed', type: 'boolean' },
-      { key: 'copilotStudio_ComputerUseAppAllowlist', label: 'Computer Use – App Allowlist', type: 'string' },
-      { key: 'copilotStudio_ComputerUseWebAllowlist', label: 'Computer Use – Web Allowlist', type: 'string' },
-    ],
-  },
-  {
-    label: 'Power Pages',
-    fields: [
-      { key: 'powerPages_AllowMakerCopilotsForNewSites', label: 'Maker Copilots – New Sites', type: 'string' },
-      { key: 'powerPages_AllowMakerCopilotsForExistingSites', label: 'Maker Copilots – Existing Sites', type: 'string' },
-      { key: 'powerPages_AllowProDevCopilotsForSites', label: 'ProDev Copilots for Sites', type: 'string' },
-      { key: 'powerPages_AllowSiteCopilotForSites', label: 'Site Copilot', type: 'string' },
-      { key: 'powerPages_AllowNonProdPublicSites', label: 'Non-Prod Public Sites', type: 'string' },
-      { key: 'powerPages_AllowProDevCopilotsForEnvironment', label: 'ProDev Copilots for Environment', type: 'string' },
-    ],
-  },
-  {
-    label: 'Dynamics 365',
-    fields: [
-      { key: 'd365CustomerService_Copilot', label: 'Customer Service Copilot', type: 'boolean' },
-      { key: 'd365CustomerService_AIAgents', label: 'AI Agents', type: 'boolean' },
-    ],
-  },
-  {
-    label: 'Security',
-    fields: [
-      { key: 'enableIpBasedStorageAccessSignatureRule', label: 'IP-Based Storage Access Signature', type: 'boolean' },
-      { key: 'loggingEnabledForIpBasedStorageAccessSignature', label: 'Logging for IP-Based Storage Access', type: 'boolean' },
-      { key: 'allowedIpRangeForStorageAccessSignatures', label: 'Allowed IP Range for Storage', type: 'string' },
-    ],
-  },
-];
+const SEV_ICON: Record<string, ReactElement> = {
+  critical: <ErrorCircleRegular style={{ color: tokens.colorStatusDangerForeground1, flexShrink: 0 }} />,
+  warning: <WarningRegular style={{ color: tokens.colorStatusWarningForeground1, flexShrink: 0 }} />,
+  info: <InfoRegular style={{ color: tokens.colorStatusSuccessForeground1, flexShrink: 0 }} />,
+};
+const SEV_COLOR: Record<string, 'danger' | 'warning' | 'success'> = {
+  critical: 'danger', warning: 'warning', info: 'success',
+};
+const SEV_LABEL: Record<string, string> = {
+  critical: 'Critical', warning: 'Warning', info: 'Info',
+};
+
+function EnvironmentBpaSection({
+  envType, isManaged, envGroupId, resourceCount, domainName, styles,
+}: {
+  envType: string;
+  isManaged: boolean;
+  envGroupId: string | undefined;
+  resourceCount: number;
+  domainName: string | undefined;
+  styles: BpaStyles;
+}): ReactElement {
+  const results = analyzeEnvironment(envType, isManaged, envGroupId, resourceCount, domainName);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggle = (id: string) => setExpanded(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+
+  if (results.length === 0) {
+    return (
+      <div className={styles.analysisScroll}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: tokens.spacingVerticalM, padding: tokens.spacingVerticalXL }}>
+          <CheckmarkCircleRegular fontSize={40} style={{ color: tokens.colorStatusSuccessForeground1 }} />
+          <Text style={{ fontWeight: tokens.fontWeightSemibold }}>No issues found</Text>
+          <Text style={{ fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground3 }}>
+            This environment follows governance best practices.
+          </Text>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.analysisScroll}>
+      {results.map(r => {
+        const isOpen = expanded.has(r.id);
+        const borderColor =
+          r.severity === 'critical' ? tokens.colorStatusDangerForeground1
+          : r.severity === 'warning' ? tokens.colorStatusWarningForeground1
+          : tokens.colorStatusSuccessForeground1;
+        return (
+          <div key={r.id}>
+            <div
+              className={styles.analysisRow}
+              style={{ borderLeft: `3px solid ${borderColor}`, borderRadius: isOpen ? `${tokens.borderRadiusMedium} ${tokens.borderRadiusMedium} 0 0` : undefined }}
+              onClick={() => toggle(r.id)}
+              role="button"
+              tabIndex={0}
+              aria-expanded={isOpen}
+              onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && toggle(r.id)}
+            >
+              {SEV_ICON[r.severity]}
+              <Text style={{ flex: 1, fontSize: tokens.fontSizeBase300, fontWeight: tokens.fontWeightSemibold }}>{r.title}</Text>
+              <Badge appearance="filled" color={SEV_COLOR[r.severity]} size="small">{SEV_LABEL[r.severity]}</Badge>
+              <span style={{ fontSize: '12px', color: tokens.colorNeutralForeground3, transform: isOpen ? 'rotate(90deg)' : undefined, display: 'inline-flex' }}>▶</span>
+            </div>
+            {isOpen && (
+              <div className={styles.analysisRowDetail} style={{ borderLeft: `3px solid ${borderColor}` }}>
+                <Text style={{ fontSize: tokens.fontSizeBase300, color: tokens.colorNeutralForeground2 }}>{r.description}</Text>
+                <div style={{ backgroundColor: tokens.colorNeutralBackground3, borderRadius: tokens.borderRadiusMedium, padding: `${tokens.spacingVerticalXS} ${tokens.spacingHorizontalS}` }}>
+                  <Text style={{ fontSize: tokens.fontSizeBase200, fontWeight: tokens.fontWeightSemibold, color: tokens.colorNeutralForeground2 }}>💡 Recommendation</Text>
+                  <Text style={{ fontSize: tokens.fontSizeBase300, display: 'block', marginTop: '4px' }}>{r.recommendation}</Text>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function EnvironmentDetailView({
   environment: env,
@@ -405,6 +580,7 @@ export default function EnvironmentDetailView({
   envGroups = [],
   onBack,
   onRefreshEnvironments,
+  onResourceSelect,
 }: EnvironmentDetailViewProps): ReactElement {
   const styles = useStyles();
   const [search, setSearch] = useState('');
@@ -412,34 +588,28 @@ export default function EnvironmentDetailView({
   const [showBackup, setShowBackup] = useState(false);
   const [groupDialogMode, setGroupDialogMode] = useState<'add' | 'remove' | null>(null);
   const [isPending, setIsPending] = useState(false);
-  const [contentTab, setContentTab] = useState<'resources' | 'settings'>('resources');
+  const [contentTab, setContentTab] = useState<'resources' | 'analysis'>('resources');
+  const [domainName, setDomainName] = useState<string | undefined>(undefined);
 
-  // Settings state
-  const [settings, setSettings] = useState<EnvironmentManagementSetting | null>(null);
-  const [pendingSettings, setPendingSettings] = useState<EnvironmentManagementSetting>({});
-  const [settingsLoading, setSettingsLoading] = useState(false);
-  const [settingsError, setSettingsError] = useState<string | null>(null);
-  const [isSavingSettings, setIsSavingSettings] = useState(false);
-
-  // Fetch settings lazily when the Settings tab is first opened
+  // Lazy-fetch domain name from Admin V2 API when Analysis tab first opens
   useEffect(() => {
-    if (contentTab !== 'settings' || settings !== null || settingsLoading) return;
-    setSettingsLoading(true);
-    setSettingsError(null);
-    fetchEnvironmentSettings(env.name)
-      .then((s) => { setSettings(s ?? {}); setPendingSettings(s ?? {}); })
-      .catch((e: unknown) => setSettingsError(String(e)))
-      .finally(() => setSettingsLoading(false));
-  }, [contentTab, env.name, settings, settingsLoading]);
+    if (contentTab !== 'analysis' || domainName !== undefined) return;
+    PowerPlatformforAdminsV2Service.GetEnvironmentByIdForUser(env.name, '2024-10-01')
+      .then((result) => {
+        if (result.success && result.data) {
+          setDomainName(result.data.domainName ?? '');
+        }
+      })
+      .catch(() => setDomainName(''));
+  }, [contentTab, env.name, domainName]);
 
   const displayName = env.properties.displayName ?? env.name;
   const envType = (env.properties.environmentType ?? 'Unknown') as string;
   const isManaged = env.properties.isManaged === true;
   const region = env.location ?? '—';
   const createdAt = env.properties.createdAt
-    ? new Date(env.properties.createdAt as string).toLocaleDateString()
+    ? formatDate(env.properties.createdAt as string)
     : '—';
-  const shortId = env.name.length > 20 ? `${env.name.slice(0, 8)}…${env.name.slice(-8)}` : env.name;
   const envGroupId = env.properties['environmentGroupId'] as string | undefined;
   const groupMap = useMemo(() => new Map(envGroups.map((g) => [g.id, g.displayName])), [envGroups]);
 
@@ -469,10 +639,6 @@ export default function EnvironmentDetailView({
   const { execute: execBackup, isLoading: isBackupLoading } = useMutation(createEnvironmentBackup, {
     successMessage: 'Backup request submitted.',
     onSuccess: () => setShowBackup(false),
-  });
-  const { execute: execAddSelfAsAdmin, isLoading: isAddingAsAdmin } = useMutation(addSelfAsEnvironmentAdmin, {
-    successMessage: 'You have been added as System Administrator. Refreshing…',
-    onSuccess: () => void onRefreshEnvironments?.(),
   });
 
   async function runAction(action: () => Promise<unknown>) {
@@ -518,14 +684,12 @@ export default function EnvironmentDetailView({
       <div className={styles.hero}>
         {/* Breadcrumb */}
         <div className={styles.breadcrumb}>
-          <Text
-            className={styles.breadcrumbLink}
+          <Button
+            appearance="subtle"
+            size="small"
             onClick={onBack}
-            role="button"
-            tabIndex={0}
-            aria-label="Back to Environments list"
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onBack(); } }}
-          >Environments</Text>
+            style={{ color: tokens.colorBrandForeground1, padding: `0 ${tokens.spacingHorizontalXS}`, minWidth: 0 }}
+          >Environments</Button>
           <ChevronRightRegular style={{ fontSize: '0.7rem' }} />
           <Text style={{ fontSize: tokens.fontSizeBase200 }}>{displayName}</Text>
         </div>
@@ -557,13 +721,11 @@ export default function EnvironmentDetailView({
                   : <MenuItem icon={<ShieldRegular />} onClick={() => void runAction(() => execEnableManaged(env.name))}>Enable Managed</MenuItem>
                 }
                 <MenuItem icon={<SaveRegular />} onClick={() => setShowBackup(true)}>Create Backup</MenuItem>
-                <MenuItem
-                  icon={isAddingAsAdmin ? <Spinner size="tiny" /> : <PersonAddRegular />}
-                  disabled={isAddingAsAdmin || isPending}
-                  onClick={() => void execAddSelfAsAdmin(env.name)}
-                >
-                  Add yourself as Environment Admin
-                </MenuItem>
+                <AddSelfAsAdminBanner
+                  variant="menu"
+                  environmentId={env.name}
+                  onChanged={() => void onRefreshEnvironments?.()}
+                />
                 {!envGroupId && (
                   <MenuItem icon={<LayerRegular />} onClick={() => setGroupDialogMode('add')}>Add to Group</MenuItem>
                 )}
@@ -579,7 +741,7 @@ export default function EnvironmentDetailView({
         <div className={styles.heroMeta}>
           <span className={styles.heroMetaItem}><GlobeRegular style={{ fontSize: '0.85rem' }} />{region}</span>
           <span className={styles.heroMetaItem}><CalendarRegular style={{ fontSize: '0.85rem' }} />Created {createdAt}</span>
-          <span className={styles.heroMetaItem}><KeyRegular style={{ fontSize: '0.85rem' }} title={env.name}>{shortId}</KeyRegular></span>
+          <span className={styles.heroMetaItem} title={env.name}><KeyRegular style={{ fontSize: '0.85rem' }} />ID: {env.name}</span>
           {env.properties.createdBy && (
             <span className={styles.heroMetaItem}>
               <PersonRegular style={{ fontSize: '0.85rem' }} />
@@ -590,83 +752,22 @@ export default function EnvironmentDetailView({
       </div>
 
       <div className={styles.contentTabs}>
-        <TabList selectedValue={contentTab} onTabSelect={(_, d) => setContentTab(d.value as 'resources' | 'settings')}>
+        <TabList selectedValue={contentTab} onTabSelect={(_, d) => setContentTab(d.value as 'resources' | 'analysis')}>
           <Tab value="resources">Resources</Tab>
-          <Tab value="settings" icon={<SettingsRegular />}>Settings</Tab>
+          <Tab value="analysis" icon={<ShieldCheckmarkRegular />}>Analysis</Tab>
         </TabList>
       </div>
 
-      <AddSelfAsAdminBanner
-        environmentId={env.name}
-        onAdded={() => void onRefreshEnvironments?.()}
-      />
-
       <div className={styles.content}>
-        {contentTab === 'settings' ? (
-          settingsLoading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: tokens.spacingVerticalXL }}>
-              <Spinner label="Loading settings…" />
-            </div>
-          ) : settingsError ? (
-            <MessageBar intent="error"><MessageBarBody>{settingsError}</MessageBarBody></MessageBar>
-          ) : (
-            <div className={styles.settingsScroll}>
-              {SETTING_GROUPS.map((group) => (
-                <div key={group.label} className={styles.settingsGroup}>
-                  <div className={styles.settingsGroupHeader}>{group.label}</div>
-                  {group.fields.map((field) => {
-                    const current = pendingSettings[field.key];
-                    return (
-                      <div key={field.key} className={styles.settingRow}>
-                        <Text className={styles.settingLabel}>{field.label}</Text>
-                        {field.type === 'boolean' ? (
-                          <Switch
-                            checked={Boolean(current)}
-                            onChange={(_, d) => setPendingSettings((prev) => ({ ...prev, [field.key]: d.checked }))}
-                          />
-                        ) : (
-                          <Input
-                            size="small"
-                            style={{ minWidth: '260px' }}
-                            value={String(current ?? '')}
-                            placeholder="Not set"
-                            onChange={(_, d) => setPendingSettings((prev) => ({ ...prev, [field.key]: d.value }))}
-                          />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
-              <div className={styles.settingsActions}>
-                <Button
-                  appearance="secondary"
-                  disabled={isSavingSettings}
-                  onClick={() => setPendingSettings(settings ?? {})}
-                >
-                  Reset
-                </Button>
-                <Button
-                  appearance="primary"
-                  icon={isSavingSettings ? <Spinner size="tiny" /> : <SaveRegular />}
-                  disabled={isSavingSettings}
-                  onClick={async () => {
-                    setIsSavingSettings(true);
-                    try {
-                      await updateEnvironmentSettings(env.name, pendingSettings);
-                      setSettings(pendingSettings);
-                    } catch (e: unknown) {
-                      setSettingsError(String(e));
-                    } finally {
-                      setIsSavingSettings(false);
-                    }
-                  }}
-                >
-                  {isSavingSettings ? 'Saving…' : 'Save Settings'}
-                </Button>
-              </div>
-            </div>
-          )
+        {contentTab === 'analysis' ? (
+          <EnvironmentBpaSection
+            envType={envType}
+            isManaged={isManaged}
+            envGroupId={envGroupId}
+            resourceCount={envResources.length}
+            domainName={domainName}
+            styles={styles}
+          />
         ) : (
           <>
             {typeCounts.size > 0 && (
@@ -704,7 +805,7 @@ export default function EnvironmentDetailView({
               <TableHeader>
                 <TableRow>
                   <TableHeaderCell>Name</TableHeaderCell>
-                  <TableHeaderCell style={{ width: '160px' }}>Type</TableHeaderCell>
+                  <TableHeaderCell style={{ width: '200px', minWidth: '200px', whiteSpace: 'nowrap' }}>Type</TableHeaderCell>
                   <TableHeaderCell style={{ width: '100px' }}>Created</TableHeaderCell>
                   <TableHeaderCell style={{ width: '100px' }}>Modified</TableHeaderCell>
                   <TableHeaderCell>Owner</TableHeaderCell>
@@ -721,17 +822,27 @@ export default function EnvironmentDetailView({
                   filteredResources.map((r, i) => {
                     const name = r.properties.displayName ?? r.name;
                     const typeLabel = RESOURCE_TYPE_LABELS[r.type] ?? r.type;
-                    const created = r.properties.createdAt ? new Date(r.properties.createdAt as string).toLocaleDateString() : '—';
-                    const modified = r.properties.lastModifiedAt
-                      ? new Date(r.properties.lastModifiedAt as string).toLocaleDateString()
-                      : r.properties.modifiedAt
-                        ? new Date(r.properties.modifiedAt as string).toLocaleDateString()
-                        : '—';
+                    const created = formatDate(r.properties.createdAt as string | undefined);
+                    const modified = formatDate((r.properties.lastModifiedAt ?? r.properties.modifiedAt ?? r.properties.lastPublishedAt) as string | undefined);
                     const ownerGuid = (r.properties.createdBy ?? r.properties.ownerId ?? '') as string;
                     const owner = ownerNames.get(ownerGuid.toLowerCase()) ?? (ownerGuid || '—');
                     return (
                       <TableRow key={r.id ?? `${r.name}-${i}`}>
-                        <TableCell><Text style={{ fontWeight: tokens.fontWeightSemibold }}>{name}</Text></TableCell>
+                        <TableCell>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalXS }}>
+                            <Text style={{ fontWeight: tokens.fontWeightSemibold }}>{name}</Text>
+                            {onResourceSelect && DETAIL_PANEL_TYPES.has(r.type.toLowerCase()) && (
+                              <Button
+                                appearance="subtle"
+                                size="small"
+                                icon={<OpenRegular />}
+                                onClick={() => onResourceSelect(r)}
+                                style={{ minWidth: 0, padding: `0 ${tokens.spacingHorizontalXS}` }}
+                                title={`Open ${name} details`}
+                              />
+                            )}
+                          </span>
+                        </TableCell>
                         <TableCell>
                           <span style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalXS, whiteSpace: 'nowrap' }}>
                             {resourceTypeIcon(r.type)}

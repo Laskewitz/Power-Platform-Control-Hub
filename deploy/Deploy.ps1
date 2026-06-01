@@ -53,6 +53,17 @@ foreach ($apiId in $connections.PSObject.Properties.Name) {
     if ($LASTEXITCODE -ne 0) { throw "add-data-source failed for $apiId" }
 }
 
+# ── Build ─────────────────────────────────────────────────────────────────────
+Write-Host ""
+Write-Host "  Building app..." -ForegroundColor Cyan
+Push-Location $rootDir
+try {
+    & npm run build
+    if ($LASTEXITCODE -ne 0) { throw "build failed" }
+} finally {
+    Pop-Location
+}
+
 # ── Push ──────────────────────────────────────────────────────────────────────
 Write-Host ""
 Write-Host "  Pushing app..." -ForegroundColor Cyan
