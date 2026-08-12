@@ -155,6 +155,14 @@ The **Resources table** includes Name, Type, Created, Modified, Owner columns. C
 - **📄 Detail page**: collapsible accordion sections for Policy Details, Connector Groups, Environments, and Advisories
 - **✨ Apply Best Practices**: analyses the policy against advisory rules (e.g. HTTP connector → Blocked, SharePoint → Confidential) and proposes changes before saving
 
+### 💳 Copilot Credit governance
+
+- Tenant purchased, allocated, and consumed Copilot Credit reporting
+- GitHub Copilot harness agent detection through the inventory `isCLIAgent` property
+- Harness environment and accountable-owner review for maker-development and funded-production classification
+- Environment-level reserved Copilot Credit updates and linked pay-as-you-go policy visibility
+- Uses Power Platform Admin V2 connector actions rather than direct Power Platform API requests
+
 ### 🗂️ Environment Groups
 
 - Create, edit, and delete environment groups
