@@ -42,6 +42,7 @@ import {
   PersonAddRegular,
 } from '@fluentui/react-icons';
 import type { Resource } from '../types/inventory.ts';
+import { AGENT_HARNESS_LABELS, getAgentHarness } from '../types/inventory.ts';
 import type { Bots } from '../generated/models/BotsModel.ts';
 import type { BotComponent } from '../services/dataverseConnectorService.ts';
 import { COMPONENT_TYPE_LABELS } from '../services/dataverseConnectorService.ts';
@@ -904,6 +905,8 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
     5: 'Azure AD v2', 6: 'Azure AD v2 (Certificate)', 10: 'Generic OAuth 2',
   };
   const inventoryProps = resource.properties;
+  const agentHarness = getAgentHarness(inventoryProps);
+  const agentHarnessLabel = AGENT_HARNESS_LABELS[agentHarness];
   const inventoryChannels = getStringArray(inventoryProps.channels);
   const inventoryViewers = formatSharedSummary(inventoryProps.sharedWithViewers);
   const inventoryEditors = formatSharedSummary(inventoryProps.sharedWithEditors);
@@ -939,6 +942,15 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
                 <Text className={styles.title}>{displayName}</Text>
               </Tooltip>
               <Badge appearance="tint" color="informative" size="small">Copilot Studio Agent</Badge>
+              {agentHarnessLabel && (
+                <Badge
+                  appearance="tint"
+                  color={agentHarness === 'github-copilot' ? 'brand' : 'success'}
+                  size="small"
+                >
+                  {agentHarnessLabel}
+                </Badge>
+              )}
               {bot && (
                 <Badge
                   appearance="tint"
@@ -1101,6 +1113,13 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
                       <span className={styles.detailLabel}>Display Name</span>
                       <span className={styles.detailValue}>{displayName}</span>
                     </div>
+
+                    {agentHarnessLabel && (
+                      <div className={styles.detailItem}>
+                        <span className={styles.detailLabel}>Agent Harness</span>
+                        <span className={styles.detailValue}>{agentHarnessLabel}</span>
+                      </div>
+                    )}
 
                     {bot && (
                       <div className={styles.detailItem}>
