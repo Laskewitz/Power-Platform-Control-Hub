@@ -1,56 +1,24 @@
-# 🚀 Power Platform Control Hub
+# Power Platform Control Hub
 
-A **Center of Excellence (CoE) Starter Kit dashboard replacement** built as a [Power Apps Code App](https://learn.microsoft.com/en-us/power-apps/developer/code-apps/overview). It uses the [Power Platform Inventory API](https://learn.microsoft.com/en-us/power-platform/admin/inventory-api) and several Power Platform admin connectors — including **Microsoft Dataverse** — to surface a real-time view of all resources across your tenant: canvas apps, model-driven apps, cloud flows, agent flows, code apps, Copilot Studio agents, and environments. No CoE Starter Kit solution required.
+An action-oriented Power Platform operations console built as a [Power Apps Code App](https://learn.microsoft.com/en-us/power-apps/developer/code-apps/overview). It uses the [Power Platform Inventory API](https://learn.microsoft.com/en-us/power-platform/admin/inventory-api) and several Power Platform admin connectors, including **Microsoft Dataverse**, to connect tenant-wide inventory with recommendations, best-practice analysis, governance configuration, and direct admin actions. No CoE Starter Kit solution is required.
 
 🔐 Authentication is handled entirely by the Power Apps host. No app registration or MSAL configuration is required.
 
 ---
 
-## 📸 Screenshots
+## Features
 
-### Overview
+### Operations navigation
 
-![Overview](screenshots/01-overview.png)
-
-### Resources
-
-![Resources](screenshots/02-resources.png)
-
-### Environments
-
-![Environments](screenshots/03-environments.png)
-
-### Tenant Policies
-
-![Tenant Policies](screenshots/04-tenant-policies.png)
-
-### Environment Groups
-
-![Environment Groups](screenshots/05-environment-groups.png)
-
-### Connectors
-
-![Connectors](screenshots/06-connectors.png)
-
-### Recommendations
-
-![Recommendations](screenshots/07-recommendations.png)
-
----
-
-## ✨ Features
-
-### 🗂️ Navigation tabs
-
-| Tab | What it shows |
+| Destination | What it shows |
 |---|---|
-| 🏠 **Overview** | Metric cards per resource type + recently created resources table |
-| 📋 **Resources** | Sortable, searchable, filterable table of all resources across all environments. Click any canvas app, cloud flow, or agent to open a full detail panel. |
-| 🌍 **Environments** | Card grid of every environment with type badge, managed-environment indicator, region, and resource count. Click any environment to open the environment detail view. |
-| 🛡️ **Tenant Policies** | DLP policies (list, create, detail), billing policies, and cross-tenant connection reports |
-| 🗂️ **Environment Groups** | Environment groups, rule-based policies, and rule sets (CRUD) |
-| 🔌 **Connectors** | Per-environment connections, connectors, and Power Pages websites |
-| 💡 **Recommendations** | Advisor recommendations from the admin API |
+| **Operations** | Tenant scope, resource movement, active recommendations, and recently created resources |
+| **Resources** | Sortable, searchable, filterable inventory across all environments, with full details for supported resources |
+| **Environments** | Every environment with type, management state, region, resource count, lifecycle actions, and analysis |
+| **Connectivity** | Per-environment connectors, connections, and Power Pages websites |
+| **Tenant policies** | DLP policies, billing policies, and cross-tenant connection reports |
+| **Environment groups** | Environment groups, rule-based policies, and rule sets |
+| **Recommendations** | Advisor recommendations and the affected resources returned by the admin API |
 
 ---
 
@@ -194,13 +162,14 @@ The **Resources table** includes Name, Type, Created, Modified, Owner columns. C
 - Rule-based policies: create, assign to groups, edit, extract rule sets
 - Rule sets: full CRUD with JSON-based parameter editing
 
-### 🎨 Additional UX
+### Interface and accessibility
 
-- 🌙 Light / dark mode toggle (preference saved to `localStorage`)
-- 📱 Responsive layout (mobile hamburger menu)
-- Fluent UI v9 — consistent with Microsoft 365 design language
-- ♿ Accessible (WCAG-compliant contrast, ARIA labels, keyboard navigation)
-- 🔔 Toast notifications for all write actions
+- Responsive command rail and mobile navigation
+- Light and dark themes with preference saved to `localStorage`
+- Fluent UI v9 foundations with a Control Hub-specific operations system
+- WCAG-compliant contrast, visible focus, ARIA labels, and keyboard navigation
+- Skeleton, empty, error, loading, and destructive-action states
+- Toast notifications for write actions
 - Inline error messages with expandable details
 
 ---

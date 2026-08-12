@@ -20,10 +20,11 @@ import {
   makeStyles,
   tokens,
 } from '@fluentui/react-components';
-import { PlayRegular, PersonRegular, GlobeRegular } from '@fluentui/react-icons';
+import { PlayRegular, PersonRegular, GlobeRegular, LightbulbRegular, ErrorCircleRegular } from '@fluentui/react-icons';
 import { PowerPlatformforAdminsV2Service } from '../generated/services/PowerPlatformforAdminsV2Service.ts';
 import type { AdvisorRecommendationResource } from '../generated/models/PowerPlatformforAdminsV2Model.ts';
 import { useMutation } from '../hooks/useMutation.tsx';
+import EmptyState from './EmptyState.tsx';
 
 const API_VERSION = '2024-10-01';
 
@@ -72,6 +73,13 @@ const useStyles = makeStyles({
   bulkButton: {
     whiteSpace: 'nowrap',
     flexShrink: 0,
+  },
+  errorRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalS,
+    color: tokens.colorStatusDangerForeground1,
+    padding: `${tokens.spacingVerticalM} 0`,
   },
 });
 
@@ -160,16 +168,25 @@ export default function RecommendationResourcesDialog({
     <Dialog open={open} onOpenChange={(_, d) => { if (!d.open) onClose(); }}>
       <DialogSurface style={{ maxWidth: '900px', width: '90vw' }}>
         <DialogBody>
-          <DialogTitle>{scenarioDisplayName}</DialogTitle>
+          <DialogTitle action={<LightbulbRegular aria-hidden="true" style={{ color: tokens.colorBrandForeground1, fontSize: '20px' }} />}>
+            {scenarioDisplayName}
+          </DialogTitle>
           <DialogContent>
             {isLoading ? (
               <div style={{ display: 'flex', justifyContent: 'center', padding: tokens.spacingVerticalXL }}>
                 <Spinner label="Loading resources…" />
               </div>
             ) : fetchError ? (
-              <Text style={{ color: tokens.colorStatusDangerForeground1 }}>{fetchError}</Text>
+              <div className={styles.errorRow} role="alert">
+                <ErrorCircleRegular aria-hidden="true" />
+                <Text>{fetchError}</Text>
+              </div>
             ) : resources.length === 0 ? (
-              <Text style={{ color: tokens.colorNeutralForeground3 }}>No resources found for this recommendation.</Text>
+              <EmptyState
+                icon={<LightbulbRegular />}
+                title="No resources found"
+                subtitle="No resources are currently associated with this recommendation."
+              />
             ) : (
               <div className={styles.tableWrapper}>
                 <Table size="small">

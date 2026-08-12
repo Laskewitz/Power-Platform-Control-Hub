@@ -39,6 +39,7 @@ import {
   ShieldLockRegular,
   PlugConnectedRegular,
   GlobeRegular,
+  SearchRegular,
 } from '@fluentui/react-icons';
 import type {
   ManagedPolicyV2,
@@ -283,6 +284,10 @@ const useStyles = makeStyles({
     gridTemplateColumns: '180px 1fr',
     gap: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalL}`,
     alignItems: 'start',
+    '@media (max-width: 640px)': {
+      gridTemplateColumns: '1fr',
+      gap: tokens.spacingVerticalXS,
+    },
   },
   body: {
     display: 'flex',
@@ -318,17 +323,18 @@ const useStyles = makeStyles({
     flexDirection: 'column',
     gap: tokens.spacingVerticalXS,
     padding: tokens.spacingHorizontalM,
-    borderRadius: tokens.borderRadiusMedium,
-    backgroundColor: tokens.colorNeutralBackground2,
-    border: `1px solid ${tokens.colorNeutralStroke2}`,
+    borderRadius: 0,
+    backgroundColor: '#0C141D',
+    border: '1px solid #29404F',
   },
   tableWrapper: {
     flex: 1,
     overflowY: 'auto',
     overflowX: 'auto',
-    border: `1px solid ${tokens.colorNeutralStroke2}`,
-    borderRadius: tokens.borderRadiusMedium,
-    backgroundColor: tokens.colorNeutralBackground1,
+    border: '1px solid #29404F',
+    borderRadius: 0,
+    backgroundColor: '#0C141D',
+    boxShadow: '0 12px 28px rgba(0, 0, 0, 0.28)',
   },
   table: {
     width: '100%',
@@ -416,6 +422,90 @@ const useStyles = makeStyles({
     gap: tokens.spacingHorizontalS,
     paddingRight: tokens.spacingHorizontalXS,
   },
+  connectorWorkspace: {
+    display: 'grid',
+    gap: '14px',
+  },
+  classificationRail: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+    border: `1px solid ${tokens.colorNeutralStroke1}`,
+    backgroundColor: tokens.colorNeutralBackground3,
+    '@media (max-width: 680px)': {
+      gridTemplateColumns: '1fr',
+    },
+  },
+  classificationButton: {
+    justifyContent: 'space-between',
+    minHeight: '58px',
+    padding: `0 ${tokens.spacingHorizontalM}`,
+    borderRadius: 0,
+    borderRight: `1px solid ${tokens.colorNeutralStroke1}`,
+    ':last-child': {
+      borderRight: 0,
+    },
+  },
+  connectorControls: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalM,
+    flexWrap: 'wrap',
+  },
+  connectorSearch: {
+    minWidth: '280px',
+  },
+  resultCount: {
+    marginLeft: 'auto',
+    color: tokens.colorNeutralForeground3,
+    fontSize: tokens.fontSizeBase200,
+    fontVariantNumeric: 'tabular-nums',
+  },
+  connectorDirectory: {
+    border: `1px solid ${tokens.colorNeutralStroke1}`,
+    backgroundColor: tokens.colorNeutralBackground1,
+  },
+  connectorDirectoryHeader: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(240px, 1fr) minmax(280px, 1.5fr)',
+    gap: tokens.spacingHorizontalL,
+    padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`,
+    color: tokens.colorNeutralForeground3,
+    borderBottom: `1px solid ${tokens.colorNeutralStroke1}`,
+    backgroundColor: tokens.colorNeutralBackground3,
+    fontSize: tokens.fontSizeBase200,
+    fontWeight: tokens.fontWeightSemibold,
+    letterSpacing: '0.05em',
+    textTransform: 'uppercase',
+  },
+  connectorDirectoryRow: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(240px, 1fr) minmax(280px, 1.5fr)',
+    gap: tokens.spacingHorizontalL,
+    alignItems: 'center',
+    minHeight: '42px',
+    padding: `${tokens.spacingVerticalXS} ${tokens.spacingHorizontalM}`,
+    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+    ':last-child': {
+      borderBottom: 0,
+    },
+    ':hover': {
+      backgroundColor: tokens.colorNeutralBackground2,
+    },
+  },
+  connectorIdentifier: {
+    color: tokens.colorNeutralForeground3,
+    fontFamily: tokens.fontFamilyMonospace,
+    fontSize: tokens.fontSizeBase200,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+  pagination: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: tokens.spacingHorizontalS,
+  },
   accordion: {
     display: 'flex',
     flexDirection: 'column',
@@ -439,9 +529,9 @@ const useStyles = makeStyles({
     gap: tokens.spacingHorizontalM,
     flexWrap: 'wrap',
     padding: `${tokens.spacingVerticalXS} ${tokens.spacingHorizontalM}`,
-    border: `1px solid ${tokens.colorNeutralStroke2}`,
-    borderRadius: tokens.borderRadiusMedium,
-    backgroundColor: tokens.colorNeutralBackground2,
+    border: '1px solid #29404F',
+    borderRadius: 0,
+    backgroundColor: '#0C141D',
   },
   connectorChipName: {
     flex: 1,
@@ -500,9 +590,9 @@ const useStyles = makeStyles({
     flexDirection: 'column',
     gap: tokens.spacingVerticalXS,
     padding: tokens.spacingHorizontalM,
-    borderRadius: tokens.borderRadiusMedium,
-    backgroundColor: tokens.colorNeutralBackground2,
-    border: `1px solid ${tokens.colorNeutralStroke2}`,
+    borderRadius: 0,
+    backgroundColor: '#0B1D26',
+    border: '1px solid #29404F',
   },
   impactMetricValue: {
     fontSize: tokens.fontSizeHero700,
@@ -528,6 +618,13 @@ const useStyles = makeStyles({
   riskReason: {
     fontSize: tokens.fontSizeBase200,
     color: tokens.colorNeutralForeground3,
+  },
+  monitorPanel: {
+    color: '#F4FBFD',
+    border: '1px solid #29404F',
+    borderRadius: 0,
+    backgroundColor: '#0C141D',
+    boxShadow: '0 12px 28px rgba(0, 0, 0, 0.28)',
   },
 });
 
@@ -618,6 +715,9 @@ export default function DlpPoliciesView({
   const [displayNameError, setDisplayNameError] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<PolicyV2 | null>(null);
   const [showBestPracticesConfirm, setShowBestPracticesConfirm] = useState(false);
+  const [detailConnectorClassification, setDetailConnectorClassification] = useState<ConnectorClassification>('General');
+  const [detailConnectorSearch, setDetailConnectorSearch] = useState('');
+  const [detailConnectorPage, setDetailConnectorPage] = useState(0);
 
   const sortedPolicies = useMemo(
     () => [...dlpPolicies].sort((left, right) => (left.displayName || left.name).localeCompare(right.displayName || right.name)),
@@ -627,6 +727,40 @@ export default function DlpPoliciesView({
   const currentPolicy = page.type === 'detail'
     ? sortedPolicies.find((policy) => policy.name === page.policy.name) ?? page.policy
     : null;
+
+  const detailConnectorGroups = useMemo(() => Object.fromEntries(
+    CONNECTOR_CLASSIFICATIONS.map((classification) => {
+      const connectors = currentPolicy?.connectorGroups
+        ?.find((group) => group.classification === classification)
+        ?.connectors ?? [];
+      return [classification, [...connectors].sort((left, right) => (
+        (left.name || left.id).localeCompare(right.name || right.id)
+      ))];
+    }),
+  ) as Record<ConnectorClassification, NonNullable<PolicyV2['connectorGroups']>[number]['connectors']>, [currentPolicy]);
+
+  const filteredDetailConnectors = useMemo(() => {
+    const query = detailConnectorSearch.trim().toLowerCase();
+    const connectors = detailConnectorGroups[detailConnectorClassification] ?? [];
+    if (!query) return connectors;
+    return connectors.filter((connector) => (
+      connector.name?.toLowerCase().includes(query)
+      || connector.id?.toLowerCase().includes(query)
+    ));
+  }, [detailConnectorClassification, detailConnectorGroups, detailConnectorSearch]);
+
+  const detailConnectorPageSize = 40;
+  const detailConnectorPageCount = Math.max(1, Math.ceil(filteredDetailConnectors.length / detailConnectorPageSize));
+  const visibleDetailConnectors = filteredDetailConnectors.slice(
+    detailConnectorPage * detailConnectorPageSize,
+    (detailConnectorPage + 1) * detailConnectorPageSize,
+  );
+
+  useEffect(() => {
+    setDetailConnectorClassification('General');
+    setDetailConnectorSearch('');
+    setDetailConnectorPage(0);
+  }, [currentPolicy?.name]);
 
   const environmentOptions = useMemo(
     () => [...environments]
@@ -872,7 +1006,7 @@ export default function DlpPoliciesView({
 
         <div className={styles.body}>
           <div className={styles.form}>
-            <Card>
+            <Card className={styles.monitorPanel}>
               <div className={styles.formSection}>
                 <Text className={styles.sectionTitle}>Basic Settings</Text>
                 <Field
@@ -954,7 +1088,7 @@ export default function DlpPoliciesView({
             </Card>
 
             {connectorSourceEnvironmentId ? (
-              <Card>
+              <Card className={styles.monitorPanel}>
                 <div className={styles.formSection}>
                   <div className={styles.listHeader}>
                     <Text className={styles.sectionTitle}>Connector Classification</Text>
@@ -1159,7 +1293,7 @@ export default function DlpPoliciesView({
 
         <div className={styles.body}>
           <div className={styles.form}>
-            <Card>
+            <Card className={styles.monitorPanel}>
               <div className={styles.impactSection}>
                 <div className={styles.advisoryHeader}>
                   <InfoRegular style={{ color: tokens.colorBrandForeground1 }} />
@@ -1190,7 +1324,7 @@ export default function DlpPoliciesView({
             </Card>
 
             {(blockedItems.length > 0 || hasIsolationRisk) && (
-              <Card>
+              <Card className={styles.monitorPanel}>
                 <div className={styles.impactSection}>
                   <Text className={styles.sectionTitle}>Risk Summary</Text>
                   {blockedItems.length > 0 && (
@@ -1215,7 +1349,7 @@ export default function DlpPoliciesView({
             )}
 
             {blockedItems.length > 0 && (
-              <Card>
+              <Card className={styles.monitorPanel}>
                 <div className={styles.impactSection}>
                   <div className={styles.advisoryHeader}>
                     <ProhibitedRegular style={{ color: tokens.colorPaletteRedForeground1 }} />
@@ -1239,7 +1373,7 @@ export default function DlpPoliciesView({
             )}
 
             {confidentialItems.length > 0 && (
-              <Card>
+              <Card className={styles.monitorPanel}>
                 <div className={styles.impactSection}>
                   <div className={styles.advisoryHeader}>
                     <WarningRegular style={{ color: tokens.colorPaletteGoldForeground2 }} />
@@ -1262,7 +1396,7 @@ export default function DlpPoliciesView({
             )}
 
             {liveAdvisories.length > 0 && (
-              <Card>
+              <Card className={styles.monitorPanel}>
                 <div className={styles.impactSection}>
                   <div className={styles.advisoryHeader}>
                     <InfoRegular style={{ color: tokens.colorBrandForeground1 }} />
@@ -1295,7 +1429,7 @@ export default function DlpPoliciesView({
             )}
 
             {blockedItems.length === 0 && !hasIsolationRisk && liveAdvisories.length === 0 && (
-              <Card>
+              <Card className={styles.monitorPanel}>
                 <div className={styles.impactSection}>
                   <div className={styles.advisoryHeader}>
                     <CheckmarkCircleRegular style={{ color: tokens.colorPaletteGreenForeground1, fontSize: '20px' }} />
@@ -1403,40 +1537,96 @@ export default function DlpPoliciesView({
 
             {/* Connector Groups */}
             <AccordionItem value="connectors">
-              <AccordionHeader expandIconPosition="end" icon={<PlugConnectedRegular />}>Connector Groups</AccordionHeader>
+              <AccordionHeader expandIconPosition="end" icon={<PlugConnectedRegular />}>Connector policy</AccordionHeader>
               <AccordionPanel>
-                <Accordion multiple defaultOpenItems={CONNECTOR_CLASSIFICATIONS.filter((c) => {
-                  const group = currentPolicy.connectorGroups?.find((e) => e.classification === c);
-                  return (group?.connectors ?? []).length > 0;
-                })}>
-                  {CONNECTOR_CLASSIFICATIONS.map((classification) => {
-                    const group = currentPolicy.connectorGroups?.find((entry) => entry.classification === classification);
-                    const connectors = group?.connectors ?? [];
-                    return (
-                      <AccordionItem key={classification} value={classification}>
-                        <AccordionHeader>
-                          <div className={styles.titleRow}>
-                            <Text weight="semibold">{getClassificationLabel(classification)}</Text>
-                            <Badge appearance="tint" color={getClassificationColor(classification)} size="small">{connectors.length} connector{connectors.length === 1 ? '' : 's'}</Badge>
-                          </div>
-                        </AccordionHeader>
-                        <AccordionPanel>
-                          {connectors.length === 0 ? (
-                            <Text className={styles.helperText}>No connectors assigned</Text>
-                          ) : (
-                            <div className={styles.connectorList}>
-                              {connectors.map((connector) => (
-                                <Badge key={`${classification}-${connector.id}`} className={styles.connectorTag} appearance="outline" color="informative">
-                                  {connector.name || connector.id}
-                                </Badge>
-                              ))}
-                            </div>
-                          )}
-                        </AccordionPanel>
-                      </AccordionItem>
-                    );
-                  })}
-                </Accordion>
+                <div className={styles.connectorWorkspace}>
+                  <div className={styles.classificationRail}>
+                    {CONNECTOR_CLASSIFICATIONS.map((classification) => {
+                      const count = detailConnectorGroups[classification]?.length ?? 0;
+                      return (
+                        <Button
+                          key={classification}
+                          className={styles.classificationButton}
+                          appearance={detailConnectorClassification === classification ? 'primary' : 'subtle'}
+                          onClick={() => {
+                            setDetailConnectorClassification(classification);
+                            setDetailConnectorPage(0);
+                          }}
+                        >
+                          <span>{getClassificationLabel(classification)}</span>
+                          <Badge
+                            appearance="tint"
+                            color={getClassificationColor(classification)}
+                            size="small"
+                          >
+                            {count.toLocaleString()}
+                          </Badge>
+                        </Button>
+                      );
+                    })}
+                  </div>
+
+                  <div className={styles.connectorControls}>
+                    <Input
+                      className={styles.connectorSearch}
+                      contentBefore={<SearchRegular />}
+                      placeholder={`Search ${getClassificationLabel(detailConnectorClassification).toLowerCase()} connectors`}
+                      value={detailConnectorSearch}
+                      onChange={(_, data) => {
+                        setDetailConnectorSearch(data.value);
+                        setDetailConnectorPage(0);
+                      }}
+                    />
+                    <Text className={styles.resultCount}>
+                      {filteredDetailConnectors.length.toLocaleString()} connector{filteredDetailConnectors.length === 1 ? '' : 's'}
+                    </Text>
+                  </div>
+
+                  <div className={styles.connectorDirectory}>
+                    <div className={styles.connectorDirectoryHeader}>
+                      <span>Connector</span>
+                      <span>Identifier</span>
+                    </div>
+                    {visibleDetailConnectors.length === 0 ? (
+                      <div className={styles.emptyState}>
+                        <PlugConnectedRegular fontSize={24} />
+                        <Text weight="semibold">No matching connectors</Text>
+                        <Text className={styles.helperText}>
+                          {detailConnectorSearch
+                            ? 'Try a different connector name or identifier.'
+                            : `No connectors are assigned to ${getClassificationLabel(detailConnectorClassification)}.`}
+                        </Text>
+                      </div>
+                    ) : visibleDetailConnectors.map((connector) => (
+                      <div className={styles.connectorDirectoryRow} key={`${detailConnectorClassification}-${connector.id}`}>
+                        <Text weight="semibold">{connector.name || connector.id}</Text>
+                        <Text className={styles.connectorIdentifier} title={connector.id}>{connector.id}</Text>
+                      </div>
+                    ))}
+                  </div>
+
+                  {detailConnectorPageCount > 1 && (
+                    <div className={styles.pagination}>
+                      <Button
+                        size="small"
+                        disabled={detailConnectorPage === 0}
+                        onClick={() => setDetailConnectorPage((value) => Math.max(0, value - 1))}
+                      >
+                        Previous
+                      </Button>
+                      <Text className={styles.resultCount}>
+                        Page {(detailConnectorPage + 1).toLocaleString()} of {detailConnectorPageCount.toLocaleString()}
+                      </Text>
+                      <Button
+                        size="small"
+                        disabled={detailConnectorPage >= detailConnectorPageCount - 1}
+                        onClick={() => setDetailConnectorPage((value) => Math.min(detailConnectorPageCount - 1, value + 1))}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </AccordionPanel>
             </AccordionItem>
 

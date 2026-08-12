@@ -19,7 +19,6 @@ import {
   MessageBar,
   MessageBarBody,
   Option,
-  Spinner,
   Tab,
   TabList,
   Text,
@@ -27,7 +26,7 @@ import {
   makeStyles,
   tokens,
 } from '@fluentui/react-components';
-import { AddRegular, DeleteRegular, EditRegular } from '@fluentui/react-icons';
+import { AddRegular, DeleteRegular, EditRegular, FolderRegular } from '@fluentui/react-icons';
 import type {
   EnvironmentGroup,
   GovernanceRuleSet,
@@ -36,6 +35,8 @@ import type {
 } from '../types/admin.ts';
 import type { Resource } from '../types/inventory.ts';
 import ConfirmDialog from './ConfirmDialog.tsx';
+import EmptyState from './EmptyState.tsx';
+import { OperationsSkeleton, PageHeader } from './ui.tsx';
 import { useMutation } from '../hooks/useMutation.tsx';
 import { useOwners } from '../services/ownerCache.ts';
 import {
@@ -68,33 +69,13 @@ const useStyles = makeStyles({
   root: {
     display: 'flex',
     flexDirection: 'column',
-    gap: tokens.spacingVerticalL,
-    padding: tokens.spacingHorizontalXL,
+    gap: '18px',
+    padding: '28px 32px 32px',
     height: '100%',
     overflow: 'hidden',
     '@media (max-width: 768px)': {
       padding: tokens.spacingHorizontalM,
     },
-  },
-  header: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: tokens.spacingHorizontalL,
-    flexWrap: 'wrap',
-    flexShrink: 0,
-  },
-  titleBlock: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: tokens.spacingVerticalXS,
-    marginRight: 'auto',
-  },
-  title: {
-    fontSize: tokens.fontSizeBase500,
-    fontWeight: tokens.fontWeightSemibold,
-  },
-  subtitle: {
-    color: tokens.colorNeutralForeground3,
   },
   body: {
     display: 'flex',
@@ -103,13 +84,25 @@ const useStyles = makeStyles({
     minHeight: 0,
     flex: 1,
   },
+  toolbar: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+  },
   tableWrapper: {
     flex: 1,
     overflowY: 'auto',
     overflowX: 'auto',
-    border: `1px solid ${tokens.colorNeutralStroke2}`,
-    borderRadius: tokens.borderRadiusMedium,
+    border: `1px solid ${tokens.colorNeutralStroke1}`,
+    borderRadius: 0,
     backgroundColor: tokens.colorNeutralBackground1,
+    boxShadow: tokens.shadow4,
+  },
+  dialogSurface: {
+    color: '#F4FBFD',
+    border: '1px solid #29404F',
+    borderRadius: 0,
+    backgroundColor: '#0C141D',
+    boxShadow: '0 24px 64px rgba(0, 0, 0, 0.62)',
   },
   table: {
     width: '100%',
@@ -124,7 +117,7 @@ const useStyles = makeStyles({
     color: tokens.colorNeutralForeground3,
     textTransform: 'uppercase',
     letterSpacing: '0.04em',
-    borderBottom: `2px solid ${tokens.colorNeutralStroke2}`,
+    borderBottom: `1px solid ${tokens.colorNeutralStroke1}`,
     backgroundColor: tokens.colorNeutralBackground3,
     whiteSpace: 'nowrap',
   },
@@ -134,6 +127,13 @@ const useStyles = makeStyles({
     color: tokens.colorNeutralForeground1,
     borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
     verticalAlign: 'middle',
+  },
+  monoCell: {
+    fontFamily: tokens.fontFamilyMonospace,
+    fontSize: tokens.fontSizeBase200,
+  },
+  tabular: {
+    fontVariantNumeric: 'tabular-nums',
   },
   centered: {
     display: 'flex',
@@ -158,6 +158,7 @@ interface GroupFormDialogProps {
 }
 
 function GroupFormDialog({ open, initial, isLoading, environments, memberIds, isAddingEnv, isRemovingEnv, onAddEnv, onRemoveEnv, onSubmit, onCancel }: GroupFormDialogProps): ReactElement {
+  const styles = useStyles();
   const [displayName, setDisplayName] = useState(initial?.displayName ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
   const [addingEnvId, setAddingEnvId] = useState('');
@@ -181,7 +182,7 @@ function GroupFormDialog({ open, initial, isLoading, environments, memberIds, is
 
   return (
     <Dialog open={open} onOpenChange={(_, data) => { if (!data.open) onCancel(); }}>
-      <DialogSurface style={{ maxWidth: 'min(580px, 95vw)', width: 'min(580px, 95vw)' }}>
+      <DialogSurface className={styles.dialogSurface} style={{ maxWidth: 'min(580px, 95vw)', width: 'min(580px, 95vw)' }}>
         <DialogBody>
           <DialogTitle>{isEdit ? 'Edit Environment Group' : 'New Environment Group'}</DialogTitle>
           <DialogContent style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalM }}>
@@ -201,7 +202,7 @@ function GroupFormDialog({ open, initial, isLoading, environments, memberIds, is
                 {members.length === 0 ? (
                   <Text style={{ fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground3 }}>No environments in this group.</Text>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalXS, maxHeight: '180px', overflowY: 'auto', border: `1px solid ${tokens.colorNeutralStroke2}`, borderRadius: tokens.borderRadiusMedium, padding: tokens.spacingHorizontalS }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalXS, maxHeight: '180px', overflowY: 'auto', border: '1px solid #29404F', borderRadius: 0, padding: tokens.spacingHorizontalS, backgroundColor: '#09121A' }}>
                     {members.map((env) => (
                       <div key={env.name} style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS }}>
                         <Text style={{ flex: 1, fontSize: tokens.fontSizeBase200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -279,10 +280,11 @@ interface PolicyFormDialogProps {
 }
 
 function PolicyFormDialog({ open, isLoading, onSubmit, onCancel }: PolicyFormDialogProps): ReactElement {
+  const styles = useStyles();
   const [name, setName] = useState('');
   return (
     <Dialog open={open} onOpenChange={(_, data) => { if (!data.open) onCancel(); }}>
-      <DialogSurface>
+      <DialogSurface className={styles.dialogSurface}>
         <DialogBody>
           <DialogTitle>New Rule-Based Policy</DialogTitle>
           <DialogContent>
@@ -313,12 +315,13 @@ interface AssignPolicyDialogProps {
 }
 
 function AssignPolicyDialog({ open, policy, envGroups, assignedGroupIds, isLoading, onSubmit, onCancel }: AssignPolicyDialogProps): ReactElement {
+  const styles = useStyles();
   const [selectedGroupId, setSelectedGroupId] = useState('');
   const availableGroups = envGroups.filter((g) => !assignedGroupIds.has(g.id));
   const selectedGroup = envGroups.find((g) => g.id === selectedGroupId);
   return (
     <Dialog open={open} onOpenChange={(_, data) => { if (!data.open) { setSelectedGroupId(''); onCancel(); } }}>
-      <DialogSurface>
+      <DialogSurface className={styles.dialogSurface}>
         <DialogBody>
           <DialogTitle>Assign Policy to Environment Group</DialogTitle>
           <DialogContent style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalM }}>
@@ -372,6 +375,7 @@ function emptyRuleSetJson(): string {
 }
 
 function PolicyEditDialog({ open, policy, availableRuleSets, isLoading, isSavingRuleSet, onSubmit, onSaveRuleSet, onCancel }: PolicyEditDialogProps): ReactElement {
+  const styles = useStyles();
   const [name, setName] = useState(policy?.name ?? '');
   const [currentRuleSets, setCurrentRuleSets] = useState(policy?.ruleSets ?? []);
   const [addingRuleSetId, setAddingRuleSetId] = useState('');
@@ -451,7 +455,7 @@ function PolicyEditDialog({ open, policy, availableRuleSets, isLoading, isSaving
 
   return (
     <Dialog open={open} onOpenChange={(_, data) => { if (!data.open) onCancel(); }}>
-      <DialogSurface style={{ maxWidth: 'min(640px, 95vw)', width: 'min(640px, 95vw)' }}>
+      <DialogSurface className={styles.dialogSurface} style={{ maxWidth: 'min(640px, 95vw)', width: 'min(640px, 95vw)' }}>
         <DialogBody>
           <DialogTitle>Edit Policy</DialogTitle>
           <DialogContent style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalM }}>
@@ -473,7 +477,7 @@ function PolicyEditDialog({ open, policy, availableRuleSets, isLoading, isSaving
                     const edit = ruleSetEdits[rs.id];
                     const isSaving = savingRuleSetId === rs.id && isSavingRuleSet;
                     return (
-                      <AccordionItem key={rs.id} value={rs.id} style={{ border: `1px solid ${tokens.colorNeutralStroke2}`, borderRadius: tokens.borderRadiusMedium, marginBottom: tokens.spacingVerticalXS }}>
+                      <AccordionItem key={rs.id} value={rs.id} style={{ border: '1px solid #29404F', borderRadius: 0, marginBottom: tokens.spacingVerticalXS, backgroundColor: '#09121A' }}>
                         <AccordionHeader
                           expandIconPosition="end"
                           style={{ paddingRight: tokens.spacingHorizontalXS }}
@@ -565,6 +569,7 @@ interface RuleSetFormDialogProps {
 }
 
 function RuleSetFormDialog({ open, initial, template, envGroups, isLoading, onSubmit, onCancel }: RuleSetFormDialogProps): ReactElement {
+  const styles = useStyles();
   const isEdit = Boolean(initial);
   const [groupId, setGroupId] = useState('');
   const [jsonValue, setJsonValue] = useState('');
@@ -602,7 +607,7 @@ function RuleSetFormDialog({ open, initial, template, envGroups, isLoading, onSu
 
   return (
     <Dialog open={open} onOpenChange={(_, data) => { if (!data.open) onCancel(); }}>
-      <DialogSurface style={{ maxWidth: 'min(640px, 95vw)', width: 'min(640px, 95vw)' }}>
+      <DialogSurface className={styles.dialogSurface} style={{ maxWidth: 'min(640px, 95vw)', width: 'min(640px, 95vw)' }}>
         <DialogBody>
           <DialogTitle>{isEdit ? 'Edit Rule Set' : template ? 'New Rule Set (from template)' : 'New Rule Set'}</DialogTitle>
           <DialogContent style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalM }}>
@@ -648,12 +653,13 @@ interface ExtractRuleSetDialogProps {
 }
 
 function ExtractRuleSetDialog({ open, policy, ruleSets, onSelect, onCancel }: ExtractRuleSetDialogProps): ReactElement {
+  const styles = useStyles();
   const ruleSetMap = useMemo(() => new Map(ruleSets.map((rs) => [rs.id, rs])), [ruleSets]);
   const policyRuleSets = policy?.ruleSets ?? [];
 
   return (
     <Dialog open={open} onOpenChange={(_, data) => { if (!data.open) onCancel(); }}>
-      <DialogSurface style={{ maxWidth: 'min(600px, 95vw)' }}>
+      <DialogSurface className={styles.dialogSurface} style={{ maxWidth: 'min(600px, 95vw)' }}>
         <DialogBody>
           <DialogTitle>Extract rule as template from "{policy?.name}"</DialogTitle>
           <DialogContent style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalM }}>
@@ -664,7 +670,7 @@ function ExtractRuleSetDialog({ open, policy, ruleSets, onSelect, onCancel }: Ex
               const inputKeys = Object.keys(prs.inputs ?? {});
 
               return (
-                <div key={prs.id} style={{ border: `1px solid ${tokens.colorNeutralStroke2}`, borderRadius: tokens.borderRadiusMedium, overflow: 'hidden' }}>
+                <div key={prs.id} style={{ border: '1px solid #29404F', borderRadius: 0, overflow: 'hidden', backgroundColor: '#09121A' }}>
                   <div style={{ padding: `${tokens.spacingVerticalXS} ${tokens.spacingHorizontalM}`, background: tokens.colorNeutralBackground3, display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS }}>
                     <Text style={{ fontFamily: 'monospace', fontSize: tokens.fontSizeBase200, fontWeight: tokens.fontWeightSemibold }}>{prs.id || '(no id)'}</Text>
                     {prs.version && <Text style={{ fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground2 }}>v{prs.version}</Text>}
@@ -733,6 +739,15 @@ function renderEnvironmentGroupsTable(
   onEdit: (group: EnvironmentGroup) => void,
   onDelete: (group: EnvironmentGroup) => void,
 ): ReactElement {
+  if (envGroups.length === 0) {
+    return (
+      <EmptyState
+        icon={<FolderRegular />}
+        title="No environment groups found"
+        subtitle="Create a group to organize environments and apply shared governance policies."
+      />
+    );
+  }
   return (
     <div className={styles.tableWrapper}>
       <table className={styles.table}>
@@ -747,14 +762,7 @@ function renderEnvironmentGroupsTable(
           </tr>
         </thead>
         <tbody>
-          {envGroups.length === 0 ? (
-            <tr>
-              <td className={styles.td} colSpan={6} style={{ textAlign: 'center' }}>
-                No environment groups found.
-              </td>
-            </tr>
-          ) : (
-            envGroups.map((group) => {
+          {envGroups.map((group) => {
               const envCount = envsByGroup.get(group.id)?.length ?? 0;
               return (
                 <tr key={group.id}>
@@ -788,8 +796,7 @@ function renderEnvironmentGroupsTable(
                   </td>
                 </tr>
               );
-            })
-          )}
+            })}
         </tbody>
       </table>
     </div>
@@ -899,7 +906,7 @@ export default function EnvironmentGroupsView({
     if (isLoading) {
       return (
         <div className={styles.centered}>
-          <Spinner size="extra-large" label="Loading environment group data…" />
+          <OperationsSkeleton />
         </div>
       );
     }
@@ -1042,12 +1049,10 @@ export default function EnvironmentGroupsView({
 
   return (
     <div className={styles.root}>
-      <div className={styles.header}>
-        <div className={styles.titleBlock}>
-          <Text className={styles.title}>Environment Groups</Text>
-          <Text className={styles.subtitle}>Manage environment groups, policies, and rule sets.</Text>
-        </div>
-      </div>
+      <PageHeader
+        title="Environment groups"
+        description="Organize environments and apply reusable governance policies and rule sets."
+      />
 
       <div className={styles.body}>
         <TabList

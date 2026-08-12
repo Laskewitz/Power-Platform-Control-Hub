@@ -20,7 +20,9 @@ import type { BillingPolicyResponseModel } from '../models/PowerPlatformforAdmin
 import type { BillingPolicyResponseModelResponseWithOdataContinuation } from '../models/PowerPlatformforAdminsV2Model';
 import type { BotQuarantineStatus } from '../models/PowerPlatformforAdminsV2Model';
 import type { BusinessContinuityStateFullSnapshot } from '../models/PowerPlatformforAdminsV2Model';
+import type { CertificateDTO } from '../models/PowerPlatformforAdminsV2Model';
 import type { CloudFlow } from '../models/PowerPlatformforAdminsV2Model';
+import type { ConnectorConsentBypassResponse } from '../models/PowerPlatformforAdminsV2Model';
 import type { ConvertTrialToProductionRequest } from '../models/PowerPlatformforAdminsV2Model';
 import type { CopyRequest } from '../models/PowerPlatformforAdminsV2Model';
 import type { CreateBackupRequest } from '../models/PowerPlatformforAdminsV2Model';
@@ -41,7 +43,6 @@ import type { EnvironmentLanguagePagedCollection } from '../models/PowerPlatform
 import type { EnvironmentList } from '../models/PowerPlatformforAdminsV2Model';
 import type { EnvironmentPagedCollection } from '../models/PowerPlatformforAdminsV2Model';
 import type { EnvironmentResponse } from '../models/PowerPlatformforAdminsV2Model';
-import type { EnvironmentRestoreRequest } from '../models/PowerPlatformforAdminsV2Model';
 import type { EnvironmentTemplatePagedCollection } from '../models/PowerPlatformforAdminsV2Model';
 import type { FinOpsAdminSettingsResponse } from '../models/PowerPlatformforAdminsV2Model';
 import type { FlowAction } from '../models/PowerPlatformforAdminsV2Model';
@@ -87,6 +88,7 @@ import type { ReassignBotRequestBody } from '../models/PowerPlatformforAdminsV2M
 import type { ResourceArrayPowerApp } from '../models/PowerPlatformforAdminsV2Model';
 import type { ResourceQueryRequest } from '../models/PowerPlatformforAdminsV2Model';
 import type { ResourceQueryResponse } from '../models/PowerPlatformforAdminsV2Model';
+import type { RestoreRequest } from '../models/PowerPlatformforAdminsV2Model';
 import type { RoleAssignmentRequest } from '../models/PowerPlatformforAdminsV2Model';
 import type { RoleAssignmentResponse } from '../models/PowerPlatformforAdminsV2Model';
 import type { RoleDefinitionResponse } from '../models/PowerPlatformforAdminsV2Model';
@@ -95,8 +97,10 @@ import type { RuleAssignmentsResponse } from '../models/PowerPlatformforAdminsV2
 import type { RuleSetDto } from '../models/PowerPlatformforAdminsV2Model';
 import type { RunStatusResponse } from '../models/PowerPlatformforAdminsV2Model';
 import type { RunTestSetRequestBody } from '../models/PowerPlatformforAdminsV2Model';
+import type { SetAdminConsentBypassRequest } from '../models/PowerPlatformforAdminsV2Model';
 import type { SiteSecurityResult } from '../models/PowerPlatformforAdminsV2Model';
 import type { SiteSecurityScore } from '../models/PowerPlatformforAdminsV2Model';
+import type { SslBindingThumbprintDTO } from '../models/PowerPlatformforAdminsV2Model';
 import type { StateChangeRequest } from '../models/PowerPlatformforAdminsV2Model';
 import type { StorageWarningThresholdsDocument } from '../models/PowerPlatformforAdminsV2Model';
 import type { TenantApplicationPackageContinuationResponse } from '../models/PowerPlatformforAdminsV2Model';
@@ -599,6 +603,40 @@ export class PowerPlatformforAdminsV2Service {
   }
 
   /**
+   * Get Connector Consent Bypass
+   * Get the admin connector consent bypass setting for a bot.
+   */
+  public static async GetConnectorConsentBypass(EnvironmentId: string, BotId: string, api_version: string): Promise<IOperationResult<ConnectorConsentBypassResponse>> {
+    const params: { EnvironmentId: string, BotId: string, "api-version": string } = { EnvironmentId, BotId, "api-version": api_version };
+    const result = await PowerPlatformforAdminsV2Service.client.executeAsync<{ EnvironmentId: string, BotId: string, "api-version": string }, ConnectorConsentBypassResponse>(
+      {
+        connectorOperation: {
+          tableName: PowerPlatformforAdminsV2Service.dataSourceName,
+          operationName: 'GetConnectorConsentBypass',
+          parameters: params
+        },
+      });
+    return result;
+  }
+
+  /**
+   * Set Connector Consent Bypass
+   * Set the admin connector consent bypass setting for a bot.
+   */
+  public static async SetConnectorConsentBypass(EnvironmentId: string, BotId: string, api_version: string, body: SetAdminConsentBypassRequest): Promise<IOperationResult<ConnectorConsentBypassResponse>> {
+    const params: { EnvironmentId: string, BotId: string, "api-version": string, body: SetAdminConsentBypassRequest } = { EnvironmentId, BotId, "api-version": api_version, body };
+    const result = await PowerPlatformforAdminsV2Service.client.executeAsync<{ EnvironmentId: string, BotId: string, "api-version": string, body: SetAdminConsentBypassRequest }, ConnectorConsentBypassResponse>(
+      {
+        connectorOperation: {
+          tableName: PowerPlatformforAdminsV2Service.dataSourceName,
+          operationName: 'SetConnectorConsentBypass',
+          parameters: params
+        },
+      });
+    return result;
+  }
+
+  /**
    * List Maker Evaluation Test Runs
    * List all maker evaluation test runs for a bot.
    */
@@ -1092,12 +1130,29 @@ export class PowerPlatformforAdminsV2Service {
   }
 
   /**
+   * Gets the status of an environment-scoped lifecycle operation (Preview)
+   * Gets the status of an environment lifecycle operation scoped under a specific environment, enabling environment-level authorization on the operation lookup.
+   */
+  public static async GetEnvironmentOperationByID(targetEnvironmentId: string, operationId: string, api_version: string): Promise<IOperationResult<OperationExecutionResult>> {
+    const params: { targetEnvironmentId: string, operationId: string, "api-version": string } = { targetEnvironmentId, operationId, "api-version": api_version };
+    const result = await PowerPlatformforAdminsV2Service.client.executeAsync<{ targetEnvironmentId: string, operationId: string, "api-version": string }, OperationExecutionResult>(
+      {
+        connectorOperation: {
+          tableName: PowerPlatformforAdminsV2Service.dataSourceName,
+          operationName: 'GetEnvironmentOperationByID',
+          parameters: params
+        },
+      });
+    return result;
+  }
+
+  /**
    * Restores the specified environment to a previous backup (Preview)
    * Restores the specified environment to a previous backup.
    */
-  public static async RestoreEnvironment(targetEnvironmentId: string, api_version: string, ValidateOnly?: boolean, ValidateProperties?: string, body?: EnvironmentRestoreRequest): Promise<IOperationResult<void>> {
-    const params: { targetEnvironmentId: string, "api-version": string, ValidateOnly?: boolean, ValidateProperties?: string, body?: EnvironmentRestoreRequest } = { targetEnvironmentId, "api-version": api_version, ValidateOnly, ValidateProperties, body };
-    const result = await PowerPlatformforAdminsV2Service.client.executeAsync<{ targetEnvironmentId: string, "api-version": string, ValidateOnly?: boolean, ValidateProperties?: string, body?: EnvironmentRestoreRequest }, void>(
+  public static async RestoreEnvironment(targetEnvironmentId: string, api_version: string, ValidateOnly?: boolean, ValidateProperties?: string, body?: RestoreRequest): Promise<IOperationResult<void>> {
+    const params: { targetEnvironmentId: string, "api-version": string, ValidateOnly?: boolean, ValidateProperties?: string, body?: RestoreRequest } = { targetEnvironmentId, "api-version": api_version, ValidateOnly, ValidateProperties, body };
+    const result = await PowerPlatformforAdminsV2Service.client.executeAsync<{ targetEnvironmentId: string, "api-version": string, ValidateOnly?: boolean, ValidateProperties?: string, body?: RestoreRequest }, void>(
       {
         connectorOperation: {
           tableName: PowerPlatformforAdminsV2Service.dataSourceName,
@@ -2418,6 +2473,57 @@ export class PowerPlatformforAdminsV2Service {
   }
 
   /**
+   * Upload a certificate for a website
+   * Validates and uploads an SSL or managed certificate for the specified website. The certificate file and password must be provided as multipart form data.
+   */
+  public static async UploadCertificate(environmentId: string, id: string, certType: string, api_version: string, file?: unknown, password?: string): Promise<IOperationResult<string>> {
+    const params: { environmentId: string, id: string, certType: string, "api-version": string, file?: unknown, password?: string } = { environmentId, id, certType, "api-version": api_version, file, password };
+    const result = await PowerPlatformforAdminsV2Service.client.executeAsync<{ environmentId: string, id: string, certType: string, "api-version": string, file?: unknown, password?: string }, string>(
+      {
+        connectorOperation: {
+          tableName: PowerPlatformforAdminsV2Service.dataSourceName,
+          operationName: 'UploadCertificate',
+          parameters: params
+        },
+      });
+    return result;
+  }
+
+  /**
+   * Get certificates associated with a website
+   * Returns the list of certificates associated with the specified website, filtered by certificate type.
+   */
+  public static async GetCertificatesByPortal(environmentId: string, id: string, certType: string, api_version: string): Promise<IOperationResult<CertificateDTO[]>> {
+    const params: { environmentId: string, id: string, certType: string, "api-version": string } = { environmentId, id, certType, "api-version": api_version };
+    const result = await PowerPlatformforAdminsV2Service.client.executeAsync<{ environmentId: string, id: string, certType: string, "api-version": string }, CertificateDTO[]>(
+      {
+        connectorOperation: {
+          tableName: PowerPlatformforAdminsV2Service.dataSourceName,
+          operationName: 'GetCertificatesByPortal',
+          parameters: params
+        },
+      });
+    return result;
+  }
+
+  /**
+   * Delete a certificate associated with a website
+   * Deletes the certificate identified by the given thumbprint and type from the website.
+   */
+  public static async DeleteCertificateByPortal(environmentId: string, id: string, thumbprint: string, certType: string, api_version: string): Promise<IOperationResult<void>> {
+    const params: { environmentId: string, id: string, thumbprint: string, certType: string, "api-version": string } = { environmentId, id, thumbprint, certType, "api-version": api_version };
+    const result = await PowerPlatformforAdminsV2Service.client.executeAsync<{ environmentId: string, id: string, thumbprint: string, certType: string, "api-version": string }, void>(
+      {
+        connectorOperation: {
+          tableName: PowerPlatformforAdminsV2Service.dataSourceName,
+          operationName: 'DeleteCertificateByPortal',
+          parameters: params
+        },
+      });
+    return result;
+  }
+
+  /**
    * Convert a trial Power Pages website to production
    * Convert a trial website to a production website.
    */
@@ -2445,6 +2551,57 @@ export class PowerPlatformforAdminsV2Service {
         connectorOperation: {
           tableName: PowerPlatformforAdminsV2Service.dataSourceName,
           operationName: 'CreateWafRules',
+          parameters: params
+        },
+      });
+    return result;
+  }
+
+  /**
+   * List custom host names for a website
+   * Returns the list of custom host names configured for the specified website.
+   */
+  public static async ListHostNamesForPortal(environmentId: string, id: string, api_version: string): Promise<IOperationResult<unknown>> {
+    const params: { environmentId: string, id: string, "api-version": string } = { environmentId, id, "api-version": api_version };
+    const result = await PowerPlatformforAdminsV2Service.client.executeAsync<{ environmentId: string, id: string, "api-version": string }, unknown>(
+      {
+        connectorOperation: {
+          tableName: PowerPlatformforAdminsV2Service.dataSourceName,
+          operationName: 'ListHostNamesForPortal',
+          parameters: params
+        },
+      });
+    return result;
+  }
+
+  /**
+   * Add a custom domain to a website
+   * Adds the specified custom host name to the website.
+   */
+  public static async CreateCustomDomain(environmentId: string, id: string, customDomain: string, api_version: string): Promise<IOperationResult<void>> {
+    const params: { environmentId: string, id: string, customDomain: string, "api-version": string } = { environmentId, id, customDomain, "api-version": api_version };
+    const result = await PowerPlatformforAdminsV2Service.client.executeAsync<{ environmentId: string, id: string, customDomain: string, "api-version": string }, void>(
+      {
+        connectorOperation: {
+          tableName: PowerPlatformforAdminsV2Service.dataSourceName,
+          operationName: 'CreateCustomDomain',
+          parameters: params
+        },
+      });
+    return result;
+  }
+
+  /**
+   * Delete a custom domain from a website
+   * Removes the specified custom host name from the website and cleans up associated SSL bindings and AFD configuration.
+   */
+  public static async DeleteHostNameForPortal(environmentId: string, id: string, hostName: string, api_version: string): Promise<IOperationResult<void>> {
+    const params: { environmentId: string, id: string, hostName: string, "api-version": string } = { environmentId, id, hostName, "api-version": api_version };
+    const result = await PowerPlatformforAdminsV2Service.client.executeAsync<{ environmentId: string, id: string, hostName: string, "api-version": string }, void>(
+      {
+        connectorOperation: {
+          tableName: PowerPlatformforAdminsV2Service.dataSourceName,
+          operationName: 'DeleteHostNameForPortal',
           parameters: params
         },
       });
@@ -2537,12 +2694,29 @@ export class PowerPlatformforAdminsV2Service {
   }
 
   /**
+   * Get allowed IP addresses for a Power Pages website
+   * Returns the list of IP addresses in the website's IP restriction allow list.
+   */
+  public static async GetAllowedIpAddresses(environmentId: string, id: string, api_version: string): Promise<IOperationResult<IpAddressEntity[]>> {
+    const params: { environmentId: string, id: string, "api-version": string } = { environmentId, id, "api-version": api_version };
+    const result = await PowerPlatformforAdminsV2Service.client.executeAsync<{ environmentId: string, id: string, "api-version": string }, IpAddressEntity[]>(
+      {
+        connectorOperation: {
+          tableName: PowerPlatformforAdminsV2Service.dataSourceName,
+          operationName: 'GetAllowedIpAddresses',
+          parameters: params
+        },
+      });
+    return result;
+  }
+
+  /**
    * Add allowed IP addresses on a Power Pages website
    * These IP addresses will be able to access the website.
    */
-  public static async AddAllowedIpAddresses(environmentId: string, id: string, api_version: string, body: IpAddressConfiguration): Promise<IOperationResult<IpAddressEntity[]>> {
+  public static async AddAllowedIpAddresses(environmentId: string, id: string, api_version: string, body: IpAddressConfiguration): Promise<IOperationResult<void>> {
     const params: { environmentId: string, id: string, "api-version": string, body: IpAddressConfiguration } = { environmentId, id, "api-version": api_version, body };
-    const result = await PowerPlatformforAdminsV2Service.client.executeAsync<{ environmentId: string, id: string, "api-version": string, body: IpAddressConfiguration }, IpAddressEntity[]>(
+    const result = await PowerPlatformforAdminsV2Service.client.executeAsync<{ environmentId: string, id: string, "api-version": string, body: IpAddressConfiguration }, void>(
       {
         connectorOperation: {
           tableName: PowerPlatformforAdminsV2Service.dataSourceName,
@@ -2557,9 +2731,9 @@ export class PowerPlatformforAdminsV2Service {
    * Remove allowed IP addresses from a Power Pages website
    * Removes the specified IP addresses from the website's IP restriction allow list.
    */
-  public static async RemoveAllowedIpAddresses(environmentId: string, id: string, api_version: string, body: IpAddressConfiguration): Promise<IOperationResult<IpAddressEntity[]>> {
+  public static async RemoveAllowedIpAddresses(environmentId: string, id: string, api_version: string, body: IpAddressConfiguration): Promise<IOperationResult<void>> {
     const params: { environmentId: string, id: string, "api-version": string, body: IpAddressConfiguration } = { environmentId, id, "api-version": api_version, body };
-    const result = await PowerPlatformforAdminsV2Service.client.executeAsync<{ environmentId: string, id: string, "api-version": string, body: IpAddressConfiguration }, IpAddressEntity[]>(
+    const result = await PowerPlatformforAdminsV2Service.client.executeAsync<{ environmentId: string, id: string, "api-version": string, body: IpAddressConfiguration }, void>(
       {
         connectorOperation: {
           tableName: PowerPlatformforAdminsV2Service.dataSourceName,
@@ -2683,6 +2857,57 @@ export class PowerPlatformforAdminsV2Service {
         connectorOperation: {
           tableName: PowerPlatformforAdminsV2Service.dataSourceName,
           operationName: 'SetPortalDataModelVersion',
+          parameters: params
+        },
+      });
+    return result;
+  }
+
+  /**
+   * List SSL bindings for a website by hostname
+   * Returns the SSL bindings (certificate thumbprints) associated with the specified hostname on the website.
+   */
+  public static async ListSslBindingsByThumbprints(environmentId: string, id: string, hostName: string, api_version: string): Promise<IOperationResult<SslBindingThumbprintDTO[]>> {
+    const params: { environmentId: string, id: string, hostName: string, "api-version": string } = { environmentId, id, hostName, "api-version": api_version };
+    const result = await PowerPlatformforAdminsV2Service.client.executeAsync<{ environmentId: string, id: string, hostName: string, "api-version": string }, SslBindingThumbprintDTO[]>(
+      {
+        connectorOperation: {
+          tableName: PowerPlatformforAdminsV2Service.dataSourceName,
+          operationName: 'ListSslBindingsByThumbprints',
+          parameters: params
+        },
+      });
+    return result;
+  }
+
+  /**
+   * Add an SSL binding to a website
+   * Binds the specified certificate thumbprint to the custom domain hostname of the website.
+   */
+  public static async AddSslBindingByPortal(environmentId: string, id: string, thumbprint: string, hostName: string, api_version: string): Promise<IOperationResult<void>> {
+    const params: { environmentId: string, id: string, thumbprint: string, hostName: string, "api-version": string } = { environmentId, id, thumbprint, hostName, "api-version": api_version };
+    const result = await PowerPlatformforAdminsV2Service.client.executeAsync<{ environmentId: string, id: string, thumbprint: string, hostName: string, "api-version": string }, void>(
+      {
+        connectorOperation: {
+          tableName: PowerPlatformforAdminsV2Service.dataSourceName,
+          operationName: 'AddSslBindingByPortal',
+          parameters: params
+        },
+      });
+    return result;
+  }
+
+  /**
+   * Delete SSL binding for a website by certificate thumbprint
+   * Removes the SSL binding for the specified hostname and certificate thumbprint from the website.
+   */
+  public static async DeleteSslBindingByThumbprint(environmentId: string, id: string, hostName: string, thumbprint: string, api_version: string): Promise<IOperationResult<void>> {
+    const params: { environmentId: string, id: string, hostName: string, thumbprint: string, "api-version": string } = { environmentId, id, hostName, thumbprint, "api-version": api_version };
+    const result = await PowerPlatformforAdminsV2Service.client.executeAsync<{ environmentId: string, id: string, hostName: string, thumbprint: string, "api-version": string }, void>(
+      {
+        connectorOperation: {
+          tableName: PowerPlatformforAdminsV2Service.dataSourceName,
+          operationName: 'DeleteSslBindingByThumbprint',
           parameters: params
         },
       });

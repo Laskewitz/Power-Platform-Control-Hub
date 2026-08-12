@@ -25,6 +25,14 @@ export interface BotComponent {
   description?: string;
 }
 
+export interface DataverseSystemUser {
+  systemuserid?: string;
+  azureactivedirectoryobjectid?: string;
+  fullname?: string;
+  internalemailaddress?: string;
+  domainname?: string;
+}
+
 /** Human-readable labels for botcomponent ComponentType picklist values */
 export const COMPONENT_TYPE_LABELS: Record<number, string> = {
   0: 'Topic',
@@ -130,6 +138,55 @@ export async function listBotComponents(
         '$select': $select,
         '$top': 500,
         '$orderby': 'componenttype asc,name asc',
+        accept: 'application/json',
+      },
+    },
+  });
+}
+
+/** Resolve Dataverse system-user IDs or Entra object IDs within one environment. */
+export async function listDataverseSystemUsers(
+  instanceUrl: string,
+  ids: string[],
+): Promise<IOperationResult<{ value?: DataverseSystemUser[] }>> {
+  const org = instanceUrl.endsWith('/') ? instanceUrl.slice(0, -1) : instanceUrl;
+  const filter = ids
+    .flatMap((id) => [
+      `systemuserid eq ${id}`,
+      `azureactivedirectoryobjectid eq ${id}`,
+    ])
+    .join(' or ');
+
+  return client.executeAsync<Record<string, unknown>, { value?: DataverseSystemUser[] }>({
+    connectorOperation: {
+      tableName: DATA_SOURCE,
+      operationName: 'ListRecordsWithOrganization',
+      parameters: {
+        organization: org,
+        entityName: 'systemusers',
+        '$filter': filter,
+        '$select': 'systemuserid,azureactivedirectoryobjectid,fullname,internalemailaddress,domainname',
+        '$top': ids.length * 2,
+        accept: 'application/json',
+      },
+    },
+  });
+}
+
+/** Load a compact environment user directory for client-side identity matching. */
+export async function listAllDataverseSystemUsers(
+  instanceUrl: string,
+): Promise<IOperationResult<{ value?: DataverseSystemUser[] }>> {
+  const org = instanceUrl.endsWith('/') ? instanceUrl.slice(0, -1) : instanceUrl;
+  return client.executeAsync<Record<string, unknown>, { value?: DataverseSystemUser[] }>({
+    connectorOperation: {
+      tableName: DATA_SOURCE,
+      operationName: 'ListRecordsWithOrganization',
+      parameters: {
+        organization: org,
+        entityName: 'systemusers',
+        '$select': 'systemuserid,azureactivedirectoryobjectid,fullname,internalemailaddress,domainname',
+        '$top': 5000,
         accept: 'application/json',
       },
     },

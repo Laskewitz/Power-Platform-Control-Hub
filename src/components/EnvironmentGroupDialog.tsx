@@ -33,6 +33,19 @@ interface EnvironmentGroupDialogProps {
 }
 
 const useStyles = makeStyles({
+  surface: {
+    maxWidth: '440px',
+    color: '#F4FBFD',
+    border: '1px solid #29404F',
+    borderRadius: 0,
+    backgroundColor: '#0C141D',
+    boxShadow: '0 24px 64px rgba(0, 0, 0, 0.62)',
+  },
+  titleIcon: {
+    display: 'flex',
+    color: '#43D9FF',
+    fontSize: '20px',
+  },
   content: {
     display: 'flex',
     flexDirection: 'column',
@@ -56,6 +69,19 @@ const useStyles = makeStyles({
   empty: {
     color: tokens.colorNeutralForeground3,
     fontSize: tokens.fontSizeBase300,
+  },
+  option: {
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  optionDescription: {
+    color: tokens.colorNeutralForeground3,
+  },
+  actions: {
+    justifyContent: 'flex-end',
+  },
+  actionButton: {
+    minWidth: 'unset',
   },
 });
 
@@ -130,9 +156,11 @@ export default function EnvironmentGroupDialog({
 
   return (
     <Dialog open={open} onOpenChange={(_, data) => { if (!data.open) onClose(); }}>
-      <DialogSurface>
-        <DialogTitle>{title}</DialogTitle>
+      <DialogSurface className={styles.surface}>
         <DialogBody>
+          <DialogTitle action={confirmIcon && <span aria-hidden="true" className={styles.titleIcon}>{confirmIcon}</span>}>
+            {title}
+          </DialogTitle>
           <DialogContent>
             <div className={styles.content}>
               <Text>{hint}</Text>
@@ -156,10 +184,10 @@ export default function EnvironmentGroupDialog({
                   >
                     {groups.map((g) => (
                       <Option key={g.id} value={g.id} text={g.displayName}>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <div className={styles.option}>
                           <Text weight="semibold">{g.displayName}</Text>
                           {g.description && (
-                            <Text size={200} style={{ color: tokens.colorNeutralForeground3 }}>{g.description}</Text>
+                            <Text size={200} className={styles.optionDescription}>{g.description}</Text>
                           )}
                         </div>
                       </Option>
@@ -172,14 +200,14 @@ export default function EnvironmentGroupDialog({
               )}
             </div>
           </DialogContent>
-          <DialogActions style={{ justifyContent: 'flex-end' }}>
-            <Button appearance="secondary" onClick={onClose} disabled={isBusy} style={{ minWidth: 'unset' }}>Cancel</Button>
+          <DialogActions className={styles.actions}>
+            <Button appearance="secondary" onClick={onClose} disabled={isBusy} className={styles.actionButton}>Cancel</Button>
             <Button
               appearance={confirmAppearance}
               icon={confirmIcon}
               onClick={handleConfirm}
               disabled={isBusy || !selectedGroupId || loadingGroups}
-              style={{ minWidth: 'unset' }}
+              className={styles.actionButton}
             >
               {isBusy ? <Spinner size="tiny" /> : confirmLabel}
             </Button>
