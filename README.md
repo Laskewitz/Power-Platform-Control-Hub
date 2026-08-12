@@ -47,7 +47,7 @@ A **Center of Excellence (CoE) Starter Kit dashboard replacement** built as a [P
 | 🏠 **Overview** | Metric cards per resource type + recently created resources table |
 | 📋 **Resources** | Sortable, searchable, filterable table of all resources across all environments. Click any canvas app, cloud flow, or agent to open a full detail panel. |
 | 🌍 **Environments** | Card grid of every environment with type badge, managed-environment indicator, region, and resource count. Click any environment to open the environment detail view. |
-| 🛡️ **Tenant Policies** | DLP policies (list, create, detail), billing policies, and cross-tenant connection reports |
+| 🛡️ **Tenant Policies** | DLP policies, Copilot Credit licensing controls, billing policies, and cross-tenant connection reports |
 | 🗂️ **Environment Groups** | Environment groups, rule-based policies, and rule sets (CRUD) |
 | 🔌 **Connectors** | Per-environment connections, connectors, and Power Pages websites |
 | 💡 **Recommendations** | Advisor recommendations from the admin API |
@@ -187,6 +187,15 @@ The **Resources table** includes Name, Type, Created, Modified, Owner columns. C
 - **📄 Detail page**: collapsible accordion sections for Policy Details, Connector Groups, Environments, and Advisories
 - **✨ Apply Best Practices**: analyses the policy against advisory rules (e.g. HTTP connector → Blocked, SharePoint → Confidential) and proposes changes before saving
 
+### 💳 Copilot Credit licensing
+
+- Tenant-level purchased, reserved, consumed, and available Copilot Credit totals
+- GitHub Copilot harness agent detection through the inventory `isCLIAgent` property
+- Environment-level harness agent and owner counts to support maker-development and funded-production classification
+- Reserved Copilot Credit updates per affected environment
+- Linked pay-as-you-go billing policy visibility
+- Uses Power Platform Admin V2 connector actions (`ListCurrencyReports`, `GetCurrencyAllocationByEnvironment`, `PatchCurrencyAllocationByEnvironment`, and `GetEnvironmentBillingPolicy`) rather than direct Power Platform API requests
+
 ### 🗂️ Environment Groups
 
 - Create, edit, and delete environment groups
@@ -220,6 +229,7 @@ CoE-Code/
 │   ├── services/
 │   │   ├── inventoryApi.ts            # Inventory API calls
 │   │   ├── adminApi.ts                # Admin V2 API calls (connectors, groups…)
+│   │   ├── licensingService.ts        # Admin V2 connector actions for Copilot Credit governance
 │   │   ├── dlpService.ts              # DLP policy CRUD (Power Platform for Admins)
 │   │   ├── canvasAppAnalyzer.ts       # 11 best-practice checks for canvas apps
 │   │   ├── canvasAppAdminService.ts   # Canvas app governance via Power Apps for Admins
@@ -312,7 +322,7 @@ Each resource type pulls from one or more connectors (and optionally a Dataverse
 | **DLP Policies** | Power Platform for Admins → `ListPoliciesV2` | Power Platform for Admins → `CreatePolicyV2 / UpdatePolicyV2 / DeletePolicyV2` | Advisory recommendations via Admin V2 |
 | **Connectors & Connections** | Admin V2 → `GetConnectorById`, connections list | Admin V2 | Per-environment view |
 | **Environment Groups** | Admin V2 → `ListEnvironmentGroups` | Admin V2 → create / update / delete | |
-| **Billing Policies** | Admin V2 | Admin V2 | |
+| **Licensing & Billing Policies** | Admin V2 → `ListCurrencyReports`, inventory `isCLIAgent` | Admin V2 → environment allocation and billing policy actions | Copilot Credit totals and harness-environment governance |
 | **Tombstones** (soft-delete) | Dataverse `ppa_resourcetombstone` table | Dataverse `ppa_resourcetombstone` table | Falls back to `localStorage` when Dataverse is unavailable |
 | **User display names** | Microsoft Dataverse → `aadusers` virtual table (AAD-backed virtual entity) | — | Used to resolve owner/created-by GUIDs across all resource types |
 

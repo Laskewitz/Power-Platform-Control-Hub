@@ -19,6 +19,7 @@ import type { PolicyV2 } from '../services/dlpService.ts';
 import { useMutation } from '../hooks/useMutation.tsx';
 import { triggerCrossTenantReport } from '../services/governanceMutations.ts';
 import DlpPoliciesView from './DlpPoliciesView.tsx';
+import LicensingView from './LicensingView.tsx';
 
 interface GovernanceViewProps {
   billingPolicies: BillingPolicy[];
@@ -31,7 +32,7 @@ interface GovernanceViewProps {
   onRefreshAdmin?: () => Promise<void>;
 }
 
-type GovernanceTab = 'billingPolicies' | 'crossTenantReports' | 'dlpPolicies';
+type GovernanceTab = 'licensing' | 'crossTenantReports' | 'dlpPolicies';
 
 const useStyles = makeStyles({
   root: {
@@ -119,10 +120,6 @@ function formatDate(value?: string): string {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 }
 
-function getBillingBadgeColor(status: BillingPolicy['status']): 'success' | 'warning' {
-  return status === 'Enabled' ? 'success' : 'warning';
-}
-
 function getReportBadgeColor(
   status: CrossTenantReport['status'],
 ): 'success' | 'informative' | 'danger' | 'subtle' {
@@ -137,50 +134,6 @@ function getReportBadgeColor(
     default:
       return 'subtle';
   }
-}
-
-function renderBillingPoliciesTable(
-  styles: ReturnType<typeof useStyles>,
-  billingPolicies: BillingPolicy[],
-): ReactElement {
-  return (
-    <div className={styles.tableWrapper}>
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            <th className={styles.th}>Name</th>
-            <th className={styles.th}>Status</th>
-            <th className={styles.th}>Location</th>
-            <th className={styles.th}>Subscription ID</th>
-            <th className={styles.th}>Created On</th>
-          </tr>
-        </thead>
-        <tbody>
-          {billingPolicies.length === 0 ? (
-            <tr>
-              <td className={styles.td} colSpan={5} style={{ textAlign: 'center' }}>
-                No billing policies found.
-              </td>
-            </tr>
-          ) : (
-            billingPolicies.map((policy) => (
-              <tr key={policy.id}>
-                <td className={styles.td}>{policy.name}</td>
-                <td className={styles.td}>
-                  <Badge appearance="filled" color={getBillingBadgeColor(policy.status)}>
-                    {policy.status}
-                  </Badge>
-                </td>
-                <td className={styles.td}>{policy.location}</td>
-                <td className={styles.td}>{policy.billingInstrument.subscriptionId}</td>
-                <td className={styles.td}>{formatDate(policy.createdOn)}</td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-    </div>
-  );
 }
 
 function renderCrossTenantReportsTable(
@@ -290,15 +243,14 @@ export default function GovernanceView({
           );
         }
         return renderCrossTenantReportsTable(styles, crossTenantReports, isTriggeringReport, () => void execTriggerReport());
-      case 'billingPolicies':
-        if (isLoading) {
-          return (
-            <div className={styles.centered}>
-              <Spinner size="extra-large" label="Loading data…" />
-            </div>
-          );
-        }
-        return renderBillingPoliciesTable(styles, billingPolicies);
+      case 'licensing':
+        return (
+          <LicensingView
+            billingPolicies={billingPolicies}
+            environments={environments}
+            resources={resources}
+          />
+        );
       case 'dlpPolicies':
       default:
         return <DlpPoliciesView dlpPolicies={dlpPolicies} environments={environments} resources={resources} isLoading={isLoading} onRefresh={refreshDlpPolicies} />;
@@ -323,7 +275,7 @@ export default function GovernanceView({
       <div className={styles.header}>
         <div className={styles.titleBlock}>
           <Text className={styles.title}>Tenant Policies</Text>
-          <Text className={styles.subtitle}>DLP policies, billing policies, and cross-tenant governance insights.</Text>
+          <Text className={styles.subtitle}>DLP, licensing, and cross-tenant governance controls.</Text>
         </div>
       </div>
 
@@ -333,7 +285,7 @@ export default function GovernanceView({
           onTabSelect={(_, data) => setActiveTab(data.value as GovernanceTab)}
         >
           <Tab value="dlpPolicies" icon={<ShieldLockRegular />}>DLP Policies</Tab>
-          <Tab value="billingPolicies">Billing Policies</Tab>
+          <Tab value="licensing">Licensing</Tab>
           <Tab value="crossTenantReports">Cross-Tenant Reports</Tab>
         </TabList>
 
