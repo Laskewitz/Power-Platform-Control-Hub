@@ -35,6 +35,7 @@ export interface ResourceProperties {
   entraAppId?: string;
   entraAgentId?: string;
   entraAgentBlueprintId?: string;
+  isCLIAgent?: boolean | string;
   orchestration?: 'Generative' | 'Classic' | string;
   model?: string;
   authentication?: 'Microsoft Entra' | 'None' | 'Generic OAuth 2.0' | string;
@@ -64,6 +65,29 @@ export interface Resource {
   environmentType?: string;
   isManagedEnvironment?: boolean | string;
 }
+
+export type AgentHarness = 'github-copilot' | 'standard' | 'unknown';
+
+export function getAgentHarness(properties: ResourceProperties): AgentHarness {
+  const entry = Object.entries(properties).find(([key]) => {
+    const normalizedKey = key.toLowerCase();
+    return normalizedKey === 'iscliagent' || normalizedKey === 'cliagent';
+  });
+  const value = entry?.[1];
+
+  if (value === true || value === 1 || (typeof value === 'string' && value.toLowerCase() === 'true')) {
+    return 'github-copilot';
+  }
+  if (value === false || value === 0 || (typeof value === 'string' && value.toLowerCase() === 'false')) {
+    return 'standard';
+  }
+  return 'unknown';
+}
+
+export const AGENT_HARNESS_LABELS: Partial<Record<AgentHarness, string>> = {
+  'github-copilot': 'GitHub Copilot Agent',
+  standard: 'Standard Harness Agent',
+};
 
 export interface InventoryQueryResult {
   totalRecords: number;
