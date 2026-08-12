@@ -4,6 +4,7 @@ import type { Resource } from '../types/inventory.ts';
 
 const API_VERSION = '2024-10-01';
 const COPILOT_CREDIT_CURRENCY = 'MCSMessages';
+const CONNECTOR_TIMEOUT_MS = 15_000;
 
 export interface CopilotCreditSummary {
   purchased: number;
@@ -28,6 +29,34 @@ export interface HarnessEnvironmentLicensing {
 function operationError<T>(result: IOperationResult<T>): string | undefined {
   if (result.success && !result.error) return undefined;
   return result.error?.message ?? 'The connector action did not complete successfully.';
+}
+
+interface ConnectorOutcome<T> {
+  result?: IOperationResult<T>;
+  error?: string;
+}
+
+async function settleConnectorRequest<T>(
+  request: Promise<IOperationResult<T>>,
+): Promise<ConnectorOutcome<T>> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<ConnectorOutcome<T>>((resolve) => {
+    timeoutId = setTimeout(
+      () => resolve({ error: 'This information is taking too long to load. Try refreshing.' }),
+      CONNECTOR_TIMEOUT_MS,
+    );
+  });
+
+  try {
+    return await Promise.race([
+      request.then((result) => ({ result })).catch((reason: unknown) => ({
+        error: reason instanceof Error ? reason.message : 'The connector request failed.',
+      })),
+      timeout,
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
 }
 
 function isHarnessAgent(resource: Resource): boolean {
@@ -75,14 +104,20 @@ export async function fetchHarnessEnvironmentLicensing(
     [...agentsByEnvironment.entries()].map(async ([key, agents]) => {
       const environment = environments.find((item) => item.name.toLowerCase() === key);
       const environmentId = environment?.name ?? String(agents[0]?.properties.environmentId ?? '');
-      const [allocationResult, billingPolicyResult] = await Promise.all([
-        PowerPlatformforAdminsV2Service.GetCurrencyAllocationByEnvironment(environmentId, API_VERSION),
-        PowerPlatformforAdminsV2Service.GetEnvironmentBillingPolicy(environmentId, API_VERSION),
+      const [allocationOutcome, billingPolicyOutcome] = await Promise.all([
+        settleConnectorRequest(
+          PowerPlatformforAdminsV2Service.GetCurrencyAllocationByEnvironment(environmentId, API_VERSION),
+        ),
+        settleConnectorRequest(
+          PowerPlatformforAdminsV2Service.GetEnvironmentBillingPolicy(environmentId, API_VERSION),
+        ),
       ]);
 
-      const allocationError = operationError(allocationResult);
-      const billingPolicyError = operationError(billingPolicyResult);
-      const allocation = allocationResult.data?.currencyAllocations?.find(
+      const allocationError = allocationOutcome.error
+        ?? (allocationOutcome.result ? operationError(allocationOutcome.result) : 'Reserved credits are unavailable.');
+      const billingPolicyError = billingPolicyOutcome.error
+        ?? (billingPolicyOutcome.result ? operationError(billingPolicyOutcome.result) : 'Billing information is unavailable.');
+      const allocation = allocationOutcome.result?.data?.currencyAllocations?.find(
         (item) => item.currencyType === COPILOT_CREDIT_CURRENCY,
       );
       const ownerIds = new Set(
@@ -104,9 +139,9 @@ export async function fetchHarnessEnvironmentLicensing(
         agentCount: agents.length,
         ownerCount: ownerIds.size,
         allocatedCredits: allocationError ? undefined : allocation?.allocated ?? 0,
-        billingPolicyName: billingPolicyError ? undefined : billingPolicyResult.data?.name,
+        billingPolicyName: billingPolicyError ? undefined : billingPolicyOutcome.result?.data?.name,
         billingPolicyEnabled:
-          !billingPolicyError && billingPolicyResult.data?.status === 'Enabled',
+          !billingPolicyError && billingPolicyOutcome.result?.data?.status === 'Enabled',
         allocationError,
         billingPolicyError,
       };
