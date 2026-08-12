@@ -5,21 +5,20 @@ import {
   Input,
   MessageBar,
   MessageBarBody,
-  Spinner,
   Text,
   makeStyles,
-  shorthands,
   tokens,
 } from '@fluentui/react-components';
 import {
   SearchRegular,
-  LightbulbRegular,
   ClockRegular,
-  BoxRegular,
   ListRegular,
+  LightbulbRegular,
 } from '@fluentui/react-icons';
 import type { AdvisorRecommendation } from '../types/admin.ts';
 import RecommendationResourcesDialog from './RecommendationResourcesDialog.tsx';
+import EmptyState from './EmptyState.tsx';
+import { OperationsSkeleton, PageHeader } from './ui.tsx';
 
 interface RecommendationsViewProps {
   recommendations: AdvisorRecommendation[];
@@ -27,12 +26,14 @@ interface RecommendationsViewProps {
   error: string | null;
 }
 
+type Severity = 'high' | 'medium' | 'low';
+
 const useStyles = makeStyles({
   root: {
     display: 'flex',
     flexDirection: 'column',
-    gap: tokens.spacingVerticalL,
-    padding: tokens.spacingHorizontalXL,
+    gap: '18px',
+    padding: '28px 32px 32px',
     height: '100%',
     overflow: 'hidden',
     '@media (max-width: 768px)': {
@@ -46,113 +47,92 @@ const useStyles = makeStyles({
     flexShrink: 0,
     flexWrap: 'wrap',
   },
-  title: {
-    fontSize: tokens.fontSizeBase500,
-    fontWeight: tokens.fontWeightSemibold,
-    flex: 1,
-  },
   count: {
     fontSize: tokens.fontSizeBase200,
     color: tokens.colorNeutralForeground3,
     whiteSpace: 'nowrap',
+    marginLeft: 'auto',
   },
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-    gap: tokens.spacingHorizontalL,
-    overflowY: 'auto',
+  board: {
     flex: 1,
-    paddingBottom: tokens.spacingVerticalL,
-    alignContent: 'start',
-    alignItems: 'start',
-    '@media (max-width: 480px)': {
-      gridTemplateColumns: '1fr',
-    },
-  },
-  card: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0',
-    overflow: 'hidden',
-    borderRadius: tokens.borderRadiusMedium,
-    ...shorthands.border('1px', 'solid', tokens.colorNeutralStroke2),
+    minHeight: 0,
+    overflowY: 'auto',
+    overflowX: 'auto',
+    border: `1px solid ${tokens.colorNeutralStroke1}`,
+    borderRadius: 0,
     backgroundColor: tokens.colorNeutralBackground1,
-    ':hover': { boxShadow: tokens.shadow8 },
+    boxShadow: tokens.shadow4,
   },
-  cardAccent: {
-    height: '4px',
-    flexShrink: 0,
-  },
-  cardBody: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: tokens.spacingVerticalM,
-    padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalM}`,
-  },
-  cardTitle: {
-    fontSize: tokens.fontSizeBase400,
-    fontWeight: tokens.fontWeightSemibold,
-    lineHeight: tokens.lineHeightBase400,
-    wordBreak: 'normal',
-    overflowWrap: 'normal',
-    hyphens: 'none',
-  },
-  cardCount: {
-    display: 'flex',
+  strip: {
+    display: 'grid',
+    gridTemplateColumns: '14px minmax(220px, 1.6fr) minmax(120px, 0.6fr) minmax(160px, 0.7fr) auto',
     alignItems: 'center',
-    gap: tokens.spacingHorizontalS,
-    backgroundColor: tokens.colorBrandBackground2,
-    borderRadius: tokens.borderRadiusMedium,
-    padding: `${tokens.spacingVerticalXS} ${tokens.spacingHorizontalM}`,
-    width: 'fit-content',
+    gap: tokens.spacingHorizontalM,
+    minWidth: '760px',
+    minHeight: '52px',
+    padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`,
+    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+    ':last-child': { borderBottom: 'none' },
+    ':hover': { backgroundColor: tokens.colorNeutralBackground2 },
   },
-  cardCountNum: {
-    fontSize: tokens.fontSizeBase500,
-    fontWeight: tokens.fontWeightBold,
-    color: tokens.colorBrandForeground1,
+  rail: {
+    width: '8px',
+    height: '8px',
+    justifySelf: 'center',
+    borderRadius: '50%',
+    boxShadow: `0 0 0 2px ${tokens.colorNeutralBackground1}`,
   },
-  cardCountLabel: {
-    fontSize: tokens.fontSizeBase200,
-    color: tokens.colorBrandForeground2,
-  },
-  cardDates: {
+  scenarioCell: {
     display: 'flex',
     flexDirection: 'column',
-    gap: tokens.spacingVerticalXS,
-    borderTopWidth: '1px',
-    borderTopStyle: 'solid',
-    borderTopColor: tokens.colorNeutralStroke2,
-    paddingTop: tokens.spacingVerticalS,
+    gap: '2px',
+    minWidth: 0,
   },
-  dateRow: {
+  scenarioName: {
+    fontSize: tokens.fontSizeBase300,
+    fontWeight: tokens.fontWeightSemibold,
+    color: tokens.colorNeutralForeground1,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+  scenarioId: {
+    fontSize: tokens.fontSizeBase100,
+    fontFamily: tokens.fontFamilyMonospace,
+    color: tokens.colorNeutralForeground3,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+  countCell: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px',
+  },
+  countValue: {
+    fontSize: tokens.fontSizeBase400,
+    fontWeight: tokens.fontWeightBold,
+    fontVariantNumeric: 'tabular-nums',
+  },
+  countLabel: {
+    fontSize: tokens.fontSizeBase100,
+    color: tokens.colorNeutralForeground3,
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
+  },
+  refreshCell: {
     display: 'flex',
     alignItems: 'center',
     gap: tokens.spacingHorizontalXS,
     fontSize: tokens.fontSizeBase200,
     color: tokens.colorNeutralForeground3,
-  },
-  dateValue: {
-    marginLeft: 'auto',
-    color: tokens.colorNeutralForeground2,
-    fontWeight: tokens.fontWeightMedium,
-  },
-  cardActions: {
-    borderTopWidth: '1px',
-    borderTopStyle: 'solid',
-    borderTopColor: tokens.colorNeutralStroke2,
-    padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`,
-    display: 'flex',
-    gap: tokens.spacingHorizontalS,
-    flexWrap: 'wrap',
+    whiteSpace: 'nowrap',
   },
   centered: {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
     height: '100%',
-  },
-  emptyState: {
-    color: tokens.colorNeutralForeground3,
   },
 });
 
@@ -179,10 +159,22 @@ function formatDate(value?: string): string {
   });
 }
 
-function accentColor(resourceCount: number): string {
-  if (resourceCount >= 20) return tokens.colorStatusDangerBackground3;
-  if (resourceCount >= 5) return tokens.colorStatusWarningBackground3;
+function getSeverity(resourceCount: number): Severity {
+  if (resourceCount >= 20) return 'high';
+  if (resourceCount >= 5) return 'medium';
+  return 'low';
+}
+
+function severityRailColor(severity: Severity): string {
+  if (severity === 'high') return tokens.colorStatusDangerBackground3;
+  if (severity === 'medium') return tokens.colorStatusWarningBackground3;
   return tokens.colorBrandBackground;
+}
+
+function severityTextColor(severity: Severity): string {
+  if (severity === 'high') return tokens.colorStatusDangerForeground1;
+  if (severity === 'medium') return tokens.colorStatusWarningForeground1;
+  return tokens.colorBrandForeground1;
 }
 
 export default function RecommendationsView({
@@ -204,18 +196,17 @@ export default function RecommendationsView({
   }, [recommendations, search]);
 
   if (isLoading) {
-    return (
-      <div className={styles.centered}>
-        <Spinner size="extra-large" label="Loading advisor recommendations…" />
-      </div>
-    );
+    return <OperationsSkeleton />;
   }
 
   return (
     <div className={styles.root}>
+      <PageHeader
+        title="Recommendations"
+        description="Advisor scenarios ranked by the number of resources they affect across the tenant."
+      />
+
       <div className={styles.toolbar}>
-        <LightbulbRegular style={{ fontSize: '1.25rem', color: tokens.colorBrandForeground1 }} />
-        <Text className={styles.title}>Recommendations</Text>
         <Input
           placeholder="Search scenarios…"
           value={search}
@@ -224,7 +215,7 @@ export default function RecommendationsView({
           size="small"
           style={{ minWidth: '220px' }}
         />
-        <Text className={styles.count}>{filteredRecommendations.length} scenario(s)</Text>
+        <Text className={styles.count}>{filteredRecommendations.length} scenario{filteredRecommendations.length === 1 ? '' : 's'}</Text>
       </div>
 
       {error && (
@@ -233,34 +224,36 @@ export default function RecommendationsView({
         </MessageBar>
       )}
 
-      <div className={styles.grid}>
-        {filteredRecommendations.length === 0 ? (
-          <Text className={styles.emptyState}>No advisor recommendations found.</Text>
-        ) : (
-          filteredRecommendations.map((rec) => (
-            <div key={rec.scenario} className={styles.card}>
-              <div className={styles.cardAccent} style={{ backgroundColor: accentColor(rec.details.resourceCount) }} />
-              <div className={styles.cardBody}>
-                <Text className={styles.cardTitle}>{formatScenarioName(rec.scenario)}</Text>
-
-                <div className={styles.cardCount}>
-                  <BoxRegular style={{ fontSize: '1rem', color: tokens.colorBrandForeground1 }} />
-                  <Text className={styles.cardCountNum}>{rec.details.resourceCount}</Text>
-                  <Text className={styles.cardCountLabel}>
-                    {rec.details.resourceCount === 1 ? 'resource affected' : 'resources affected'}
+      {filteredRecommendations.length === 0 ? (
+        <EmptyState
+          icon={<LightbulbRegular />}
+          title={search ? 'No scenarios match your search' : 'No advisor recommendations found'}
+          subtitle={search ? 'Try a different search term.' : 'The tenant currently has no outstanding advisor scenarios.'}
+          action={search ? { label: 'Clear search', onClick: () => setSearch('') } : undefined}
+        />
+      ) : (
+        <div className={styles.board} role="table" aria-label="Advisor recommendations">
+          {filteredRecommendations.map((rec) => {
+            const severity = getSeverity(rec.details.resourceCount);
+            return (
+              <div key={rec.scenario} className={styles.strip} role="row">
+                <span className={styles.rail} style={{ backgroundColor: severityRailColor(severity) }} aria-hidden="true" />
+                <div className={styles.scenarioCell}>
+                  <Text className={styles.scenarioName}>{formatScenarioName(rec.scenario)}</Text>
+                  <Text className={styles.scenarioId}>{rec.scenario}</Text>
+                </div>
+                <div className={styles.countCell}>
+                  <Text className={styles.countValue} style={{ color: severityTextColor(severity) }}>
+                    {rec.details.resourceCount}
+                  </Text>
+                  <Text className={styles.countLabel}>
+                    {rec.details.resourceCount === 1 ? 'resource' : 'resources'}
                   </Text>
                 </div>
-
-                <div className={styles.cardDates}>
-                  <div className={styles.dateRow}>
-                    <ClockRegular style={{ fontSize: '0.85rem' }} />
-                    <Text style={{ fontSize: tokens.fontSizeBase200 }}>Last refreshed</Text>
-                    <Text className={styles.dateValue}>{formatDate(rec.details.lastRefreshedTimestamp)}</Text>
-                  </div>
+                <div className={styles.refreshCell}>
+                  <ClockRegular fontSize={14} />
+                  <span>{formatDate(rec.details.lastRefreshedTimestamp)}</span>
                 </div>
-              </div>
-
-              <div className={styles.cardActions}>
                 <Button
                   appearance="subtle"
                   size="small"
@@ -274,10 +267,10 @@ export default function RecommendationsView({
                   View resources
                 </Button>
               </div>
-            </div>
-          ))
-        )}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       <RecommendationResourcesDialog
         open={resourcesDialog !== null}

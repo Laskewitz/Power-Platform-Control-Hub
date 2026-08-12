@@ -10,11 +10,20 @@ import {
   OptionGroup,
   Badge,
   Button,
-  Spinner,
   MessageBar,
   MessageBarBody,
 } from '@fluentui/react-components';
-import { DeleteRegular, SearchRegular, ArrowClockwiseRegular, OpenRegular, FilterRegular } from '@fluentui/react-icons';
+import {
+  DeleteRegular,
+  SearchRegular,
+  ArrowClockwiseRegular,
+  OpenRegular,
+  FilterRegular,
+  LockClosedRegular,
+  ArrowSortUpRegular,
+  ArrowSortDownRegular,
+  ArrowSortRegular,
+} from '@fluentui/react-icons';
 import CloudFlowDetailPanel from './CloudFlowDetailPanel.tsx';
 import CanvasAppDetailPanel from './CanvasAppDetailPanel.tsx';
 import CopilotStudioAgentDetailPanel from './CopilotStudioAgentDetailPanel.tsx';
@@ -27,6 +36,8 @@ import { useMutation } from '../hooks/useMutation.tsx';
 import { deleteCopilotAgent } from '../services/resourceMutations.ts';
 import { fetchTombstonedIds, addTombstone, removeTombstone } from '../services/tombstoneService.ts';
 import { formatDate } from '../utils/formatDate.ts';
+import { OperationsSkeleton, PageHeader } from './ui.tsx';
+import { useEnvironmentOwners } from '../services/ownerCache.ts';
 type SortField = 'name' | 'type' | 'environment' | 'region' | 'owner' | 'created' | 'lastModified';
 type SortDir = 'asc' | 'desc';
 
@@ -42,37 +53,38 @@ const useStyles = makeStyles({
   root: {
     display: 'flex',
     flexDirection: 'column',
-    gap: tokens.spacingVerticalM,
-    padding: tokens.spacingHorizontalXL,
+    gap: '18px',
+    padding: '28px 32px 32px',
     height: '100%',
     overflow: 'hidden',
     '@media (max-width: 768px)': {
       padding: tokens.spacingHorizontalM,
     },
   },
-  toolbar: {
+  controlRail: {
     display: 'flex',
     alignItems: 'center',
     gap: tokens.spacingHorizontalM,
     flexWrap: 'wrap',
     flexShrink: 0,
-  },
-  title: {
-    fontSize: tokens.fontSizeBase500,
-    fontWeight: tokens.fontWeightSemibold,
+    padding: '0 0 16px',
+    borderBottom: `1px solid ${tokens.colorNeutralStroke1}`,
+    backgroundColor: 'transparent',
   },
   count: {
     fontSize: tokens.fontSizeBase200,
     color: tokens.colorNeutralForeground3,
     whiteSpace: 'nowrap',
+    marginLeft: 'auto',
   },
-  tableWrapper: {
+  board: {
     flex: 1,
     overflowY: 'auto',
     overflowX: 'auto',
-    border: `1px solid ${tokens.colorNeutralStroke2}`,
-    borderRadius: tokens.borderRadiusMedium,
+    border: `1px solid ${tokens.colorNeutralStroke1}`,
+    borderRadius: 0,
     backgroundColor: tokens.colorNeutralBackground1,
+    boxShadow: tokens.shadow4,
   },
   table: {
     width: '100%',
@@ -88,7 +100,7 @@ const useStyles = makeStyles({
     color: tokens.colorNeutralForeground3,
     textTransform: 'uppercase',
     letterSpacing: '0.04em',
-    borderBottom: `2px solid ${tokens.colorNeutralStroke2}`,
+    borderBottom: `1px solid ${tokens.colorNeutralStroke1}`,
     backgroundColor: tokens.colorNeutralBackground3,
     cursor: 'pointer',
     userSelect: 'none',
@@ -97,6 +109,16 @@ const useStyles = makeStyles({
       color: tokens.colorNeutralForeground1,
       backgroundColor: tokens.colorNeutralBackground3Hover,
     },
+  },
+  thInner: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalXXS,
+  },
+  thIcon: {
+    display: 'inline-flex',
+    opacity: 0.55,
+    fontSize: '12px',
   },
   td: {
     padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`,
@@ -123,6 +145,10 @@ const useStyles = makeStyles({
     ':hover td': {
       backgroundColor: tokens.colorNeutralBackground1Hover,
     },
+    ':focus-visible': {
+      outline: `2px solid ${tokens.colorBrandStroke1}`,
+      outlineOffset: '-2px',
+    },
     ':focus-within td': {
       backgroundColor: tokens.colorNeutralBackground1Hover,
     },
@@ -140,30 +166,48 @@ const useStyles = makeStyles({
   },
 });
 
-function getOwnerDisplay(r: Resource): string {
+function getOwnerId(resource: Resource): string | undefined {
+  const properties = resource.properties as Record<string, unknown>;
+  if (properties.owner && typeof properties.owner === 'object') {
+    return (properties.owner as { id?: string }).id;
+  }
+  if (typeof properties.createdBy === 'string') return properties.createdBy;
+  if (properties.createdBy && typeof properties.createdBy === 'object') {
+    return (properties.createdBy as { id?: string }).id;
+  }
+  return typeof properties.ownerId === 'string' ? properties.ownerId : undefined;
+}
+
+function getOwnerDisplay(r: Resource, resolvedOwners?: Map<string, string>): string {
   const p = r.properties as Record<string, unknown>;
   // Use pre-resolved AAD display name if available
   if (typeof p.resolvedOwnerName === 'string') return p.resolvedOwnerName;
   if (p.owner && typeof p.owner === 'object') {
     const o = p.owner as { displayName?: string; email?: string; id?: string };
-    return o.displayName ?? o.email ?? o.id ?? '—';
+    const resolved = o.id ? resolvedOwners?.get(o.id.toLowerCase()) : undefined;
+    return o.displayName ?? o.email ?? resolved ?? o.id ?? '—';
   }
   if (p.createdBy) {
-    if (typeof p.createdBy === 'string') return p.createdBy;
-    const cb = p.createdBy as { displayName?: string };
-    return cb.displayName ?? '—';
+    if (typeof p.createdBy === 'string') {
+      return resolvedOwners?.get(p.createdBy.toLowerCase()) ?? p.createdBy;
+    }
+    const cb = p.createdBy as { displayName?: string; email?: string; id?: string };
+    const resolved = cb.id ? resolvedOwners?.get(cb.id.toLowerCase()) : undefined;
+    return cb.displayName ?? cb.email ?? resolved ?? cb.id ?? '—';
   }
-  if (typeof p.ownerId === 'string') return p.ownerId;
+  if (typeof p.ownerId === 'string') {
+    return resolvedOwners?.get(p.ownerId.toLowerCase()) ?? p.ownerId;
+  }
   return '—';
 }
 
-function getFieldValue(r: Resource, field: SortField): string {
+function getFieldValue(r: Resource, field: SortField, resolvedOwners: Map<string, string>): string {
   switch (field) {
     case 'name': return (r.properties.displayName ?? r.name).toLowerCase();
     case 'type': return r.type.toLowerCase();
     case 'environment': return (r.environmentName ?? '').toLowerCase();
     case 'region': return (r.environmentRegion ?? r.location ?? '').toLowerCase();
-    case 'owner': return getOwnerDisplay(r).toLowerCase();
+    case 'owner': return getOwnerDisplay(r, resolvedOwners).toLowerCase();
     case 'created': return r.properties.createdAt ?? '';
     case 'lastModified': return r.properties.lastModifiedAt ?? r.properties.modifiedAt ?? r.properties.lastPublishedAt ?? '';
   }
@@ -198,6 +242,18 @@ export default function ResourcesView({
   const [detailResource, setDetailResource] = useState<Resource | null>(null);
   const [ownerFilter, setOwnerFilter] = useState('all');
   const [envFilter, setEnvFilter] = useState('all');
+  const ownerRequests = useMemo(
+    () => resources.flatMap((resource) => {
+      const guid = getOwnerId(resource);
+      if (!guid) return [];
+      const environmentId = typeof resource.properties.environmentId === 'string'
+        ? resource.properties.environmentId
+        : undefined;
+      return [{ guid, environmentId }];
+    }),
+    [resources],
+  );
+  const resolvedOwners = useEnvironmentOwners(ownerRequests);
 
   // Load tombstones from Dataverse (+ localStorage fallback) on mount
   useEffect(() => {
@@ -230,29 +286,29 @@ export default function ResourcesView({
       const matchesType = typeFilter === 'all' || r.type.toLowerCase() === typeFilter;
       const name = (r.properties.displayName ?? r.name).toLowerCase();
       const matchesSearch = !term || name.includes(term);
-      const matchesOwner = ownerFilter === 'all' || getOwnerDisplay(r) === ownerFilter;
+      const matchesOwner = ownerFilter === 'all' || getOwnerDisplay(r, resolvedOwners) === ownerFilter;
       const matchesEnv = envFilter === 'all' || (r.environmentName ?? '') === envFilter;
       return matchesType && matchesSearch && matchesOwner && matchesEnv;
     });
-  }, [resources, search, typeFilter, ownerFilter, envFilter, deletedNames]);
+  }, [resources, search, typeFilter, ownerFilter, envFilter, deletedNames, resolvedOwners]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
-      const av = getFieldValue(a, sortField);
-      const bv = getFieldValue(b, sortField);
+      const av = getFieldValue(a, sortField, resolvedOwners);
+      const bv = getFieldValue(b, sortField, resolvedOwners);
       const cmp = av.localeCompare(bv);
       return sortDir === 'asc' ? cmp : -cmp;
     });
-  }, [filtered, sortField, sortDir]);
+  }, [filtered, sortField, sortDir, resolvedOwners]);
 
   const uniqueOwners = useMemo(() => {
     const seen = new Set<string>();
     for (const r of resources) {
-      const o = getOwnerDisplay(r);
+      const o = getOwnerDisplay(r, resolvedOwners);
       if (o !== '—') seen.add(o);
     }
     return Array.from(seen).sort((a, b) => a.localeCompare(b));
-  }, [resources]);
+  }, [resources, resolvedOwners]);
 
   const uniqueEnvironments = useMemo(() => {
     const seen = new Set<string>();
@@ -272,9 +328,11 @@ export default function ResourcesView({
     }
   }
 
-  function sortIndicator(field: SortField) {
-    if (field !== sortField) return ' ↕';
-    return sortDir === 'asc' ? ' ↑' : ' ↓';
+  function sortIndicator(field: SortField): ReactElement {
+    if (field !== sortField) return <ArrowSortRegular className={styles.thIcon} aria-hidden="true" />;
+    return sortDir === 'asc'
+      ? <ArrowSortUpRegular className={styles.thIcon} aria-hidden="true" />
+      : <ArrowSortDownRegular className={styles.thIcon} aria-hidden="true" />;
   }
 
   function ariaSortAttr(field: SortField): 'ascending' | 'descending' | 'none' {
@@ -286,11 +344,7 @@ export default function ResourcesView({
     RESOURCE_TYPES_FILTER.find((t) => t.key === typeFilter)?.label ?? 'All Types';
 
   if (isLoading) {
-    return (
-      <div className={styles.centered}>
-        <Spinner size="extra-large" label="Loading resources…" />
-      </div>
-    );
+    return <OperationsSkeleton />;
   }
 
   // Full-page detail view
@@ -338,8 +392,17 @@ export default function ResourcesView({
 
   return (
     <div className={styles.root}>
-      <div className={styles.toolbar}>
-        <Text className={styles.title}>Resources</Text>
+      <PageHeader
+        title="Resources"
+        description="Search, filter, and manage apps, flows, and agents registered across the tenant."
+        actions={
+          <Button appearance="secondary" icon={<ArrowClockwiseRegular />} onClick={() => void onRefresh()}>
+            Refresh
+          </Button>
+        }
+      />
+
+      <div className={styles.controlRail}>
         <Input
           placeholder="Search by name…"
           value={search}
@@ -348,7 +411,6 @@ export default function ResourcesView({
           size="small"
           style={{ minWidth: '220px' }}
         />
-        <div style={{ flex: 1 }} />
         <Dropdown
           value={envFilter === 'all' ? 'All Environments' : envFilter}
           selectedOptions={[envFilter]}
@@ -393,13 +455,6 @@ export default function ResourcesView({
           ))}
         </Dropdown>
         <Text className={styles.count}>{sorted.length} result(s)</Text>
-        <Button
-          appearance="subtle"
-          icon={<ArrowClockwiseRegular />}
-          size="small"
-          onClick={() => void onRefresh()}
-          title="Refresh"
-        />
       </div>
 
       {error && (
@@ -408,7 +463,7 @@ export default function ResourcesView({
         </MessageBar>
       )}
 
-      <div className={styles.tableWrapper}>
+      <div className={styles.board}>
         <table className={styles.table}>
           <colgroup>
             <col style={{ width: '22%' }} />
@@ -422,28 +477,35 @@ export default function ResourcesView({
           </colgroup>
           <thead>
             <tr>
-              <th className={styles.th} onClick={() => handleSort('name')} aria-sort={ariaSortAttr('name')}>
-                Name{sortIndicator('name')}
-              </th>
-              <th className={styles.th} onClick={() => handleSort('type')} aria-sort={ariaSortAttr('type')}>
-                Type{sortIndicator('type')}
-              </th>
-              <th className={styles.th} onClick={() => handleSort('environment')} aria-sort={ariaSortAttr('environment')}>
-                Environment{sortIndicator('environment')}
-              </th>
-              <th className={styles.th} onClick={() => handleSort('region')} aria-sort={ariaSortAttr('region')}>
-                Region{sortIndicator('region')}
-              </th>
-              <th className={styles.th} onClick={() => handleSort('owner')} aria-sort={ariaSortAttr('owner')}>
-                Owner{sortIndicator('owner')}
-              </th>
-              <th className={styles.th} onClick={() => handleSort('created')} aria-sort={ariaSortAttr('created')}>
-                Created{sortIndicator('created')}
-              </th>
-              <th className={styles.th} onClick={() => handleSort('lastModified')} aria-sort={ariaSortAttr('lastModified')}>
-                Modified{sortIndicator('lastModified')}
-              </th>
-              <th className={styles.th}></th>
+              {(
+                [
+                  ['name', 'Name'],
+                  ['type', 'Type'],
+                  ['environment', 'Environment'],
+                  ['region', 'Region'],
+                  ['owner', 'Owner'],
+                  ['created', 'Created'],
+                  ['lastModified', 'Modified'],
+                ] as const
+              ).map(([field, label]) => (
+                <th
+                  key={field}
+                  className={styles.th}
+                  scope="col"
+                  aria-sort={ariaSortAttr(field)}
+                >
+                  <button
+                    type="button"
+                    className={styles.thInner}
+                    onClick={() => handleSort(field)}
+                    style={{ background: 'none', border: 0, padding: 0, font: 'inherit', color: 'inherit', cursor: 'pointer' }}
+                  >
+                    {label}
+                    {sortIndicator(field)}
+                  </button>
+                </th>
+              ))}
+              <th className={styles.th} scope="col" aria-label="Actions" />
             </tr>
           </thead>
           <tbody>
@@ -479,7 +541,9 @@ export default function ResourcesView({
                       <span className={styles.nameCell}>
                         <span className={styles.tdText}>{displayName}</span>
                         {r.properties.isQuarantined === true && (
-                          <Badge appearance="tint" color="danger" size="small">🔒</Badge>
+                          <Badge appearance="tint" color="danger" size="small" icon={<LockClosedRegular />}>
+                            Quarantined
+                          </Badge>
                         )}
                       </span>
                     </td>
@@ -502,8 +566,8 @@ export default function ResourcesView({
                     <td className={styles.td}>
                       <span className={styles.tdText}>{r.environmentRegion ?? r.location ?? '—'}</span>
                     </td>
-                    <td className={styles.td} title={getOwnerDisplay(r)}>
-                      <span className={styles.tdText}>{getOwnerDisplay(r)}</span>
+                    <td className={styles.td} title={getOwnerDisplay(r, resolvedOwners)}>
+                      <span className={styles.tdText}>{getOwnerDisplay(r, resolvedOwners)}</span>
                     </td>
                     <td className={styles.td}>
                       <span className={styles.tdText}>{formatDate(r.properties.createdAt)}</span>

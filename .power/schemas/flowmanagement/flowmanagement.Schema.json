@@ -4,7 +4,7 @@
   "type": "Microsoft.PowerApps/apis",
   "properties": {
     "displayName": "Power Automate Management",
-    "iconUri": "https://conn-afd-prod-endpoint-bmc9bqahasf3grgk.b01.azurefd.net/v1.0.1778/1.0.1778.4417/flowmanagement/icon.png",
+    "iconUri": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1819/1.0.1819.4795/flowmanagement/icon.png",
     "iconBrandColor": "#0066FF",
     "apiEnvironment": "Shared",
     "isCustomApi": false,
@@ -2642,10 +2642,10 @@
       }
     },
     "runtimeUrls": [
-      "https://daacce33-7d66-ea1f-bfe5-f912f9252a1e.14.common.usa002.azure-apihub.net/apim/flowmanagement"
+      "https://ecc0ee26-d0d1-eaaf-9b5c-9bdef7aa2306.00.common.usa002.azure-apihub.net/apim/flowmanagement"
     ],
-    "primaryRuntimeUrl": "https://daacce33-7d66-ea1f-bfe5-f912f9252a1e.14.common.usa002.azure-apihub.net/apim/flowmanagement",
-    "doNotUseApiHubNetRuntimeUrl": "https://daacce33-7d66-ea1f-bfe5-f912f9252a1e.14.common.usa002.azure-apihub.net/apim/flowmanagement",
+    "primaryRuntimeUrl": "https://ecc0ee26-d0d1-eaaf-9b5c-9bdef7aa2306.00.common.usa002.azure-apihub.net/apim/flowmanagement",
+    "doNotUseApiHubNetRuntimeUrl": "https://ecc0ee26-d0d1-eaaf-9b5c-9bdef7aa2306.00.common.usa002.azure-apihub.net/apim/flowmanagement",
     "metadata": {
       "source": "marketplace",
       "brandColor": "#0066FF",
@@ -2655,7 +2655,7 @@
       "useNewApimVersion": "true",
       "version": {
         "previous": "v1.0.1778\\1.0.1778.4417",
-        "current": "v1.0.1778\\1.0.1778.4417"
+        "current": "releases/v1.0.1819\\1.0.1819.4795"
       }
     },
     "capabilities": [
@@ -2664,7 +2664,7 @@
     "interfaces": {},
     "description": "Power Automate Management connector enables interaction with Power Automate Management service. For example: creating, editing, and updating flows. Administrators who want to perform operations with admin privileges should call actions with the 'as Admin' suffix. Service Principal authentication is supported for administrative actions only.",
     "createdTime": "2024-03-26T00:06:19.0274185Z",
-    "changedTime": "2025-11-06T17:57:10.0353428Z",
+    "changedTime": "2026-07-13T16:41:33.7874885Z",
     "releaseTag": "Production",
     "tier": "Standard",
     "publisher": "Microsoft",

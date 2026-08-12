@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   computeResourceCounts,
   fetchEnvironments,
@@ -6,7 +6,6 @@ import {
 } from '../services/inventoryApi.ts';
 import type { Resource, ResourceCounts } from '../types/inventory.ts';
 import { extractMessage } from '../utils/errorUtils.ts';
-import { isGuid, resolveUserIds } from '../services/userService.ts';
 import { fetchPowerPagesWebsitesForEnvironments } from '../services/adminApi.ts';
 
 export interface UseInventoryResult {
@@ -19,18 +18,6 @@ export interface UseInventoryResult {
   refresh: () => Promise<void>;
 }
 
-/** Extract the owner GUID from a resource, if it is a bare GUID rather than a display name. */
-function extractOwnerGuid(r: Resource): string | null {
-  const p = r.properties as Record<string, unknown>;
-  if (p.owner && typeof p.owner === 'object') {
-    const o = p.owner as { displayName?: string; id?: string };
-    if (!o.displayName && o.id && isGuid(o.id)) return o.id;
-  }
-  if (typeof p.ownerId === 'string' && isGuid(p.ownerId)) return p.ownerId;
-  if (typeof p.createdBy === 'string' && isGuid(p.createdBy)) return p.createdBy;
-  return null;
-}
-
 export function useInventory(): UseInventoryResult {
   const [resources, setResources] = useState<Resource[]>([]);
   const [environments, setEnvironments] = useState<Resource[]>([]);
@@ -38,8 +25,10 @@ export function useInventory(): UseInventoryResult {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingLabel, setLoadingLabel] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const refreshGeneration = useRef(0);
 
   const refresh = useCallback(async () => {
+    const generation = ++refreshGeneration.current;
     setIsLoading(true);
     setLoadingLabel('Loading resources…');
     setError(null);
@@ -47,50 +36,49 @@ export function useInventory(): UseInventoryResult {
     try {
       const [fetchedResources, fetchedEnvironments] = await Promise.all([
         fetchResources((page, count) => {
-          if (page > 1) setLoadingLabel(`Loading resources… (${count.toLocaleString()} so far)`);
+          if (refreshGeneration.current === generation && page > 1) {
+            setLoadingLabel(`Loading resources… (${count.toLocaleString()} so far)`);
+          }
         }),
         fetchEnvironments(),
       ]);
 
-      // Collect unique owner GUIDs and resolve them to display names
-      setLoadingLabel('Resolving owner names…');
-      const ownerGuids = [...new Set(fetchedResources.map(extractOwnerGuid).filter(Boolean) as string[])];
-      const [nameMap, websiteResources] = await Promise.all([
-        resolveUserIds(ownerGuids),
-        fetchPowerPagesWebsitesForEnvironments(fetchedEnvironments),
-      ]);
+      if (refreshGeneration.current !== generation) return;
 
-      // Enrich resources with resolved owner names.
-      const enriched = fetchedResources.map((r) => {
-        const guid = extractOwnerGuid(r);
-        const resolved = guid ? nameMap.get(guid) : undefined;
-
-        if (!resolved || resolved === guid) return r;
-        return {
-          ...r,
-          properties: {
-            ...r.properties,
-            resolvedOwnerName: resolved,
-          },
-        };
-      });
-
-      const allResources = [...enriched, ...websiteResources];
-      setResources(allResources);
+      // Make the core inventory interactive before optional enrichment completes.
+      setResources(fetchedResources);
       setEnvironments(fetchedEnvironments);
-      setCounts(computeResourceCounts(allResources));
-    } catch (e: unknown) {
-      setError(
-        e instanceof Error ? extractMessage(e.message) : 'Failed to load Power Platform inventory.',
-      );
-    } finally {
+      setCounts(computeResourceCounts(fetchedResources));
       setIsLoading(false);
       setLoadingLabel(null);
+
+      void fetchPowerPagesWebsitesForEnvironments(fetchedEnvironments).then((websiteResources) => {
+        if (refreshGeneration.current !== generation) return;
+        const allResources = [...fetchedResources, ...websiteResources];
+        setResources(allResources);
+        setCounts(computeResourceCounts(allResources));
+      }).catch(() => {
+        // Power Pages enrichment is optional and must not block inventory.
+      });
+    } catch (e: unknown) {
+      if (refreshGeneration.current === generation) {
+        setError(
+          e instanceof Error ? extractMessage(e.message) : 'Failed to load Power Platform inventory.',
+        );
+      }
+    } finally {
+      if (refreshGeneration.current === generation) {
+        setIsLoading(false);
+        setLoadingLabel(null);
+      }
     }
   }, []);
 
   useEffect(() => {
     void refresh();
+    return () => {
+      refreshGeneration.current += 1;
+    };
   }, [refresh]);
 
   return { resources, environments, counts, isLoading, loadingLabel, error, refresh };

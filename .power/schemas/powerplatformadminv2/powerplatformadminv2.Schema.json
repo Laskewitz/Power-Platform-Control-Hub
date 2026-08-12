@@ -4,7 +4,7 @@
   "type": "Microsoft.PowerApps/apis",
   "properties": {
     "displayName": "Power Platform for Admins V2",
-    "iconUri": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1812/1.0.1812.4731/powerplatformadminv2/icon.png",
+    "iconUri": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1821/1.0.1821.4811/powerplatformadminv2/icon.png",
     "iconBrandColor": "#000000",
     "apiEnvironment": "Shared",
     "isCustomApi": false,
@@ -64,6 +64,20 @@
                 "constraints": {
                   "required": "true",
                   "hidden": "false"
+                }
+              }
+            },
+            "token:TenantId": {
+              "type": "string",
+              "metadata": {
+                "sourceType": "AzureActiveDirectoryTenant"
+              },
+              "uiDefinition": {
+                "displayName": "Tenant",
+                "description": "The tenant ID of for the Microsoft Entra ID application",
+                "constraints": {
+                  "required": "false",
+                  "hidden": "true"
                 }
               }
             }
@@ -2103,6 +2117,133 @@
             },
             "externalDocs": {
               "url": "https://docs.microsoft.com/connectors/powerplatformadminv2/#set-bot-as-unquarantined"
+            }
+          }
+        },
+        "/{connectionId}/copilotstudio/environments/{EnvironmentId}/bots/{BotId}/api/connectorConsentBypass": {
+          "get": {
+            "tags": [
+              "Bots"
+            ],
+            "summary": "Get Connector Consent Bypass",
+            "description": "Get the admin connector consent bypass setting for a bot.",
+            "operationId": "GetConnectorConsentBypass",
+            "produces": [
+              "application/json"
+            ],
+            "parameters": [
+              {
+                "name": "connectionId",
+                "in": "path",
+                "required": true,
+                "x-ms-visibility": "internal",
+                "type": "string"
+              },
+              {
+                "in": "path",
+                "name": "EnvironmentId",
+                "description": "The environment ID.",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Environment Id"
+              },
+              {
+                "in": "path",
+                "name": "BotId",
+                "description": "The bot ID.",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Bot Id"
+              },
+              {
+                "in": "query",
+                "name": "api-version",
+                "description": "The API version.",
+                "required": true,
+                "type": "string",
+                "default": "2024-10-01",
+                "x-ms-summary": "Api-version",
+                "x-ms-visibility": "advanced"
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Successful response",
+                "schema": {
+                  "$ref": "#/definitions/ConnectorConsentBypassResponse"
+                }
+              }
+            },
+            "externalDocs": {
+              "url": "https://docs.microsoft.com/connectors/powerplatformadminv2/#get-connector-consent-bypass"
+            }
+          },
+          "put": {
+            "tags": [
+              "Bots"
+            ],
+            "summary": "Set Connector Consent Bypass",
+            "description": "Set the admin connector consent bypass setting for a bot.",
+            "operationId": "SetConnectorConsentBypass",
+            "consumes": [
+              "application/json"
+            ],
+            "produces": [
+              "application/json"
+            ],
+            "parameters": [
+              {
+                "name": "connectionId",
+                "in": "path",
+                "required": true,
+                "x-ms-visibility": "internal",
+                "type": "string"
+              },
+              {
+                "in": "path",
+                "name": "EnvironmentId",
+                "description": "The environment ID.",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Environment Id"
+              },
+              {
+                "in": "path",
+                "name": "BotId",
+                "description": "The bot ID.",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Bot Id"
+              },
+              {
+                "in": "query",
+                "name": "api-version",
+                "description": "The API version.",
+                "required": true,
+                "type": "string",
+                "default": "2024-10-01",
+                "x-ms-summary": "Api-version",
+                "x-ms-visibility": "advanced"
+              },
+              {
+                "in": "body",
+                "name": "body",
+                "required": true,
+                "schema": {
+                  "$ref": "#/definitions/SetAdminConsentBypassRequest"
+                }
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Successful response",
+                "schema": {
+                  "$ref": "#/definitions/ConnectorConsentBypassResponse"
+                }
+              }
+            },
+            "externalDocs": {
+              "url": "https://docs.microsoft.com/connectors/powerplatformadminv2/#set-connector-consent-bypass"
             }
           }
         },
@@ -4406,6 +4547,81 @@
             }
           }
         },
+        "/{connectionId}/environmentmanagement/environments/{targetEnvironmentId}/operations/{operationId}": {
+          "get": {
+            "tags": [
+              "Operation"
+            ],
+            "summary": "Gets the status of an environment-scoped lifecycle operation (Preview)",
+            "description": "Gets the status of an environment lifecycle operation scoped under a specific environment, enabling environment-level authorization on the operation lookup.",
+            "operationId": "GetEnvironmentOperationByID",
+            "produces": [
+              "text/plain",
+              "application/json",
+              "text/json"
+            ],
+            "parameters": [
+              {
+                "name": "connectionId",
+                "in": "path",
+                "required": true,
+                "x-ms-visibility": "internal",
+                "type": "string"
+              },
+              {
+                "in": "path",
+                "name": "targetEnvironmentId",
+                "description": "The ID of the target environment.",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Target Environment Id"
+              },
+              {
+                "in": "path",
+                "name": "operationId",
+                "description": "The ID of the operation.",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Operation Id"
+              },
+              {
+                "in": "query",
+                "name": "api-version",
+                "description": "The API version.",
+                "required": true,
+                "type": "string",
+                "default": "2024-10-01",
+                "x-ms-summary": "Api-version",
+                "x-ms-visibility": "advanced"
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "OK",
+                "schema": {
+                  "$ref": "#/definitions/OperationExecutionResult"
+                }
+              },
+              "400": {
+                "description": "Bad Request",
+                "schema": {
+                  "$ref": "#/definitions/ValidationResponse"
+                }
+              },
+              "404": {
+                "description": "Not Found",
+                "schema": {
+                  "$ref": "#/definitions/ValidationResponse"
+                }
+              }
+            },
+            "x-AccessControl.Scope": "/tenants/{tenantId}/environments/{targetEnvironmentId}",
+            "x-AccessControl.Permission": "EnvironmentManagement.Operation.Read",
+            "externalDocs": {
+              "url": "https://docs.microsoft.com/connectors/powerplatformadminv2/#gets-the-status-of-an-environment-scoped-lifecycle-operation-(preview)"
+            }
+          }
+        },
         "/{connectionId}/environmentmanagement/environments/{targetEnvironmentId}/Restore": {
           "post": {
             "tags": [
@@ -4469,7 +4685,7 @@
                 "name": "body",
                 "description": "The request body.",
                 "schema": {
-                  "$ref": "#/definitions/EnvironmentRestoreRequest"
+                  "$ref": "#/definitions/RestoreRequest"
                 }
               }
             ],
@@ -8306,7 +8522,7 @@
               "404": {
                 "description": "Not Found",
                 "schema": {
-                  "$ref": "#/definitions/ProblemDetails"
+                  "$ref": "#/definitions/LicensingProblemDetails"
                 }
               }
             },
@@ -8374,7 +8590,7 @@
               "404": {
                 "description": "Not Found",
                 "schema": {
-                  "$ref": "#/definitions/ProblemDetails"
+                  "$ref": "#/definitions/LicensingProblemDetails"
                 }
               }
             },
@@ -8426,7 +8642,7 @@
               "404": {
                 "description": "Not Found",
                 "schema": {
-                  "$ref": "#/definitions/ProblemDetails"
+                  "$ref": "#/definitions/LicensingProblemDetails"
                 }
               }
             },
@@ -10113,6 +10329,283 @@
             }
           }
         },
+        "/{connectionId}/powerpages/environments/{environmentId}/websites/{id}/certificates": {
+          "post": {
+            "tags": [
+              "Websites"
+            ],
+            "summary": "Upload a certificate for a website",
+            "description": "Validates and uploads an SSL or managed certificate for the specified website. The certificate file and password must be provided as multipart form data.",
+            "operationId": "UploadCertificate",
+            "consumes": [
+              "multipart/form-data"
+            ],
+            "produces": [
+              "application/json"
+            ],
+            "parameters": [
+              {
+                "name": "connectionId",
+                "in": "path",
+                "required": true,
+                "x-ms-visibility": "internal",
+                "type": "string"
+              },
+              {
+                "in": "path",
+                "name": "environmentId",
+                "description": "The environment ID.",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Environment Id"
+              },
+              {
+                "in": "path",
+                "name": "id",
+                "description": "Website unique identifier (ID).",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Id"
+              },
+              {
+                "in": "query",
+                "name": "certType",
+                "description": "The type of certificate (e.g., SSL, MANAGED).",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Cert Type"
+              },
+              {
+                "in": "query",
+                "name": "api-version",
+                "description": "The API version.",
+                "required": true,
+                "type": "string",
+                "default": "2024-10-01",
+                "x-ms-summary": "Api-version",
+                "x-ms-visibility": "advanced"
+              },
+              {
+                "in": "formData",
+                "name": "file",
+                "description": "The certificate file (.pfx).",
+                "type": "file",
+                "x-ms-summary": "Certificate File"
+              },
+              {
+                "in": "formData",
+                "name": "password",
+                "description": "The certificate password.",
+                "type": "string",
+                "x-ms-summary": "Password"
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Success",
+                "schema": {
+                  "description": "The thumbprint of the uploaded certificate.",
+                  "type": "string"
+                }
+              },
+              "400": {
+                "description": "Bad Request",
+                "schema": {
+                  "$ref": "#/definitions/ErrorMessage"
+                }
+              },
+              "401": {
+                "description": "Unauthorized",
+                "schema": {
+                  "$ref": "#/definitions/ErrorMessage"
+                }
+              },
+              "404": {
+                "description": "Not Found",
+                "schema": {
+                  "$ref": "#/definitions/ErrorMessage"
+                }
+              }
+            },
+            "externalDocs": {
+              "url": "https://docs.microsoft.com/connectors/powerplatformadminv2/#upload-a-certificate-for-a-website"
+            }
+          },
+          "get": {
+            "tags": [
+              "Websites"
+            ],
+            "summary": "Get certificates associated with a website",
+            "description": "Returns the list of certificates associated with the specified website, filtered by certificate type.",
+            "operationId": "GetCertificatesByPortal",
+            "produces": [
+              "application/json"
+            ],
+            "parameters": [
+              {
+                "name": "connectionId",
+                "in": "path",
+                "required": true,
+                "x-ms-visibility": "internal",
+                "type": "string"
+              },
+              {
+                "in": "path",
+                "name": "environmentId",
+                "description": "The environment ID.",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Environment Id"
+              },
+              {
+                "in": "path",
+                "name": "id",
+                "description": "Website unique identifier (ID).",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Id"
+              },
+              {
+                "in": "query",
+                "name": "certType",
+                "description": "The type of certificate to retrieve. Allowed values: SSL, MANAGED.",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Cert Type"
+              },
+              {
+                "in": "query",
+                "name": "api-version",
+                "description": "The API version.",
+                "required": true,
+                "type": "string",
+                "default": "2024-10-01",
+                "x-ms-summary": "Api-version",
+                "x-ms-visibility": "advanced"
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Success",
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/CertificateDTO"
+                  }
+                }
+              },
+              "400": {
+                "description": "Bad Request",
+                "schema": {
+                  "$ref": "#/definitions/ErrorMessage"
+                }
+              },
+              "401": {
+                "description": "Unauthorized",
+                "schema": {
+                  "$ref": "#/definitions/ErrorMessage"
+                }
+              },
+              "404": {
+                "description": "Not Found",
+                "schema": {
+                  "$ref": "#/definitions/ErrorMessage"
+                }
+              }
+            },
+            "externalDocs": {
+              "url": "https://docs.microsoft.com/connectors/powerplatformadminv2/#get-certificates-associated-with-a-website"
+            }
+          },
+          "delete": {
+            "tags": [
+              "Websites"
+            ],
+            "summary": "Delete a certificate associated with a website",
+            "description": "Deletes the certificate identified by the given thumbprint and type from the website.",
+            "operationId": "DeleteCertificateByPortal",
+            "produces": [
+              "application/json"
+            ],
+            "parameters": [
+              {
+                "name": "connectionId",
+                "in": "path",
+                "required": true,
+                "x-ms-visibility": "internal",
+                "type": "string"
+              },
+              {
+                "in": "path",
+                "name": "environmentId",
+                "description": "The environment ID.",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Environment Id"
+              },
+              {
+                "in": "path",
+                "name": "id",
+                "description": "Website unique identifier (ID).",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Id"
+              },
+              {
+                "in": "query",
+                "name": "thumbprint",
+                "description": "The thumbprint of the certificate to delete.",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Thumbprint"
+              },
+              {
+                "in": "query",
+                "name": "certType",
+                "description": "The type of certificate (e.g., SSL, MANAGED).",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Cert Type"
+              },
+              {
+                "in": "query",
+                "name": "api-version",
+                "description": "The API version.",
+                "required": true,
+                "type": "string",
+                "default": "2024-10-01",
+                "x-ms-summary": "Api-version",
+                "x-ms-visibility": "advanced"
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Success"
+              },
+              "400": {
+                "description": "Bad Request",
+                "schema": {
+                  "$ref": "#/definitions/ErrorMessage"
+                }
+              },
+              "401": {
+                "description": "Unauthorized",
+                "schema": {
+                  "$ref": "#/definitions/ErrorMessage"
+                }
+              },
+              "404": {
+                "description": "Not Found",
+                "schema": {
+                  "$ref": "#/definitions/ErrorMessage"
+                }
+              }
+            },
+            "externalDocs": {
+              "url": "https://docs.microsoft.com/connectors/powerplatformadminv2/#delete-a-certificate-associated-with-a-website"
+            }
+          }
+        },
         "/{connectionId}/powerpages/environments/{environmentId}/websites/{id}/convertToProduction": {
           "post": {
             "tags": [
@@ -10286,6 +10779,247 @@
             },
             "externalDocs": {
               "url": "https://docs.microsoft.com/connectors/powerplatformadminv2/#create-web-application-firewall-rules-on-a-power-pages-website"
+            }
+          }
+        },
+        "/{connectionId}/powerpages/environments/{environmentId}/websites/{id}/customDomain": {
+          "get": {
+            "tags": [
+              "Websites"
+            ],
+            "summary": "List custom host names for a website",
+            "description": "Returns the list of custom host names configured for the specified website.",
+            "operationId": "ListHostNamesForPortal",
+            "produces": [
+              "application/json"
+            ],
+            "parameters": [
+              {
+                "name": "connectionId",
+                "in": "path",
+                "required": true,
+                "x-ms-visibility": "internal",
+                "type": "string"
+              },
+              {
+                "in": "path",
+                "name": "environmentId",
+                "description": "The environment ID.",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Environment Id"
+              },
+              {
+                "in": "path",
+                "name": "id",
+                "description": "Website unique identifier (ID).",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Id"
+              },
+              {
+                "in": "query",
+                "name": "api-version",
+                "description": "The API version.",
+                "required": true,
+                "type": "string",
+                "default": "2024-10-01",
+                "x-ms-summary": "Api-version",
+                "x-ms-visibility": "advanced"
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Success",
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "description": "A custom host name configured for the website.",
+                    "type": "string"
+                  }
+                }
+              },
+              "400": {
+                "description": "Bad Request",
+                "schema": {
+                  "$ref": "#/definitions/ErrorMessage"
+                }
+              },
+              "401": {
+                "description": "Unauthorized",
+                "schema": {
+                  "$ref": "#/definitions/ErrorMessage"
+                }
+              },
+              "404": {
+                "description": "Not Found",
+                "schema": {
+                  "$ref": "#/definitions/ErrorMessage"
+                }
+              }
+            },
+            "externalDocs": {
+              "url": "https://docs.microsoft.com/connectors/powerplatformadminv2/#list-custom-host-names-for-a-website"
+            }
+          },
+          "post": {
+            "tags": [
+              "Websites"
+            ],
+            "summary": "Add a custom domain to a website",
+            "description": "Adds the specified custom host name to the website.",
+            "operationId": "CreateCustomDomain",
+            "produces": [
+              "application/json"
+            ],
+            "parameters": [
+              {
+                "name": "connectionId",
+                "in": "path",
+                "required": true,
+                "x-ms-visibility": "internal",
+                "type": "string"
+              },
+              {
+                "in": "path",
+                "name": "environmentId",
+                "description": "The environment ID.",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Environment Id"
+              },
+              {
+                "in": "path",
+                "name": "id",
+                "description": "Website unique identifier (ID).",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Id"
+              },
+              {
+                "in": "query",
+                "name": "customDomain",
+                "description": "The custom host name to add to the website.",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Custom Domain"
+              },
+              {
+                "in": "query",
+                "name": "api-version",
+                "description": "The API version.",
+                "required": true,
+                "type": "string",
+                "default": "2024-10-01",
+                "x-ms-summary": "Api-version",
+                "x-ms-visibility": "advanced"
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Success"
+              },
+              "400": {
+                "description": "Bad Request",
+                "schema": {
+                  "$ref": "#/definitions/ErrorMessage"
+                }
+              },
+              "401": {
+                "description": "Unauthorized",
+                "schema": {
+                  "$ref": "#/definitions/ErrorMessage"
+                }
+              },
+              "404": {
+                "description": "Not Found",
+                "schema": {
+                  "$ref": "#/definitions/ErrorMessage"
+                }
+              }
+            },
+            "externalDocs": {
+              "url": "https://docs.microsoft.com/connectors/powerplatformadminv2/#add-a-custom-domain-to-a-website"
+            }
+          },
+          "delete": {
+            "tags": [
+              "Websites"
+            ],
+            "summary": "Delete a custom domain from a website",
+            "description": "Removes the specified custom host name from the website and cleans up associated SSL bindings and AFD configuration.",
+            "operationId": "DeleteHostNameForPortal",
+            "produces": [
+              "application/json"
+            ],
+            "parameters": [
+              {
+                "name": "connectionId",
+                "in": "path",
+                "required": true,
+                "x-ms-visibility": "internal",
+                "type": "string"
+              },
+              {
+                "in": "path",
+                "name": "environmentId",
+                "description": "The environment ID.",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Environment Id"
+              },
+              {
+                "in": "path",
+                "name": "id",
+                "description": "Website unique identifier (ID).",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Id"
+              },
+              {
+                "in": "query",
+                "name": "hostName",
+                "description": "The custom host name to remove from the website.",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Host Name"
+              },
+              {
+                "in": "query",
+                "name": "api-version",
+                "description": "The API version.",
+                "required": true,
+                "type": "string",
+                "default": "2024-10-01",
+                "x-ms-summary": "Api-version",
+                "x-ms-visibility": "advanced"
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Success"
+              },
+              "400": {
+                "description": "Bad Request",
+                "schema": {
+                  "$ref": "#/definitions/ErrorMessage"
+                }
+              },
+              "401": {
+                "description": "Unauthorized",
+                "schema": {
+                  "$ref": "#/definitions/ErrorMessage"
+                }
+              },
+              "404": {
+                "description": "Not Found",
+                "schema": {
+                  "$ref": "#/definitions/ErrorMessage"
+                }
+              }
+            },
+            "externalDocs": {
+              "url": "https://docs.microsoft.com/connectors/powerplatformadminv2/#delete-a-custom-domain-from-a-website"
             }
           }
         },
@@ -10703,6 +11437,85 @@
           }
         },
         "/{connectionId}/powerpages/environments/{environmentId}/websites/{id}/ipaddressrules": {
+          "get": {
+            "tags": [
+              "Websites"
+            ],
+            "summary": "Get allowed IP addresses for a Power Pages website",
+            "description": "Returns the list of IP addresses in the website's IP restriction allow list.",
+            "operationId": "GetAllowedIpAddresses",
+            "produces": [
+              "application/json"
+            ],
+            "parameters": [
+              {
+                "name": "connectionId",
+                "in": "path",
+                "required": true,
+                "x-ms-visibility": "internal",
+                "type": "string"
+              },
+              {
+                "in": "path",
+                "name": "environmentId",
+                "description": "The environment ID.",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Environment Id"
+              },
+              {
+                "in": "path",
+                "name": "id",
+                "description": "Website unique identifier (ID).",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Id"
+              },
+              {
+                "in": "query",
+                "name": "api-version",
+                "description": "The API version.",
+                "required": true,
+                "type": "string",
+                "default": "2024-10-01",
+                "x-ms-summary": "Api-version",
+                "x-ms-visibility": "advanced"
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Success",
+                "schema": {
+                  "description": "List of allowed IP addresses",
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/IpAddressEntity"
+                  }
+                }
+              },
+              "400": {
+                "description": "Bad Request",
+                "schema": {
+                  "$ref": "#/definitions/ErrorMessage"
+                }
+              },
+              "401": {
+                "description": "Unauthorized",
+                "schema": {
+                  "$ref": "#/definitions/ErrorMessage"
+                }
+              },
+              "404": {
+                "description": "Not Found",
+                "schema": {
+                  "$ref": "#/definitions/ErrorMessage"
+                }
+              }
+            },
+            "externalDocs": {
+              "url": "https://docs.microsoft.com/connectors/powerplatformadminv2/#get-allowed-ip-addresses-for-a-power-pages-website"
+            }
+          },
           "post": {
             "tags": [
               "Websites"
@@ -10760,15 +11573,8 @@
               }
             ],
             "responses": {
-              "200": {
-                "description": "Success",
-                "schema": {
-                  "description": "List of allowed IP addresses after the operation",
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/definitions/IpAddressEntity"
-                  }
-                }
+              "204": {
+                "description": "Success"
               },
               "400": {
                 "description": "Bad Request",
@@ -10852,15 +11658,8 @@
               }
             ],
             "responses": {
-              "200": {
-                "description": "Success",
-                "schema": {
-                  "description": "List of allowed IP addresses after the operation",
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/definitions/IpAddressEntity"
-                  }
-                }
+              "204": {
+                "description": "Success"
               },
               "400": {
                 "description": "Bad Request",
@@ -11428,6 +12227,270 @@
             },
             "externalDocs": {
               "url": "https://docs.microsoft.com/connectors/powerplatformadminv2/#stamp-data-model-version-for-website"
+            }
+          }
+        },
+        "/{connectionId}/powerpages/environments/{environmentId}/websites/{id}/sslBindings": {
+          "get": {
+            "tags": [
+              "Websites"
+            ],
+            "summary": "List SSL bindings for a website by hostname",
+            "description": "Returns the SSL bindings (certificate thumbprints) associated with the specified hostname on the website.",
+            "operationId": "ListSslBindingsByThumbprints",
+            "produces": [
+              "application/json"
+            ],
+            "parameters": [
+              {
+                "name": "connectionId",
+                "in": "path",
+                "required": true,
+                "x-ms-visibility": "internal",
+                "type": "string"
+              },
+              {
+                "in": "path",
+                "name": "environmentId",
+                "description": "The environment ID.",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Environment Id"
+              },
+              {
+                "in": "path",
+                "name": "id",
+                "description": "Website unique identifier (ID).",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Id"
+              },
+              {
+                "in": "query",
+                "name": "hostName",
+                "description": "The custom domain hostname to filter SSL bindings by.",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Host Name"
+              },
+              {
+                "in": "query",
+                "name": "api-version",
+                "description": "The API version.",
+                "required": true,
+                "type": "string",
+                "default": "2024-10-01",
+                "x-ms-summary": "Api-version",
+                "x-ms-visibility": "advanced"
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Success",
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/SslBindingThumbprintDTO"
+                  }
+                }
+              },
+              "400": {
+                "description": "Bad Request",
+                "schema": {
+                  "$ref": "#/definitions/ErrorMessage"
+                }
+              },
+              "401": {
+                "description": "Unauthorized",
+                "schema": {
+                  "$ref": "#/definitions/ErrorMessage"
+                }
+              },
+              "404": {
+                "description": "Not Found",
+                "schema": {
+                  "$ref": "#/definitions/ErrorMessage"
+                }
+              }
+            },
+            "externalDocs": {
+              "url": "https://docs.microsoft.com/connectors/powerplatformadminv2/#list-ssl-bindings-for-a-website-by-hostname"
+            }
+          },
+          "post": {
+            "tags": [
+              "Websites"
+            ],
+            "summary": "Add an SSL binding to a website",
+            "description": "Binds the specified certificate thumbprint to the custom domain hostname of the website.",
+            "operationId": "AddSslBindingByPortal",
+            "produces": [
+              "application/json"
+            ],
+            "parameters": [
+              {
+                "name": "connectionId",
+                "in": "path",
+                "required": true,
+                "x-ms-visibility": "internal",
+                "type": "string"
+              },
+              {
+                "in": "path",
+                "name": "environmentId",
+                "description": "The environment ID.",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Environment Id"
+              },
+              {
+                "in": "path",
+                "name": "id",
+                "description": "Website unique identifier (ID).",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Id"
+              },
+              {
+                "in": "query",
+                "name": "thumbprint",
+                "description": "The thumbprint of the certificate to bind.",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Thumbprint"
+              },
+              {
+                "in": "query",
+                "name": "hostName",
+                "description": "The custom domain hostname to bind the certificate to.",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Host Name"
+              },
+              {
+                "in": "query",
+                "name": "api-version",
+                "description": "The API version.",
+                "required": true,
+                "type": "string",
+                "default": "2024-10-01",
+                "x-ms-summary": "Api-version",
+                "x-ms-visibility": "advanced"
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Success"
+              },
+              "400": {
+                "description": "Bad Request",
+                "schema": {
+                  "$ref": "#/definitions/ErrorMessage"
+                }
+              },
+              "401": {
+                "description": "Unauthorized",
+                "schema": {
+                  "$ref": "#/definitions/ErrorMessage"
+                }
+              },
+              "404": {
+                "description": "Not Found",
+                "schema": {
+                  "$ref": "#/definitions/ErrorMessage"
+                }
+              }
+            },
+            "externalDocs": {
+              "url": "https://docs.microsoft.com/connectors/powerplatformadminv2/#add-an-ssl-binding-to-a-website"
+            }
+          },
+          "delete": {
+            "tags": [
+              "Websites"
+            ],
+            "summary": "Delete SSL binding for a website by certificate thumbprint",
+            "description": "Removes the SSL binding for the specified hostname and certificate thumbprint from the website.",
+            "operationId": "DeleteSslBindingByThumbprint",
+            "produces": [
+              "application/json"
+            ],
+            "parameters": [
+              {
+                "name": "connectionId",
+                "in": "path",
+                "required": true,
+                "x-ms-visibility": "internal",
+                "type": "string"
+              },
+              {
+                "in": "path",
+                "name": "environmentId",
+                "description": "The environment ID.",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Environment Id"
+              },
+              {
+                "in": "path",
+                "name": "id",
+                "description": "Website unique identifier (ID).",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Id"
+              },
+              {
+                "in": "query",
+                "name": "hostName",
+                "description": "The custom domain hostname whose SSL binding will be removed.",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Host Name"
+              },
+              {
+                "in": "query",
+                "name": "thumbprint",
+                "description": "The thumbprint of the certificate to unbind.",
+                "required": true,
+                "type": "string",
+                "x-ms-summary": "Thumbprint"
+              },
+              {
+                "in": "query",
+                "name": "api-version",
+                "description": "The API version.",
+                "required": true,
+                "type": "string",
+                "default": "2024-10-01",
+                "x-ms-summary": "Api-version",
+                "x-ms-visibility": "advanced"
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Success"
+              },
+              "400": {
+                "description": "Bad Request",
+                "schema": {
+                  "$ref": "#/definitions/ErrorMessage"
+                }
+              },
+              "401": {
+                "description": "Unauthorized",
+                "schema": {
+                  "$ref": "#/definitions/ErrorMessage"
+                }
+              },
+              "404": {
+                "description": "Not Found",
+                "schema": {
+                  "$ref": "#/definitions/ErrorMessage"
+                }
+              }
+            },
+            "externalDocs": {
+              "url": "https://docs.microsoft.com/connectors/powerplatformadminv2/#delete-ssl-binding-for-a-website-by-certificate-thumbprint"
             }
           }
         },
@@ -14105,14 +15168,14 @@
               "type": "string"
             },
             "createdBy": {
-              "$ref": "#/definitions/Principal"
+              "$ref": "#/definitions/LicensingPrincipal"
             },
             "lastModifiedOn": {
               "format": "date-time",
               "type": "string"
             },
             "lastModifiedBy": {
-              "$ref": "#/definitions/Principal"
+              "$ref": "#/definitions/LicensingPrincipal"
             }
           }
         },
@@ -14328,6 +15391,32 @@
             "All"
           ],
           "type": "string"
+        },
+        "CertificateDTO": {
+          "type": "object",
+          "properties": {
+            "SubjectName": {
+              "description": "The subject name of the certificate.",
+              "type": "string"
+            },
+            "ExpirationDate": {
+              "format": "date-time",
+              "description": "The expiration date of the certificate.",
+              "type": "string"
+            },
+            "Thumbprint": {
+              "description": "The thumbprint of the certificate.",
+              "type": "string"
+            },
+            "Location": {
+              "description": "The Azure region where the certificate is stored.",
+              "type": "string"
+            },
+            "Type": {
+              "description": "The type of the certificate (e.g., SSL, MANAGED, AZURE_MANAGED).",
+              "type": "string"
+            }
+          }
         },
         "Clause": {
           "description": "Base class for all Kusto clauses.",
@@ -14838,6 +15927,16 @@
             }
           }
         },
+        "ConnectorConsentBypassResponse": {
+          "description": "The admin connector consent bypass setting for a bot.",
+          "type": "object",
+          "properties": {
+            "adminConsentBypass": {
+              "description": "Indicates whether admin connector consent bypass is enabled for the bot.",
+              "type": "boolean"
+            }
+          }
+        },
         "ConsumerIdentityModel": {
           "description": "The consumer identity for ISV contract.",
           "type": "object",
@@ -15193,7 +16292,7 @@
               "type": "string"
             },
             "errors": {
-              "$ref": "#/definitions/ErrorResponse"
+              "$ref": "#/definitions/EnvironmentServiceErrorResponse"
             },
             "nextLink": {
               "format": "uri",
@@ -15360,8 +16459,7 @@
             },
             "templateMetadata": {
               "description": "A JSON object payload customized for the selected templates.",
-              "type": "object",
-              "additionalProperties": true
+              "type": "object"
             }
           }
         },
@@ -16085,6 +17183,20 @@
             }
           }
         },
+        "EnvironmentPrincipal": {
+          "description": "Represents a principal (user or application).",
+          "type": "object",
+          "properties": {
+            "id": {
+              "description": "The principal ID.",
+              "type": "string"
+            },
+            "type": {
+              "description": "The principal type.",
+              "type": "string"
+            }
+          }
+        },
         "EnvironmentResponse": {
           "type": "object",
           "properties": {
@@ -16121,10 +17233,10 @@
               "type": "string"
             },
             "createdBy": {
-              "$ref": "#/definitions/Principal"
+              "$ref": "#/definitions/EnvironmentPrincipal"
             },
             "createdFor": {
-              "$ref": "#/definitions/Principal"
+              "$ref": "#/definitions/EnvironmentPrincipal"
             },
             "createdDateTime": {
               "format": "date-time",
@@ -16196,29 +17308,27 @@
             },
             "enterprisePolicies": {
               "$ref": "#/definitions/EnterprisePolicies"
+            },
+            "scenarioName": {
+              "description": "The scenario name associated with the environment (e.g. singleton scenario type).",
+              "type": "string"
             }
           }
         },
-        "EnvironmentRestoreRequest": {
-          "description": "Request model for restoring an environment to a previous backup.",
-          "required": [
-            "restorePointDateTime",
-            "sourceEnvironmentId"
-          ],
+        "EnvironmentServiceErrorResponse": {
           "type": "object",
           "properties": {
-            "restorePointDateTime": {
-              "format": "date-time",
-              "description": "Restore point date-time with timezone offset per RFC 3339.",
+            "code": {
               "type": "string"
             },
-            "skipAuditData": {
-              "description": "A value indicating whether to skip audit data during the restore process.",
-              "type": "boolean"
-            },
-            "sourceEnvironmentId": {
-              "description": "The ID of the source environment from which the backup will be restored from.",
+            "message": {
               "type": "string"
+            },
+            "details": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/ErrorDetail"
+              }
             }
           }
         },
@@ -16326,6 +17436,23 @@
             }
           }
         },
+        "ErrorEntry": {
+          "description": "Represents the error detail for a single entry in an error dictionary.",
+          "type": "object",
+          "properties": {
+            "errorMessages": {
+              "description": "The error messages describing what is wrong.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "suggestedValue": {
+              "description": "A suggested or accepted value that would resolve the error.",
+              "type": "string"
+            }
+          }
+        },
         "ErrorInfo": {
           "description": "Represents error information for an operation.",
           "type": "object",
@@ -16338,10 +17465,7 @@
               "description": "The detailed error.",
               "type": "object",
               "additionalProperties": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
+                "$ref": "#/definitions/ErrorEntry"
               }
             }
           }
@@ -16389,18 +17513,20 @@
           }
         },
         "ErrorResponse": {
+          "description": "The error response object.",
           "type": "object",
           "properties": {
-            "code": {
-              "type": "string"
-            },
-            "message": {
-              "type": "string"
-            },
-            "details": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/ErrorDetail"
+            "error": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "description": "Error code for the failure type (e.g., BadRequest).",
+                  "type": "string"
+                },
+                "message": {
+                  "description": "Description of the error.",
+                  "type": "string"
+                }
               }
             }
           }
@@ -16834,14 +17960,11 @@
         },
         "ForceFailoverRequest": {
           "description": "Request model for force failover operation on an environment.",
-          "required": [
-            "lastSyncTime"
-          ],
           "type": "object",
           "properties": {
             "lastSyncTime": {
               "format": "date-time",
-              "description": "Last sync time used for the force failover operation.",
+              "description": "The last sync time used to perform the force failover operation. Optional; if null or omitted, BAP will fail over to the latest available sync point.",
               "type": "string"
             }
           }
@@ -17027,7 +18150,7 @@
               }
             },
             "errors": {
-              "$ref": "#/definitions/ErrorResponse"
+              "$ref": "#/definitions/EnvironmentServiceErrorResponse"
             },
             "nextLink": {
               "format": "uri",
@@ -17272,16 +18395,7 @@
             "IpAddresses": {
               "type": "array",
               "items": {
-                "type": "object",
-                "properties": {
-                  "IpAddress": {
-                    "description": "The IP address or CIDR range",
-                    "type": "string"
-                  },
-                  "IpAddressType": {
-                    "$ref": "#/definitions/IpAddressType"
-                  }
-                }
+                "$ref": "#/definitions/IpAddressEntity"
               }
             }
           }
@@ -17291,25 +18405,11 @@
           "type": "object",
           "properties": {
             "IpAddress": {
-              "description": "The IP address or CIDR range",
+              "description": "The IP address or CIDR range (e.g., \"208.130.0.0/16\")",
               "type": "string"
             },
-            "IpType": {
+            "IpAddressType": {
               "$ref": "#/definitions/IpAddressType"
-            },
-            "TenantId": {
-              "format": "uuid",
-              "description": "The unique identifier of the tenant",
-              "type": "string"
-            },
-            "CreatedOn": {
-              "format": "date-time",
-              "description": "The creation timestamp of the IP address entry",
-              "type": "string"
-            },
-            "LastModifiedOn": {
-              "description": "The last modification timestamp of the IP address entry",
-              "type": "string"
             }
           }
         },
@@ -17461,14 +18561,14 @@
               "type": "string"
             },
             "createdBy": {
-              "$ref": "#/definitions/Principal"
+              "$ref": "#/definitions/LicensingPrincipal"
             },
             "lastModifiedOn": {
               "format": "date-time",
               "type": "string"
             },
             "lastModifiedBy": {
-              "$ref": "#/definitions/Principal"
+              "$ref": "#/definitions/LicensingPrincipal"
             }
           }
         },
@@ -17599,6 +18699,39 @@
             }
           }
         },
+        "LicensingPrincipal": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "type": {
+              "$ref": "#/definitions/PrincipalType"
+            }
+          }
+        },
+        "LicensingProblemDetails": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "status": {
+              "format": "int32",
+              "type": "integer"
+            },
+            "detail": {
+              "type": "string"
+            },
+            "instance": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": {}
+        },
         "LinkProperties": {
           "description": "Reference to content stored externally.",
           "type": "object",
@@ -17687,6 +18820,29 @@
               }
             },
             "continuationToken": {
+              "type": "string"
+            }
+          }
+        },
+        "MakerEvaluationConnection": {
+          "description": "A connector and its associated user connection for a maker evaluation run.",
+          "required": [
+            "connectionId",
+            "connectionReferenceName",
+            "connectorId"
+          ],
+          "type": "object",
+          "properties": {
+            "connectionId": {
+              "description": "User connection ID.",
+              "type": "string"
+            },
+            "connectionReferenceName": {
+              "description": "Connection reference name in the bot definition.",
+              "type": "string"
+            },
+            "connectorId": {
+              "description": "The tool (connector) ID.",
               "type": "string"
             }
           }
@@ -18117,7 +19273,7 @@
               "description": "Gets or sets the response's object"
             },
             "errors": {
-              "$ref": "#/definitions/ErrorResponse"
+              "$ref": "#/definitions/EnvironmentServiceErrorResponse"
             },
             "nextLink": {
               "format": "uri",
@@ -19016,6 +20172,46 @@
             }
           }
         },
+        "RestoreRequest": {
+          "description": "Request model for restoring an environment to a previous backup.",
+          "required": [
+            "restorePointDateTime",
+            "sourceEnvironmentId"
+          ],
+          "type": "object",
+          "properties": {
+            "restorePointDateTime": {
+              "format": "date-time",
+              "description": "Date and time of the restore point, with timezone offset per RFC 3339 (e.g., 2025-04-30T12:34:56+02:00).",
+              "type": "string"
+            },
+            "sourceEnvironmentId": {
+              "description": "The ID of the source environment from which the backup will be restored.",
+              "type": "string"
+            },
+            "restoreOptions": {
+              "$ref": "#/definitions/RestoreRequestOptions"
+            }
+          }
+        },
+        "RestoreRequestOptions": {
+          "description": "Optional inputs for a restore request.",
+          "type": "object",
+          "properties": {
+            "environmentNameToOverride": {
+              "description": "Environment name to override on the target environment.",
+              "type": "string"
+            },
+            "securityGroupIdToOverride": {
+              "description": "Security group ID to override on the target environment.",
+              "type": "string"
+            },
+            "skipAuditData": {
+              "description": "A value indicating whether to skip audit data during the restore process.",
+              "type": "boolean"
+            }
+          }
+        },
         "RoleAssignmentRequest": {
           "description": "Request to assign a role to a principal.",
           "type": "object",
@@ -19396,6 +20592,19 @@
             }
           }
         },
+        "SetAdminConsentBypassRequest": {
+          "description": "Request body for setting the admin connector consent bypass setting for a bot.",
+          "required": [
+            "adminConsentBypass"
+          ],
+          "type": "object",
+          "properties": {
+            "adminConsentBypass": {
+              "description": "Indicates whether to enable admin connector consent bypass for the bot.",
+              "type": "boolean"
+            }
+          }
+        },
         "SiteSecurityResult": {
           "type": "object",
           "properties": {
@@ -19447,6 +20656,19 @@
             }
           }
         },
+        "SslBindingThumbprintDTO": {
+          "type": "object",
+          "properties": {
+            "Name": {
+              "description": "The custom hostname the SSL binding is associated with.",
+              "type": "string"
+            },
+            "Thumbprint": {
+              "description": "The certificate thumbprint bound to the hostname.",
+              "type": "string"
+            }
+          }
+        },
         "StageStatus": {
           "description": "The stage status of an operation.",
           "type": "object",
@@ -19456,8 +20678,7 @@
               "type": "string"
             },
             "status": {
-              "description": "The status of stage.",
-              "type": "string"
+              "$ref": "#/definitions/StepExecutionStatus"
             },
             "startTime": {
               "format": "date-time",
@@ -19490,6 +20711,18 @@
             "Active",
             "Inactive",
             "Unknown"
+          ],
+          "type": "string"
+        },
+        "StepExecutionStatus": {
+          "description": "The execution status of a step within a stage.",
+          "enum": [
+            "Succeeded",
+            "Failed",
+            "Skipped",
+            "Postponed",
+            "InProgress",
+            "NotStarted"
           ],
           "type": "string"
         },
@@ -20016,7 +21249,7 @@
               "description": "A list of connections.",
               "type": "array",
               "items": {
-                "$ref": "#/definitions/Connection"
+                "$ref": "#/definitions/MakerEvaluationConnection"
               }
             }
           }
@@ -20086,6 +21319,10 @@
           "properties": {
             "userId": {
               "description": "The ID of the user.",
+              "type": "string"
+            },
+            "type": {
+              "description": "The type of the user identity (e.g., User).",
               "type": "string"
             },
             "displayName": {
@@ -20776,18 +22013,18 @@
       "basePath": "/apim/powerplatformadminv2"
     },
     "runtimeUrls": [
-      "https://daacce33-7d66-ea1f-bfe5-f912f9252a1e.14.common.usa002.azure-apihub.net/apim/powerplatformadminv2"
+      "https://ecc0ee26-d0d1-eaaf-9b5c-9bdef7aa2306.00.common.usa002.azure-apihub.net/apim/powerplatformadminv2"
     ],
-    "primaryRuntimeUrl": "https://daacce33-7d66-ea1f-bfe5-f912f9252a1e.14.common.usa002.azure-apihub.net/apim/powerplatformadminv2",
-    "doNotUseApiHubNetRuntimeUrl": "https://daacce33-7d66-ea1f-bfe5-f912f9252a1e.14.common.usa002.azure-apihub.net/apim/powerplatformadminv2",
+    "primaryRuntimeUrl": "https://ecc0ee26-d0d1-eaaf-9b5c-9bdef7aa2306.00.common.usa002.azure-apihub.net/apim/powerplatformadminv2",
+    "doNotUseApiHubNetRuntimeUrl": "https://ecc0ee26-d0d1-eaaf-9b5c-9bdef7aa2306.00.common.usa002.azure-apihub.net/apim/powerplatformadminv2",
     "metadata": {
       "source": "marketplace",
       "brandColor": "#000000",
       "stackOwner": "Microsoft",
       "useNewApimVersion": "true",
       "version": {
-        "previous": "releases/v1.0.1808\\1.0.1808.4692",
-        "current": "releases/v1.0.1812\\1.0.1812.4731"
+        "previous": "releases/v1.0.1820\\1.0.1820.4809",
+        "current": "releases/v1.0.1821\\1.0.1821.4811"
       }
     },
     "capabilities": [
@@ -20796,7 +22033,7 @@
     "interfaces": {},
     "description": "Unified connector for all administrative capabilities in Microsoft Power Platform",
     "createdTime": "2024-03-26T21:06:48.533185Z",
-    "changedTime": "2026-05-25T16:42:20.8572924Z",
+    "changedTime": "2026-08-03T16:41:12.5233769Z",
     "releaseTag": "Production",
     "tier": "Standard",
     "publisher": "Microsoft",

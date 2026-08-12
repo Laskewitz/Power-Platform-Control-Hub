@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { ReactElement } from 'react';
 import {
   makeStyles,
@@ -14,6 +14,8 @@ import {
   MessageBar,
   MessageBarBody,
   Tooltip,
+  Tab,
+  TabList,
 } from '@fluentui/react-components';
 import {
   ArrowLeftRegular,
@@ -21,10 +23,7 @@ import {
   AppGenericRegular,
   InfoRegular,
   ShieldCheckmarkRegular,
-  ErrorCircleFilled,
   WarningFilled,
-  InfoFilled,
-  CheckmarkRegular,
   PeopleRegular,
   PlugConnectedRegular,
   PersonRegular,
@@ -36,11 +35,13 @@ import type { Resource } from '../types/inventory.ts';
 import type { CanvasAppAdminInfo, AppRoleAssignment } from '../services/canvasAppAdminService.ts';
 import { getCanvasAppAdminInfo, getAppRoleAssignments, setAppQuarantineState } from '../services/canvasAppAdminService.ts';
 import { analyzeCanvasApp } from '../services/canvasAppAnalyzer.ts';
-import type { AnalysisResult, AnalysisSeverity } from '../services/flowAnalyzer.ts';
+import type { AnalysisResult } from '../services/flowAnalyzer.ts';
 import { extractMessage } from '../utils/errorUtils.ts';
 import AddSelfAsAdminBanner from './AddSelfAsAdminBanner.tsx';
 import { formatDateTime } from '../utils/formatDate.ts';
 import { formatSharedSummary } from '../utils/inventoryFormatters.ts';
+import AnalysisPosture from './AnalysisPosture.tsx';
+import { useOwners } from '../services/ownerCache.ts';
 
 interface Props {
   resource: Resource;
@@ -53,14 +54,18 @@ const useStyles = makeStyles({
     flexDirection: 'column',
     height: '100%',
     overflow: 'hidden',
-    backgroundColor: tokens.colorNeutralBackground1,
+    color: '#E5EEF5',
+    backgroundColor: '#060A0F',
+    fontFamily: '"Aptos", "Segoe UI", sans-serif',
   },
   header: {
     display: 'flex',
     alignItems: 'center',
     gap: tokens.spacingHorizontalM,
-    padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalXL}`,
-    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+    padding: `14px ${tokens.spacingHorizontalXL}`,
+    borderBottom: '1px solid #29404F',
+    backgroundColor: '#0C141D',
+    boxShadow: 'inset 3px 0 0 #FFB547',
     flexShrink: 0,
     flexWrap: 'wrap',
   },
@@ -78,36 +83,60 @@ const useStyles = makeStyles({
     flexWrap: 'wrap',
   },
   title: {
-    fontSize: tokens.fontSizeBase500,
+    fontSize: '20px',
     fontWeight: tokens.fontWeightSemibold,
+    color: '#F5FAFD',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
   },
   envText: {
-    fontSize: tokens.fontSizeBase200,
-    color: tokens.colorNeutralForeground3,
+    fontSize: '11px',
+    color: '#9CB0BF',
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
   },
   actionBar: {
     display: 'flex',
     alignItems: 'center',
     gap: tokens.spacingHorizontalS,
-    padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalXL}`,
-    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+    padding: `8px ${tokens.spacingHorizontalXL}`,
+    borderBottom: '1px solid #20313E',
+    backgroundColor: '#111827',
+    flexShrink: 0,
+    flexWrap: 'wrap',
+    '& button': {
+      color: '#43D9FF',
+      borderRadius: 0,
+    },
+  },
+  actionRegister: {
+    marginLeft: 'auto',
+    display: 'flex',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalS,
+    flexWrap: 'wrap',
+  },
+  contentTabs: {
+    padding: `0 ${tokens.spacingHorizontalXL}`,
+    borderBottom: '1px solid #29404F',
+    backgroundColor: '#060A0F',
     flexShrink: 0,
   },
   body: {
     flex: 1,
     overflowY: 'auto',
-    padding: `${tokens.spacingVerticalL} ${tokens.spacingHorizontalXL}`,
+    padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalXL}`,
     width: '100%',
     boxSizing: 'border-box',
   },
   detailGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(2, 1fr)',
-    gap: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalXL}`,
+    gap: 0,
     alignItems: 'start',
+    borderTop: '1px solid #20313E',
+    borderLeft: '1px solid #20313E',
     '@media (max-width: 768px)': {
       gridTemplateColumns: '1fr',
     },
@@ -115,36 +144,48 @@ const useStyles = makeStyles({
   detailItem: {
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: tokens.spacingVerticalXS,
+    gap: '4px',
     minWidth: 0,
+    minHeight: '58px',
+    padding: '10px 12px',
+    borderRight: '1px solid #20313E',
+    borderBottom: '1px solid #20313E',
+    backgroundColor: '#0C141D',
   },
   detailItemWide: {
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: tokens.spacingVerticalXS,
+    gap: '4px',
     minWidth: 0,
     gridColumn: 'span 2',
+    minHeight: '58px',
+    padding: '10px 12px',
+    borderRight: '1px solid #20313E',
+    borderBottom: '1px solid #20313E',
+    backgroundColor: '#0C141D',
+    '@media (max-width: 768px)': {
+      gridColumn: 'span 1',
+    },
   },
   detailLabel: {
-    fontSize: tokens.fontSizeBase200,
+    fontSize: '10px',
     fontWeight: tokens.fontWeightSemibold,
-    color: tokens.colorNeutralForeground3,
+    color: '#8DA5B5',
     textTransform: 'uppercase',
-    letterSpacing: '0.04em',
+    letterSpacing: '0.1em',
   },
   detailValue: {
     fontSize: tokens.fontSizeBase300,
-    color: tokens.colorNeutralForeground1,
+    color: '#E5EEF5',
+    fontVariantNumeric: 'tabular-nums',
   },
   dsItem: {
     display: 'flex',
     alignItems: 'center',
     gap: tokens.spacingHorizontalM,
     padding: `${tokens.spacingVerticalXS} ${tokens.spacingHorizontalM}`,
-    borderRadius: tokens.borderRadiusMedium,
-    backgroundColor: tokens.colorNeutralBackground2,
-    border: `1px solid ${tokens.colorNeutralStroke2}`,
-    marginBottom: tokens.spacingVerticalXS,
+    backgroundColor: '#111827',
+    borderBottom: '1px solid #20313E',
   },
   emptyState: {
     display: 'flex',
@@ -153,14 +194,15 @@ const useStyles = makeStyles({
     justifyContent: 'center',
     gap: tokens.spacingVerticalM,
     padding: `${tokens.spacingVerticalXXL} 0`,
-    color: tokens.colorNeutralForeground3,
+    color: '#9CB0BF',
+    border: '1px solid #20313E',
+    backgroundColor: '#0C141D',
   },
   analysisList: {
     display: 'flex',
     flexDirection: 'column',
     gap: '0',
-    borderRadius: tokens.borderRadiusMedium,
-    border: `1px solid ${tokens.colorNeutralStroke2}`,
+    border: '1px solid #29404F',
     overflow: 'hidden',
   },
   analysisRow: {
@@ -168,17 +210,17 @@ const useStyles = makeStyles({
     alignItems: 'center',
     gap: tokens.spacingHorizontalS,
     padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`,
-    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+    borderBottom: '1px solid #20313E',
     cursor: 'pointer',
     userSelect: 'none' as const,
-    backgroundColor: tokens.colorNeutralBackground1,
-    ':hover': { backgroundColor: tokens.colorNeutralBackground1Hover },
+    backgroundColor: '#0C141D',
+    ':hover': { backgroundColor: '#111827', boxShadow: 'inset 1px 0 0 #43D9FF' },
     ':last-child': { borderBottom: 'none' },
   },
   analysisRowDetail: {
     padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalL}`,
-    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
-    backgroundColor: tokens.colorNeutralBackground2,
+    borderBottom: '1px solid #20313E',
+    backgroundColor: '#111827',
     display: 'flex',
     flexDirection: 'column' as const,
     gap: tokens.spacingVerticalS,
@@ -187,9 +229,9 @@ const useStyles = makeStyles({
   analysisRec: {
     fontSize: tokens.fontSizeBase300,
     padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`,
-    borderRadius: tokens.borderRadiusMedium,
-    backgroundColor: tokens.colorNeutralBackground3,
-    borderLeft: `3px solid ${tokens.colorBrandStroke1}`,
+    backgroundColor: '#0C141D',
+    border: '1px solid #29404F',
+    borderLeft: '1px solid #43D9FF',
   },
   analysisAffected: {
     display: 'flex',
@@ -197,98 +239,70 @@ const useStyles = makeStyles({
     gap: tokens.spacingHorizontalXS,
   },
   accordionCard: {
-    border: `1px solid ${tokens.colorNeutralStroke2}`,
-    borderRadius: tokens.borderRadiusMedium,
+    border: '1px solid #29404F',
     overflow: 'hidden',
-    marginBottom: tokens.spacingVerticalS,
+    marginBottom: '8px',
+    backgroundColor: '#0C141D',
   },
   accordionHeaderTinted: {
-    backgroundColor: tokens.colorNeutralBackground2,
-    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+    minHeight: '42px',
+    color: '#E5EEF5',
+    backgroundColor: '#111827',
+    borderBottom: '1px solid #20313E',
+    ':hover': {
+      color: '#43D9FF',
+      backgroundColor: '#14212D',
+    },
+  },
+  sectionBody: {
+    padding: `10px ${tokens.spacingHorizontalM} ${tokens.spacingVerticalM}`,
+  },
+  stack: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: tokens.spacingVerticalM,
+  },
+  metricGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, minmax(100px, 160px)) minmax(180px, 1fr)',
+    gap: 0,
+    borderTop: '1px solid #29404F',
+    borderLeft: '1px solid #29404F',
+    '@media (max-width: 768px)': {
+      gridTemplateColumns: '1fr 1fr',
+    },
+  },
+  metricCell: {
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    padding: '12px 14px',
+    minHeight: '72px',
+    borderRight: '1px solid #29404F',
+    borderBottom: '1px solid #29404F',
+    backgroundColor: '#111827',
+    fontVariantNumeric: 'tabular-nums',
+  },
+  attentionCell: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalS,
+    padding: '12px 14px',
+    borderRight: '1px solid #29404F',
+    borderBottom: '1px solid #29404F',
+    color: '#FFB547',
+    backgroundColor: '#171A1D',
   },
 });
 
-const SEV_ICON: Record<AnalysisSeverity, ReactElement> = {
-  critical: <ErrorCircleFilled fontSize={16} style={{ color: tokens.colorStatusDangerForeground1, flexShrink: 0 }} />,
-  warning: <WarningFilled fontSize={16} style={{ color: tokens.colorStatusWarningForeground1, flexShrink: 0 }} />,
-  info: <InfoFilled fontSize={16} style={{ color: tokens.colorStatusSuccessForeground1, flexShrink: 0 }} />,
-};
-const SEV_LABEL: Record<AnalysisSeverity, string> = { critical: 'Error', warning: 'Warning', info: 'Info' };
-const SEV_COLOR: Record<AnalysisSeverity, 'danger' | 'warning' | 'success'> = {
-  critical: 'danger', warning: 'warning', info: 'success',
-};
-
 function AnalysisSection({ results }: { results: AnalysisResult[] }): ReactElement {
-  const styles = useStyles();
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-
-  const toggle = (id: string) => setExpandedIds(prev => {
-    const next = new Set(prev);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    return next;
-  });
-
-  if (results.length === 0) {
-    return (
-      <div className={styles.emptyState}>
-        <CheckmarkRegular fontSize={40} style={{ color: tokens.colorStatusSuccessForeground1 }} />
-        <Text style={{ fontWeight: tokens.fontWeightSemibold }}>All checks passed!</Text>
-        <Text style={{ fontSize: tokens.fontSizeBase200, textAlign: 'center' }}>
-          This canvas app appears to follow best practices.
-        </Text>
-      </div>
-    );
-  }
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalM }}>
-      <div className={styles.analysisList}>
-        {results.map(r => {
-          const expanded = expandedIds.has(r.id);
-          const borderColor =
-            r.severity === 'critical' ? tokens.colorStatusDangerForeground1
-            : r.severity === 'warning' ? tokens.colorStatusWarningForeground1
-            : tokens.colorStatusSuccessForeground1;
-          return (
-            <div key={r.id}>
-              <div
-                className={styles.analysisRow}
-                style={{ borderLeft: `3px solid ${borderColor}`, backgroundColor: expanded ? tokens.colorNeutralBackground2 : undefined }}
-                onClick={() => toggle(r.id)}
-                role="button"
-                tabIndex={0}
-                aria-expanded={expanded}
-                onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && toggle(r.id)}
-              >
-                {SEV_ICON[r.severity]}
-                <Text style={{ flex: 1, fontSize: tokens.fontSizeBase300, fontWeight: tokens.fontWeightSemibold }}>{r.title}</Text>
-                <Badge appearance="filled" color={SEV_COLOR[r.severity]} size="small">{SEV_LABEL[r.severity]}</Badge>
-                <span style={{ fontSize: '12px', color: tokens.colorNeutralForeground3, transform: expanded ? 'rotate(90deg)' : undefined, display: 'inline-flex' }}>▶</span>
-              </div>
-              {expanded && (
-                <div className={styles.analysisRowDetail} style={{ borderLeft: `3px solid ${borderColor}` }}>
-                  <Text style={{ fontSize: tokens.fontSizeBase300, color: tokens.colorNeutralForeground2 }}>{r.description}</Text>
-                  <div className={styles.analysisRec}>
-                    <Text style={{ fontSize: tokens.fontSizeBase200, fontWeight: tokens.fontWeightSemibold, color: tokens.colorNeutralForeground2 }}>💡 Recommendation</Text>
-                    <Text style={{ fontSize: tokens.fontSizeBase300, display: 'block', marginTop: '4px' }}>{r.recommendation}</Text>
-                  </div>
-                  {r.affectedItems && r.affectedItems.length > 0 && (
-                    <div>
-                      <Text style={{ fontSize: tokens.fontSizeBase200, fontWeight: tokens.fontWeightSemibold, color: tokens.colorNeutralForeground2, display: 'block', marginBottom: '6px' }}>Affected items</Text>
-                      <div className={styles.analysisAffected}>
-                        {r.affectedItems.map(item => (
-                          <Badge key={item} appearance="tint" color="informative" size="small">{item}</Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
+    <AnalysisPosture
+      results={results}
+      title="Canvas app posture"
+      description="Governance signals derived from app configuration, ownership, sharing, and connections."
+      emptyDescription="This canvas app follows the evaluated governance practices."
+    />
   );
 }
 
@@ -306,6 +320,7 @@ export default function CanvasAppDetailPanel({ resource, onClose }: Props): Reac
   const [roleAssignments, setRoleAssignments] = useState<AppRoleAssignment[]>([]);
   const [quarantining, setQuarantining] = useState(false);
   const [analysisResults, setAnalysisResults] = useState<AnalysisResult[]>([]);
+  const [contentTab, setContentTab] = useState<'overview' | 'analysis'>('overview');
 
   async function loadAnalysis() {
     setLoading(true);
@@ -352,6 +367,16 @@ export default function CanvasAppDetailPanel({ resource, onClose }: Props): Reac
   useEffect(() => { void loadAnalysis(); }, [envId, appId]);
 
   const props = resource.properties;
+  const principalIds = useMemo(() => [
+    adminInfo?.owner?.id,
+    adminInfo?.createdBy?.id,
+    adminInfo?.lastModifiedBy?.id,
+    ...roleAssignments.map((assignment) => assignment.principalId),
+  ], [adminInfo, roleAssignments]);
+  const principalNames = useOwners(principalIds, envId);
+  const principalName = (id?: string): string | undefined => (
+    id ? principalNames.get(id.toLowerCase()) : undefined
+  );
 
   return (
     <div className={styles.root}>
@@ -372,7 +397,7 @@ export default function CanvasAppDetailPanel({ resource, onClose }: Props): Reac
             )}
           </div>
           {resource.environmentName && (
-            <Text className={styles.envText}>🌐 {resource.environmentName}</Text>
+            <Text className={styles.envText}>{resource.environmentName}</Text>
           )}
         </div>
       </div>
@@ -389,7 +414,7 @@ export default function CanvasAppDetailPanel({ resource, onClose }: Props): Reac
           {loading ? 'Analyzing…' : 'Re-analyze'}
         </Button>
         {!isAppBuilderApp && <AddSelfAsAdminBanner environmentId={envId} variant="inline" />}
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS }}>
+        <div className={styles.actionRegister}>
           {adminInfo && (
             <Text style={{ fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground3 }}>
               Shared with {adminInfo.sharedUsersCount} user{adminInfo.sharedUsersCount !== 1 ? 's' : ''}
@@ -421,6 +446,16 @@ export default function CanvasAppDetailPanel({ resource, onClose }: Props): Reac
         </div>
       </div>
 
+      <div className={styles.contentTabs}>
+        <TabList
+          selectedValue={contentTab}
+          onTabSelect={(_, data) => setContentTab(data.value as 'overview' | 'analysis')}
+        >
+          <Tab value="overview">Overview</Tab>
+          <Tab value="analysis" icon={<ShieldCheckmarkRegular />}>Analysis</Tab>
+        </TabList>
+      </div>
+
       {/* Body */}
       <div className={styles.body}>
         {error && (() => {
@@ -439,12 +474,24 @@ export default function CanvasAppDetailPanel({ resource, onClose }: Props): Reac
           );
         })()}
 
-        <Accordion multiple collapsible defaultOpenItems={['details', 'governance', 'roles', 'analysis']}>
+        {contentTab === 'analysis' ? (
+          <div className={styles.sectionBody}>
+            {loading && <Spinner size="small" label="Analyzing app…" />}
+            {!loading && adminInfo && <AnalysisSection results={analysisResults} />}
+            {!loading && !adminInfo && (
+              <div className={styles.emptyState}>
+                <InfoRegular fontSize={32} />
+                <Text>No data loaded yet.</Text>
+              </div>
+            )}
+          </div>
+        ) : (
+        <Accordion multiple collapsible defaultOpenItems={['details', 'governance', 'roles']}>
           {/* ── App Details ── */}
           <AccordionItem value="details" className={styles.accordionCard}>
             <AccordionHeader expandIconPosition="end" icon={<InfoRegular />} className={styles.accordionHeaderTinted}>App Details</AccordionHeader>
             <AccordionPanel>
-              <div style={{ padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM} ${tokens.spacingVerticalM}` }}>
+              <div className={styles.sectionBody}>
                 {loading && !adminInfo && <Spinner size="small" />}
                 <div className={styles.detailGrid}>
                   <div className={styles.detailItem}>
@@ -461,7 +508,7 @@ export default function CanvasAppDetailPanel({ resource, onClose }: Props): Reac
                     <div className={styles.detailItem}>
                       <span className={styles.detailLabel}>Owner</span>
                       <span className={styles.detailValue}>
-                        {adminInfo.owner.displayName ?? adminInfo.owner.email ?? adminInfo.owner.id ?? '—'}
+                        {adminInfo.owner.displayName ?? adminInfo.owner.email ?? principalName(adminInfo.owner.id) ?? adminInfo.owner.id ?? '—'}
                         {adminInfo.owner.email && adminInfo.owner.displayName && (
                           <span style={{ color: tokens.colorNeutralForeground3, fontSize: tokens.fontSizeBase200, display: 'block' }}>{adminInfo.owner.email}</span>
                         )}
@@ -472,7 +519,7 @@ export default function CanvasAppDetailPanel({ resource, onClose }: Props): Reac
                   {adminInfo?.createdBy && (
                     <div className={styles.detailItem}>
                       <span className={styles.detailLabel}>Created by</span>
-                      <span className={styles.detailValue}>{adminInfo.createdBy.displayName ?? adminInfo.createdBy.email ?? '—'}</span>
+                      <span className={styles.detailValue}>{adminInfo.createdBy.displayName ?? adminInfo.createdBy.email ?? principalName(adminInfo.createdBy.id) ?? adminInfo.createdBy.id ?? '—'}</span>
                     </div>
                   )}
 
@@ -493,7 +540,7 @@ export default function CanvasAppDetailPanel({ resource, onClose }: Props): Reac
                   {adminInfo?.lastModifiedBy && (
                     <div className={styles.detailItem}>
                       <span className={styles.detailLabel}>Modified by</span>
-                      <span className={styles.detailValue}>{adminInfo.lastModifiedBy.displayName ?? adminInfo.lastModifiedBy.email ?? '—'}</span>
+                      <span className={styles.detailValue}>{adminInfo.lastModifiedBy.displayName ?? adminInfo.lastModifiedBy.email ?? principalName(adminInfo.lastModifiedBy.id) ?? adminInfo.lastModifiedBy.id ?? '—'}</span>
                     </div>
                   )}
 
@@ -564,26 +611,26 @@ export default function CanvasAppDetailPanel({ resource, onClose }: Props): Reac
               Governance &amp; Sharing
             </AccordionHeader>
             <AccordionPanel>
-              <div style={{ padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalM} ${tokens.spacingVerticalL}` }}>
+              <div className={styles.sectionBody}>
                 {loading && !adminInfo && <Spinner size="small" label="Loading…" />}
                 {adminInfo && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalM }}>
+                  <div className={styles.stack}>
                     {/* Sharing stats */}
-                    <div style={{ display: 'flex', gap: tokens.spacingHorizontalL, flexWrap: 'wrap' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalXL}`, borderRadius: tokens.borderRadiusMedium, border: `1px solid ${tokens.colorNeutralStroke2}`, backgroundColor: tokens.colorNeutralBackground2, minWidth: '100px' }}>
+                    <div className={styles.metricGrid}>
+                      <div className={styles.metricCell}>
                         <Text style={{ fontSize: tokens.fontSizeHero700, fontWeight: tokens.fontWeightBold, color: adminInfo.sharedUsersCount > 500 ? tokens.colorStatusDangerForeground1 : adminInfo.sharedUsersCount > 100 ? tokens.colorStatusWarningForeground1 : tokens.colorNeutralForeground1 }}>
                           {adminInfo.sharedUsersCount.toLocaleString()}
                         </Text>
                         <Text style={{ fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground3 }}>Users</Text>
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalXL}`, borderRadius: tokens.borderRadiusMedium, border: `1px solid ${tokens.colorNeutralStroke2}`, backgroundColor: tokens.colorNeutralBackground2, minWidth: '100px' }}>
+                      <div className={styles.metricCell}>
                         <Text style={{ fontSize: tokens.fontSizeHero700, fontWeight: tokens.fontWeightBold }}>
                           {adminInfo.sharedGroupsCount}
                         </Text>
                         <Text style={{ fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground3 }}>Groups</Text>
                       </div>
                       {adminInfo.bypassConsent && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS, padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalM}`, borderRadius: tokens.borderRadiusMedium, border: `1px solid ${tokens.colorStatusWarningBorder1}`, backgroundColor: tokens.colorStatusWarningBackground1 }}>
+                        <div className={styles.attentionCell}>
                           <WarningFilled fontSize={16} style={{ color: tokens.colorStatusWarningForeground1 }} />
                           <Text style={{ fontSize: tokens.fontSizeBase200, color: tokens.colorStatusWarningForeground3 }}>Consent bypass enabled</Text>
                         </div>
@@ -650,7 +697,7 @@ export default function CanvasAppDetailPanel({ resource, onClose }: Props): Reac
                         <PersonRegular fontSize={16} style={{ color: tokens.colorBrandForeground1, flexShrink: 0 }} />
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <Text style={{ fontWeight: tokens.fontWeightSemibold, fontSize: tokens.fontSizeBase300 }}>
-                            {ra.principalDisplayName ?? ra.principalEmail ?? ra.principalId}
+                            {ra.principalDisplayName ?? ra.principalEmail ?? principalName(ra.principalId) ?? ra.principalId}
                           </Text>
                           {ra.principalEmail && ra.principalDisplayName && (
                             <Text style={{ fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground3, display: 'block' }}>{ra.principalEmail}</Text>
@@ -714,40 +761,8 @@ export default function CanvasAppDetailPanel({ resource, onClose }: Props): Reac
             );
           })()}
 
-          {/* ── Best Practice Analysis ── */}
-          <AccordionItem value="analysis" className={styles.accordionCard}>
-            <AccordionHeader expandIconPosition="end" icon={<ShieldCheckmarkRegular />} className={styles.accordionHeaderTinted}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS }}>
-                Best Practice Analysis
-                {!loading && analysisResults.length > 0 && (() => {
-                  const errs = analysisResults.filter(r => r.severity === 'critical').length;
-                  const warns = analysisResults.filter(r => r.severity === 'warning').length;
-                  const infs = analysisResults.filter(r => r.severity === 'info').length;
-                  return (
-                    <>
-                      <Badge appearance="filled" color="subtle" size="small">{errs} error{errs !== 1 ? 's' : ''}</Badge>
-                      <Badge appearance="filled" color="subtle" size="small">{warns} warning{warns !== 1 ? 's' : ''}</Badge>
-                      <Badge appearance="filled" color="subtle" size="small">{infs} info</Badge>
-                    </>
-                  );
-                })()}
-              </span>
-            </AccordionHeader>
-            <AccordionPanel>
-              <div style={{ padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalM} ${tokens.spacingVerticalL}` }}>
-                {loading && <Spinner size="small" label="Analyzing app…" />}
-                {!loading && adminInfo && <AnalysisSection results={analysisResults} />}
-                {!loading && !adminInfo && (
-                  <div className={styles.emptyState}>
-                    <InfoRegular fontSize={32} />
-                    <Text>No data loaded yet.</Text>
-                  </div>
-                )}
-              </div>
-            </AccordionPanel>
-          </AccordionItem>
-
         </Accordion>
+        )}
       </div>
     </div>
   );

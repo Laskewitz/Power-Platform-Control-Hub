@@ -8,6 +8,7 @@ import {
   MenuItem,
   Spinner,
   Text,
+  tokens,
   useToastController,
   Toast,
   ToastTitle,
@@ -138,9 +139,9 @@ export default function AddSelfAsAdminBanner({ environmentId, onChanged, variant
     if (assignmentId) {
       return (
         <>
-          <div style={{ width: 1, height: 16, background: 'var(--colorNeutralStroke2)', flexShrink: 0 }} />
-          <ShieldPersonRegular style={{ color: 'var(--colorBrandForeground1)', flexShrink: 0 }} fontSize={16} />
-          <Text size={200} style={{ color: 'var(--colorBrandForeground1)', whiteSpace: 'nowrap' }}>
+          <div aria-hidden="true" style={{ width: 1, height: 16, background: tokens.colorNeutralStroke2, flexShrink: 0 }} />
+          <ShieldPersonRegular aria-hidden="true" style={{ color: tokens.colorBrandForeground1, flexShrink: 0 }} fontSize={16} />
+          <Text size={200} style={{ color: tokens.colorBrandForeground1, whiteSpace: 'nowrap' }}>
             {error ? 'Failed to remove access' : 'Elevated admin access'}
           </Text>
           <Button
@@ -157,7 +158,7 @@ export default function AddSelfAsAdminBanner({ environmentId, onChanged, variant
     }
     return (
       <>
-        <div style={{ width: 1, height: 16, background: 'var(--colorNeutralStroke2)', flexShrink: 0 }} />
+        <div aria-hidden="true" style={{ width: 1, height: 16, background: tokens.colorNeutralStroke2, flexShrink: 0 }} />
         <Button
           size="small"
           appearance="subtle"

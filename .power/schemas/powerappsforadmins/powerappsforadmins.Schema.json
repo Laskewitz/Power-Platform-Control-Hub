@@ -4,7 +4,7 @@
   "type": "Microsoft.PowerApps/apis",
   "properties": {
     "displayName": "Power Apps for Admins",
-    "iconUri": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1808/1.0.1808.4692/powerappsforadmins/icon.png",
+    "iconUri": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1818/1.0.1818.4791/powerappsforadmins/icon.png",
     "iconBrandColor": "#742774",
     "apiEnvironment": "Shared",
     "isCustomApi": false,
@@ -20,18 +20,18 @@
           "redirectUrl": "https://global.consent.azure-apim.net/redirect/powerappsforadmins",
           "properties": {
             "IsFirstParty": "True",
-            "AzureActiveDirectoryResourceId": "https://service.powerapps.com/",
+            "AzureActiveDirectoryResourceId": "https://api.powerplatform.com",
             "IsOnbehalfofLoginSupported": true
           },
           "customParameters": {
             "ResourceUri": {
-              "value": "https://service.powerapps.com/"
+              "value": "https://api.powerplatform.com"
             },
             "loginUri": {
-              "value": "https://login.windows.net"
+              "value": "https://login.microsoftonline.com"
             },
             "LoginUriAAD": {
-              "value": "https://login.windows.net"
+              "value": "https://login.microsoftonline.com"
             }
           }
         }
@@ -2423,17 +2423,17 @@
       }
     },
     "runtimeUrls": [
-      "https://daacce33-7d66-ea1f-bfe5-f912f9252a1e.14.common.usa002.azure-apihub.net/apim/powerappsforadmins"
+      "https://ecc0ee26-d0d1-eaaf-9b5c-9bdef7aa2306.00.common.usa002.azure-apihub.net/apim/powerappsforadmins"
     ],
-    "primaryRuntimeUrl": "https://daacce33-7d66-ea1f-bfe5-f912f9252a1e.14.common.usa002.azure-apihub.net/apim/powerappsforadmins",
-    "doNotUseApiHubNetRuntimeUrl": "https://daacce33-7d66-ea1f-bfe5-f912f9252a1e.14.common.usa002.azure-apihub.net/apim/powerappsforadmins",
+    "primaryRuntimeUrl": "https://ecc0ee26-d0d1-eaaf-9b5c-9bdef7aa2306.00.common.usa002.azure-apihub.net/apim/powerappsforadmins",
+    "doNotUseApiHubNetRuntimeUrl": "https://ecc0ee26-d0d1-eaaf-9b5c-9bdef7aa2306.00.common.usa002.azure-apihub.net/apim/powerappsforadmins",
     "metadata": {
       "source": "marketplace",
       "brandColor": "#742774",
       "useNewApimVersion": "true",
       "version": {
-        "previous": "v1.0.1754\\1.0.1754.4231",
-        "current": "releases/v1.0.1808\\1.0.1808.4692"
+        "previous": "releases/v1.0.1816\\1.0.1816.4770",
+        "current": "releases/v1.0.1818\\1.0.1818.4791"
       }
     },
     "capabilities": [
@@ -2442,7 +2442,7 @@
     "interfaces": {},
     "description": "Power Apps Management Connector for Administrators",
     "createdTime": "2024-03-26T21:07:02.91764Z",
-    "changedTime": "2026-04-28T18:01:10.8991478Z",
+    "changedTime": "2026-07-07T17:58:30.8921664Z",
     "releaseTag": "Production",
     "tier": "Standard",
     "publisher": "Microsoft",

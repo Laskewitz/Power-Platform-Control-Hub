@@ -10,8 +10,28 @@ import {
   Field,
   Textarea,
   Button,
+  makeStyles,
   tokens,
 } from '@fluentui/react-components';
+import { ArchiveRegular } from '@fluentui/react-icons';
+
+const useStyles = makeStyles({
+  surface: {
+    maxWidth: '440px',
+    color: '#F4FBFD',
+    border: '1px solid #29404F',
+    borderRadius: 0,
+    backgroundColor: '#0C141D',
+    boxShadow: '0 24px 64px rgba(0, 0, 0, 0.62)',
+  },
+  titleIcon: {
+    color: '#43D9FF',
+    fontSize: '20px',
+  },
+  field: {
+    marginTop: tokens.spacingVerticalS,
+  },
+});
 
 interface BackupDialogProps {
   open: boolean;
@@ -28,14 +48,17 @@ export default function BackupDialog({
   onConfirm,
   onCancel,
 }: BackupDialogProps): ReactElement {
+  const styles = useStyles();
   const [notes, setNotes] = useState('');
   return (
     <Dialog open={open} onOpenChange={(_, data) => { if (!data.open) onCancel(); }}>
-      <DialogSurface>
+      <DialogSurface className={styles.surface}>
         <DialogBody>
-          <DialogTitle>Create Backup — {environmentName}</DialogTitle>
+          <DialogTitle action={<ArchiveRegular aria-hidden="true" className={styles.titleIcon} />}>
+            Create backup — {environmentName}
+          </DialogTitle>
           <DialogContent>
-            <Field label="Backup notes (optional)" style={{ marginTop: tokens.spacingVerticalS }}>
+            <Field label="Backup notes (optional)" className={styles.field}>
               <Textarea
                 value={notes}
                 onChange={(_, data) => setNotes(data.value)}
@@ -47,7 +70,7 @@ export default function BackupDialog({
           <DialogActions>
             <Button appearance="secondary" disabled={isLoading} onClick={onCancel}>Cancel</Button>
             <Button appearance="primary" disabled={isLoading} onClick={() => onConfirm(notes)}>
-              {isLoading ? 'Submitting…' : 'Create Backup'}
+              {isLoading ? 'Submitting…' : 'Create backup'}
             </Button>
           </DialogActions>
         </DialogBody>

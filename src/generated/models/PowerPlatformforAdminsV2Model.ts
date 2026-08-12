@@ -324,9 +324,9 @@ export interface BillingPolicyResponseModel {
   location?: string;
   billingInstrument?: BillingInstrumentModel;
   createdOn?: string;
-  createdBy?: Principal;
+  createdBy?: LicensingPrincipal;
   lastModifiedOn?: string;
-  lastModifiedBy?: Principal;
+  lastModifiedBy?: LicensingPrincipal;
 }
 
 export interface BillingPolicyResponseModelResponseWithOdataContinuation {
@@ -381,6 +381,19 @@ export type CapacityType = string;
 export type CapacityUnits = string;
 
 export type CatalogVisibility = string;
+
+export interface CertificateDTO {
+  // The subject name of the certificate.
+  SubjectName?: string;
+  // The expiration date of the certificate.
+  ExpirationDate?: string;
+  // The thumbprint of the certificate.
+  Thumbprint?: string;
+  // The Azure region where the certificate is stored.
+  Location?: string;
+  // The type of the certificate (e.g., SSL, MANAGED, AZURE_MANAGED).
+  Type?: string;
+}
 
 export type Clause$type = 'where'|'project'|'take'|'orderby'|'distinct'|'count'|'summarize'|'extend'|'join';
 
@@ -545,6 +558,11 @@ export interface ConnectorActionStartProperties {
   validation?: ValidationProperties;
 }
 
+export interface ConnectorConsentBypassResponse {
+  // Indicates whether admin connector consent bypass is enabled for the bot.
+  adminConsentBypass?: boolean;
+}
+
 export interface ConsumerIdentityModel {
   // The ID of the customer tenant.
   tenantId?: string;
@@ -690,7 +708,7 @@ export interface CreateBackupRequest {
 export interface CreateEnvironmentManagementSettingResponse {
   // Gets or sets the ID of the entity being created in the response
   objectResult?: string;
-  errors?: ErrorResponse;
+  errors?: EnvironmentServiceErrorResponse;
   // Gets or sets the next link if there are more records to be returned
   nextLink?: string;
   // Gets or sets the error message.
@@ -1037,6 +1055,13 @@ export interface EnvironmentPagedCollection {
   continuationToken?: string;
 }
 
+export interface EnvironmentPrincipal {
+  // The principal ID.
+  id?: string;
+  // The principal type.
+  type?: string;
+}
+
 export interface EnvironmentResponse {
   // The ID of the environment.
   id?: string;
@@ -1054,8 +1079,8 @@ export interface EnvironmentResponse {
   azureRegion?: string;
   // The cluster category the environment is in.
   clusterCategory?: string;
-  createdBy?: Principal;
-  createdFor?: Principal;
+  createdBy?: EnvironmentPrincipal;
+  createdFor?: EnvironmentPrincipal;
   // The creation date and time of the environment.
   createdDateTime?: string;
   // The deletion date and time of the environment.
@@ -1089,15 +1114,14 @@ export interface EnvironmentResponse {
   };
   finOpsMetadata?: FinOpsMetadata;
   enterprisePolicies?: EnterprisePolicies;
+  // The scenario name associated with the environment (e.g. singleton scenario type).
+  scenarioName?: string;
 }
 
-export interface EnvironmentRestoreRequest {
-  // Restore point date-time with timezone offset per RFC 3339.
-  restorePointDateTime: string;
-  // A value indicating whether to skip audit data during the restore process.
-  skipAuditData?: boolean;
-  // The ID of the source environment from which the backup will be restored from.
-  sourceEnvironmentId: string;
+export interface EnvironmentServiceErrorResponse {
+  code?: string;
+  message?: string;
+  details?: ErrorDetail[];
 }
 
 export type EnvironmentSku = string;
@@ -1137,6 +1161,13 @@ export interface ErrorDetails {
   source?: string;
 }
 
+export interface ErrorEntry {
+  // The error messages describing what is wrong.
+  errorMessages?: string[];
+  // A suggested or accepted value that would resolve the error.
+  suggestedValue?: string;
+}
+
 export interface ErrorInfo {
   // The error Code.
   code?: string;
@@ -1164,9 +1195,12 @@ export interface ErrorMessage {
 }
 
 export interface ErrorResponse {
-  code?: string;
-  message?: string;
-  details?: ErrorDetail[];
+  error?: {
+    // Error code for the failure type (e.g., BadRequest).
+    code?: string;
+    // Description of the error.
+    message?: string;
+  };
 }
 
 export type EvaluationRunState = string;
@@ -1279,8 +1313,8 @@ export interface FlowRun {
 }
 
 export interface ForceFailoverRequest {
-  // Last sync time used for the force failover operation.
-  lastSyncTime: string;
+  // The last sync time used to perform the force failover operation. Optional; if null or omitted, BAP will fail over to the latest available sync point.
+  lastSyncTime?: string;
 }
 
 export interface GetConnectorByIdResponse {
@@ -1323,7 +1357,7 @@ export interface GetConnectorByIdResponse {
 export interface GetEnvironmentManagementSettingResponse {
   // Gets or sets the fields for the entities being queried.
   objectResult?: EnvironmentManagementSetting[];
-  errors?: ErrorResponse;
+  errors?: EnvironmentServiceErrorResponse;
   // Gets or sets the next link if there are more records to be returned
   nextLink?: string;
   // Gets or sets the error message.
@@ -1416,23 +1450,13 @@ export type InstancePackageOperationStatus = string;
 export type InstancePackageState = string;
 
 export interface IpAddressConfiguration {
-  IpAddresses?: {
-   // The IP address or CIDR range
-   IpAddress?: string;
-   IpAddressType?: IpAddressType;
- }[];
+  IpAddresses?: IpAddressEntity[];
 }
 
 export interface IpAddressEntity {
-  // The IP address or CIDR range
+  // The IP address or CIDR range (e.g., "208.130.0.0/16")
   IpAddress?: string;
-  IpType?: IpAddressType;
-  // The unique identifier of the tenant
-  TenantId?: string;
-  // The creation timestamp of the IP address entry
-  CreatedOn?: string;
-  // The last modification timestamp of the IP address entry
-  LastModifiedOn?: string;
+  IpAddressType?: IpAddressType;
 }
 
 export type IpAddressType = string;
@@ -1465,9 +1489,9 @@ export interface IsvContractResponseModel {
   billingInstrument?: BillingInstrumentModel;
   powerAutomatePolicy?: PowerAutomatePolicyModel;
   createdOn?: string;
-  createdBy?: Principal;
+  createdBy?: LicensingPrincipal;
   lastModifiedOn?: string;
-  lastModifiedBy?: Principal;
+  lastModifiedBy?: LicensingPrincipal;
 }
 
 export interface IsvContractResponseModelResponseWithOdataContinuation {
@@ -1511,6 +1535,19 @@ export interface LicenseQuantity {
   suspended?: number;
 }
 
+export interface LicensingPrincipal {
+  id?: string;
+  type?: PrincipalType;
+}
+
+export interface LicensingProblemDetails {
+  type?: string;
+  title?: string;
+  status?: number;
+  detail?: string;
+  instance?: string;
+}
+
 export interface LinkProperties {
   // Size of the linked content in bytes.
   contentSize?: number;
@@ -1548,6 +1585,15 @@ export interface Location {
 export interface LocationPagedCollection {
   collection?: Location[];
   continuationToken?: string;
+}
+
+export interface MakerEvaluationConnection {
+  // User connection ID.
+  connectionId: string;
+  // Connection reference name in the bot definition.
+  connectionReferenceName: string;
+  // The tool (connector) ID.
+  connectorId: string;
 }
 
 export interface Metric {
@@ -1692,7 +1738,7 @@ export interface OperationProperties {
 export interface OperationResponse {
   // Gets or sets the response's object
   objectResult?: unknown;
-  errors?: ErrorResponse;
+  errors?: EnvironmentServiceErrorResponse;
   // Gets or sets the next link if there are more records to be returned
   nextLink?: string;
   // Gets or sets debug errors, that are only shown for private/local testing
@@ -2062,6 +2108,23 @@ export interface ResponseMetadataProperties {
   sensitivityLabel?: SensitivityLabelProperties;
 }
 
+export interface RestoreRequest {
+  // Date and time of the restore point, with timezone offset per RFC 3339 (e.g., 2025-04-30T12:34:56+02:00).
+  restorePointDateTime: string;
+  // The ID of the source environment from which the backup will be restored.
+  sourceEnvironmentId: string;
+  restoreOptions?: RestoreRequestOptions;
+}
+
+export interface RestoreRequestOptions {
+  // Environment name to override on the target environment.
+  environmentNameToOverride?: string;
+  // Security group ID to override on the target environment.
+  securityGroupIdToOverride?: string;
+  // A value indicating whether to skip audit data during the restore process.
+  skipAuditData?: boolean;
+}
+
 export interface RoleAssignmentRequest {
   // The Id of the principal to assign
   principalObjectId?: string;
@@ -2209,6 +2272,11 @@ export interface SensitivityLabelProperties {
   isEncrypted?: boolean;
 }
 
+export interface SetAdminConsentBypassRequest {
+  // Indicates whether to enable admin connector consent bypass for the bot.
+  adminConsentBypass: boolean;
+}
+
 export interface SiteSecurityResult {
   // Total number of rules evaluated
   TotalRuleCount?: number;
@@ -2233,11 +2301,17 @@ export interface SiteSecurityScore {
   succeededRules?: number;
 }
 
+export interface SslBindingThumbprintDTO {
+  // The custom hostname the SSL binding is associated with.
+  Name?: string;
+  // The certificate thumbprint bound to the hostname.
+  Thumbprint?: string;
+}
+
 export interface StageStatus {
   // The name of stage.
   name?: string;
-  // The status of stage.
-  status?: string;
+  status?: StepExecutionStatus;
   // The start time of stage.
   startTime?: string;
   // The end time of stage.
@@ -2251,6 +2325,8 @@ export interface StateChangeRequest {
 }
 
 export type StateCode = string;
+
+export type StepExecutionStatus = string;
 
 export interface StorageWarningThresholds {
   storageCategory?: string;
@@ -2433,7 +2509,7 @@ export interface ToolsConnections {
   // Bot schema name.
   botSchemaName: string;
   // A list of connections.
-  connections: Connection[];
+  connections: MakerEvaluationConnection[];
 }
 
 export interface TpsInstallRequestPayload {
@@ -2457,6 +2533,8 @@ export interface UpdateFinOpsAdminSettingsRequestBody {
 export interface UserIdentity {
   // The ID of the user.
   userId?: string;
+  // The type of the user identity (e.g., User).
+  type?: string;
   // The display name of the user.
   displayName?: string;
   // The tenant ID of the user.

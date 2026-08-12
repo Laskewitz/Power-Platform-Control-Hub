@@ -21,6 +21,8 @@ import {
   DialogContent,
   DialogActions,
   Input,
+  Tab,
+  TabList,
 } from '@fluentui/react-components';
 import {
   ArrowLeftRegular,
@@ -36,10 +38,6 @@ import {
   CalendarRegular,
   FlowRegular,
   ShieldCheckmarkRegular,
-  WarningFilled,
-  ErrorCircleFilled,
-  InfoFilled,
-  CheckmarkRegular,
   PlugConnectedRegular,
   PersonAddRegular,
   SearchRegular,
@@ -62,13 +60,15 @@ import {
   modifyFlowOwners,
 } from '../services/flowManagementService.ts';
 import { analyzeFlowDefinition } from '../services/flowAnalyzer.ts';
-import type { AnalysisResult, AnalysisSeverity } from '../services/flowAnalyzer.ts';
+import type { AnalysisResult } from '../services/flowAnalyzer.ts';
 import { useToastController, Toast, ToastTitle, ToastBody } from '@fluentui/react-components';
 import ConfirmDialog from './ConfirmDialog.tsx';
 import AddSelfAsAdminBanner from './AddSelfAsAdminBanner.tsx';
 import { extractMessage } from '../utils/errorUtils.ts';
 import { getContext } from '@microsoft/power-apps/app';
 import { formatSharedSummary } from '../utils/inventoryFormatters.ts';
+import AnalysisPosture from './AnalysisPosture.tsx';
+import { useOwner, useOwners } from '../services/ownerCache.ts';
 
 
 
@@ -85,16 +85,19 @@ const useStyles = makeStyles({
     flexDirection: 'column',
     height: '100%',
     overflow: 'hidden',
-    backgroundColor: tokens.colorNeutralBackground1,
+    color: '#E5EEF5',
+    backgroundColor: '#060A0F',
+    fontFamily: '"Aptos", "Segoe UI", sans-serif',
   },
   header: {
     display: 'flex',
     alignItems: 'center',
     gap: tokens.spacingHorizontalM,
-    padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalXL}`,
-    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+    padding: `14px ${tokens.spacingHorizontalXL}`,
+    borderBottom: '1px solid #29404F',
     flexShrink: 0,
-    backgroundColor: tokens.colorNeutralBackground1,
+    backgroundColor: '#0C141D',
+    boxShadow: 'inset 3px 0 0 #FFB547',
     flexWrap: 'wrap',
     '@media (max-width: 768px)': {
       padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalM}`,
@@ -114,25 +117,34 @@ const useStyles = makeStyles({
     flexWrap: 'wrap',
   },
   flowTitle: {
-    fontSize: tokens.fontSizeBase500,
+    fontSize: '20px',
     fontWeight: tokens.fontWeightSemibold,
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
     minWidth: 0,
     flex: '1 1 0',
+    color: '#F5FAFD',
   },
   envText: {
-    fontSize: tokens.fontSizeBase200,
-    color: tokens.colorNeutralForeground3,
+    fontSize: '11px',
+    color: '#9CB0BF',
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
   },
   actionBar: {
     display: 'flex',
     alignItems: 'center',
     gap: tokens.spacingHorizontalS,
     padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalXL}`,
-    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+    borderBottom: '1px solid #20313E',
+    backgroundColor: '#111827',
     flexShrink: 0,
+    flexWrap: 'wrap',
+    '& button': {
+      color: '#43D9FF',
+      borderRadius: 0,
+    },
     '@media (max-width: 768px)': {
       padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`,
     },
@@ -140,7 +152,7 @@ const useStyles = makeStyles({
   body: {
     flex: 1,
     overflowY: 'auto',
-    padding: `${tokens.spacingVerticalL} ${tokens.spacingHorizontalXL}`,
+    padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalXL}`,
     width: '100%',
     boxSizing: 'border-box',
     '@media (max-width: 768px)': {
@@ -150,8 +162,10 @@ const useStyles = makeStyles({
   detailGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(2, 1fr)',
-    gap: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalXL}`,
+    gap: 0,
     alignItems: 'start',
+    borderTop: '1px solid #20313E',
+    borderLeft: '1px solid #20313E',
     '@media (max-width: 768px)': {
       gridTemplateColumns: '1fr',
     },
@@ -159,26 +173,40 @@ const useStyles = makeStyles({
   detailItem: {
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: tokens.spacingVerticalXS,
+    gap: '4px',
     minWidth: 0,
+    minHeight: '58px',
+    padding: '10px 12px',
+    borderRight: '1px solid #20313E',
+    borderBottom: '1px solid #20313E',
+    backgroundColor: '#0C141D',
   },
   detailItemWide: {
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: tokens.spacingVerticalXS,
+    gap: '4px',
     minWidth: 0,
     gridColumn: 'span 2',
+    minHeight: '58px',
+    padding: '10px 12px',
+    borderRight: '1px solid #20313E',
+    borderBottom: '1px solid #20313E',
+    backgroundColor: '#0C141D',
+    '@media (max-width: 768px)': {
+      gridColumn: 'span 1',
+    },
   },
   detailLabel: {
-    fontSize: tokens.fontSizeBase200,
+    fontSize: '10px',
     fontWeight: tokens.fontWeightSemibold,
-    color: tokens.colorNeutralForeground3,
+    color: '#8DA5B5',
     textTransform: 'uppercase',
-    letterSpacing: '0.04em',
+    letterSpacing: '0.1em',
   },
   detailValue: {
     fontSize: tokens.fontSizeBase300,
-    color: tokens.colorNeutralForeground1,
+    color: '#E5EEF5',
+    fontVariantNumeric: 'tabular-nums',
   },
   sectionTitle: {
     fontSize: tokens.fontSizeBase300,
@@ -196,9 +224,12 @@ const useStyles = makeStyles({
     alignItems: 'center',
     gap: tokens.spacingHorizontalM,
     padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`,
-    borderRadius: tokens.borderRadiusMedium,
-    backgroundColor: tokens.colorNeutralBackground2,
-    border: `1px solid ${tokens.colorNeutralStroke2}`,
+    backgroundColor: '#0C141D',
+    border: '1px solid #20313E',
+    ':hover': {
+      backgroundColor: '#111827',
+      boxShadow: 'inset 1px 0 0 #43D9FF',
+    },
   },
   permissionInfo: {
     display: 'flex',
@@ -227,7 +258,9 @@ const useStyles = makeStyles({
     justifyContent: 'center',
     gap: tokens.spacingVerticalM,
     padding: `${tokens.spacingVerticalXXL} 0`,
-    color: tokens.colorNeutralForeground3,
+    color: '#9CB0BF',
+    border: '1px solid #20313E',
+    backgroundColor: '#0C141D',
   },
   triggerList: {
     display: 'flex',
@@ -240,13 +273,11 @@ const useStyles = makeStyles({
     gap: tokens.spacingHorizontalS,
     fontSize: tokens.fontSizeBase300,
     padding: `${tokens.spacingVerticalXS} ${tokens.spacingHorizontalM}`,
-    borderRadius: tokens.borderRadiusMedium,
-    backgroundColor: tokens.colorNeutralBackground2,
-    border: `1px solid ${tokens.colorNeutralStroke2}`,
+    backgroundColor: '#0C141D',
+    border: '1px solid #20313E',
   },
   connectorCard: {
-    borderRadius: tokens.borderRadiusMedium,
-    border: `1px solid ${tokens.colorNeutralStroke2}`,
+    border: '1px solid #29404F',
     overflow: 'hidden',
     marginBottom: tokens.spacingVerticalXS,
   },
@@ -255,8 +286,8 @@ const useStyles = makeStyles({
     alignItems: 'center',
     gap: tokens.spacingHorizontalS,
     padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`,
-    backgroundColor: tokens.colorNeutralBackground2,
-    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+    backgroundColor: '#111827',
+    borderBottom: '1px solid #20313E',
   },
   connectorActionRow: {
     display: 'flex',
@@ -272,8 +303,8 @@ const useStyles = makeStyles({
     alignItems: 'center',
     gap: tokens.spacingHorizontalM,
     padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`,
-    borderRadius: tokens.borderRadiusMedium,
-    backgroundColor: tokens.colorNeutralBackground2,
+    backgroundColor: '#111827',
+    border: '1px solid #29404F',
     marginBottom: tokens.spacingVerticalM,
     flexWrap: 'wrap' as const,
   },
@@ -281,8 +312,7 @@ const useStyles = makeStyles({
     display: 'flex',
     flexDirection: 'column' as const,
     gap: '0',
-    borderRadius: tokens.borderRadiusMedium,
-    border: `1px solid ${tokens.colorNeutralStroke2}`,
+    border: '1px solid #29404F',
     overflow: 'hidden',
   },
   analysisRow: {
@@ -290,20 +320,20 @@ const useStyles = makeStyles({
     alignItems: 'center',
     gap: tokens.spacingHorizontalS,
     padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`,
-    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+    borderBottom: '1px solid #20313E',
     cursor: 'pointer',
     userSelect: 'none' as const,
-    backgroundColor: tokens.colorNeutralBackground1,
-    ':hover': { backgroundColor: tokens.colorNeutralBackground1Hover },
+    backgroundColor: '#0C141D',
+    ':hover': { backgroundColor: '#111827', boxShadow: 'inset 1px 0 0 #43D9FF' },
     ':last-child': { borderBottom: 'none' },
   },
   analysisRowExpanded: {
-    backgroundColor: tokens.colorNeutralBackground2,
+    backgroundColor: '#111827',
   },
   analysisRowDetail: {
     padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalL}`,
-    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
-    backgroundColor: tokens.colorNeutralBackground2,
+    borderBottom: '1px solid #20313E',
+    backgroundColor: '#111827',
     display: 'flex',
     flexDirection: 'column' as const,
     gap: tokens.spacingVerticalS,
@@ -324,9 +354,9 @@ const useStyles = makeStyles({
     color: tokens.colorNeutralForeground2,
     lineHeight: '1.5',
     padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`,
-    borderRadius: tokens.borderRadiusMedium,
-    backgroundColor: tokens.colorNeutralBackground3,
-    borderLeft: `3px solid ${tokens.colorBrandStroke1}`,
+    backgroundColor: '#0C141D',
+    border: '1px solid #29404F',
+    borderLeft: '1px solid #43D9FF',
   },
   analysisAffected: {
     display: 'flex',
@@ -338,8 +368,8 @@ const useStyles = makeStyles({
     alignItems: 'center',
     gap: tokens.spacingHorizontalM,
     padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`,
-    borderRadius: tokens.borderRadiusMedium,
-    backgroundColor: tokens.colorNeutralBackground2,
+    backgroundColor: '#111827',
+    border: '1px solid #29404F',
     marginBottom: tokens.spacingVerticalM,
   },
   userList: {
@@ -348,20 +378,18 @@ const useStyles = makeStyles({
     gap: '2px',
     maxHeight: '320px',
     overflowY: 'auto',
-    border: `1px solid ${tokens.colorNeutralStroke2}`,
-    borderRadius: tokens.borderRadiusMedium,
+    border: '1px solid #29404F',
     padding: '4px',
-    backgroundColor: tokens.colorNeutralBackground1,
+    backgroundColor: '#0C141D',
   },
   userListItem: {
     display: 'flex',
     alignItems: 'center',
     gap: tokens.spacingHorizontalM,
     padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`,
-    borderRadius: tokens.borderRadiusSmall,
     cursor: 'pointer',
     userSelect: 'none' as const,
-    ':hover': { backgroundColor: tokens.colorNeutralBackground1Hover },
+    ':hover': { backgroundColor: '#111827' },
   },
   userListItemSelected: {
     backgroundColor: tokens.colorBrandBackground2,
@@ -374,14 +402,67 @@ const useStyles = makeStyles({
     minWidth: 0,
   },
   accordionCard: {
-    border: `1px solid ${tokens.colorNeutralStroke2}`,
-    borderRadius: tokens.borderRadiusMedium,
+    border: '1px solid #29404F',
     overflow: 'hidden',
-    marginBottom: tokens.spacingVerticalS,
+    marginBottom: '8px',
+    backgroundColor: '#0C141D',
   },
   accordionHeaderTinted: {
-    backgroundColor: tokens.colorNeutralBackground2,
-    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+    minHeight: '42px',
+    color: '#E5EEF5',
+    backgroundColor: '#111827',
+    borderBottom: '1px solid #20313E',
+    ':hover': {
+      color: '#43D9FF',
+      backgroundColor: '#14212D',
+    },
+  },
+  actionRegister: {
+    marginLeft: 'auto',
+    display: 'flex',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalS,
+    flexWrap: 'wrap',
+  },
+  contentTabs: {
+    padding: `0 ${tokens.spacingHorizontalXL}`,
+    borderBottom: '1px solid #29404F',
+    backgroundColor: '#060A0F',
+    flexShrink: 0,
+  },
+  sectionBody: {
+    padding: `10px ${tokens.spacingHorizontalM} ${tokens.spacingVerticalM}`,
+  },
+  stack: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: tokens.spacingVerticalM,
+  },
+  flowTreeRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalS,
+    padding: `${tokens.spacingVerticalXS} ${tokens.spacingHorizontalM}`,
+    border: '1px solid #20313E',
+    marginBottom: tokens.spacingVerticalXXS,
+    backgroundColor: '#0C141D',
+  },
+  flowTreeConnector: {
+    backgroundColor: '#111827',
+  },
+  flowTreeContainer: {
+    border: '1px solid #29404F',
+    marginBottom: tokens.spacingVerticalXS,
+    overflow: 'hidden',
+    backgroundColor: '#0C141D',
+  },
+  flowTreeHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalS,
+    padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`,
+    backgroundColor: '#111827',
+    borderBottom: '1px solid #20313E',
   },
 });
 
@@ -524,29 +605,11 @@ function countNodes(nodes: RichNode[]): number {
 }
 
 function FlowTreeNode({ node }: { node: RichNode }): ReactElement {
-  const rowStyle: CSSProperties = {
-    display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS,
-    padding: `${tokens.spacingVerticalXS} ${tokens.spacingHorizontalM}`,
-    borderRadius: tokens.borderRadiusMedium,
-    border: `1px solid ${tokens.colorNeutralStroke2}`,
-    marginBottom: tokens.spacingVerticalXXS,
-  };
-  const containerStyle: CSSProperties = {
-    borderRadius: tokens.borderRadiusMedium,
-    border: `1px solid ${tokens.colorNeutralStroke2}`,
-    marginBottom: tokens.spacingVerticalXS,
-    overflow: 'hidden',
-  };
-  const containerHeaderStyle: CSSProperties = {
-    display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS,
-    padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`,
-    backgroundColor: tokens.colorNeutralBackground2,
-    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
-  };
+  const styles = useStyles();
 
   if (node.kind === 'connector') {
     return (
-      <div style={{ ...rowStyle, backgroundColor: tokens.colorNeutralBackground2 }}>
+      <div className={`${styles.flowTreeRow} ${styles.flowTreeConnector}`}>
         <PlugConnectedRegular fontSize={14} style={{ color: tokens.colorBrandForeground1, flexShrink: 0 }} />
         <Text style={{ fontWeight: tokens.fontWeightSemibold, fontSize: tokens.fontSizeBase300 }}>{node.connector}</Text>
         <Text style={{ color: tokens.colorNeutralForeground3 }}>·</Text>
@@ -560,7 +623,7 @@ function FlowTreeNode({ node }: { node: RichNode }): ReactElement {
 
   if (node.kind === 'control') {
     return (
-      <div style={rowStyle}>
+      <div className={styles.flowTreeRow}>
         <FlowRegular fontSize={14} style={{ color: tokens.colorNeutralForeground3, flexShrink: 0 }} />
         <Text style={{ color: tokens.colorNeutralForeground2, fontSize: tokens.fontSizeBase200, flexShrink: 0 }}>{node.label}</Text>
         {node.name && node.name !== node.label && (
@@ -572,8 +635,8 @@ function FlowTreeNode({ node }: { node: RichNode }): ReactElement {
 
   if (node.kind === 'condition') {
     return (
-      <div style={containerStyle}>
-        <div style={containerHeaderStyle}>
+      <div className={styles.flowTreeContainer}>
+        <div className={styles.flowTreeHeader}>
           <FlowRegular fontSize={14} style={{ color: tokens.colorBrandForeground1, flexShrink: 0 }} />
           <Text style={{ fontWeight: tokens.fontWeightSemibold, fontSize: tokens.fontSizeBase300 }}>Condition</Text>
           <Text style={{ color: tokens.colorNeutralForeground3 }}>·</Text>
@@ -599,8 +662,8 @@ function FlowTreeNode({ node }: { node: RichNode }): ReactElement {
 
   if (node.kind === 'switch') {
     return (
-      <div style={containerStyle}>
-        <div style={containerHeaderStyle}>
+      <div className={styles.flowTreeContainer}>
+        <div className={styles.flowTreeHeader}>
           <FlowRegular fontSize={14} style={{ color: tokens.colorBrandForeground1, flexShrink: 0 }} />
           <Text style={{ fontWeight: tokens.fontWeightSemibold, fontSize: tokens.fontSizeBase300 }}>Switch</Text>
           <Text style={{ color: tokens.colorNeutralForeground3 }}>·</Text>
@@ -626,8 +689,8 @@ function FlowTreeNode({ node }: { node: RichNode }): ReactElement {
   const containerLabel = node.kind === 'foreach' ? 'For Each' : node.kind === 'until' ? 'Do Until' : 'Scope';
   const children = node.children;
   return (
-    <div style={containerStyle}>
-      <div style={containerHeaderStyle}>
+    <div className={styles.flowTreeContainer}>
+      <div className={styles.flowTreeHeader}>
         <FlowRegular fontSize={14} style={{ color: tokens.colorBrandForeground1, flexShrink: 0 }} />
         <Text style={{ fontWeight: tokens.fontWeightSemibold, fontSize: tokens.fontSizeBase300 }}>{containerLabel}</Text>
         <Text style={{ color: tokens.colorNeutralForeground3 }}>·</Text>
@@ -750,8 +813,11 @@ function PermissionsList({
     <div className={styles.permissionList}>
       {permissions.map((p, i) => {
         const principal = p.properties?.principal;
-        const resolvedName = principal?.id ? resolvedNames[principal.id] : undefined;
-        const name = resolvedName ?? principal?.displayName ?? principal?.userPrincipalName ?? principal?.id ?? 'Unknown';
+        const cachedName = principal?.id ? resolvedNames[principal.id.toLowerCase()] : undefined;
+        const resolvedName = cachedName && cachedName.toLowerCase() !== principal?.id?.toLowerCase()
+          ? cachedName
+          : undefined;
+        const name = principal?.displayName ?? resolvedName ?? principal?.userPrincipalName ?? principal?.id ?? 'Unknown';
         const email = principal?.email ?? principal?.userPrincipalName ?? '';
         const role = p.properties?.roleName ?? '—';
         const isResolving = !!principal?.id && !resolvedName && !principal?.displayName;
@@ -774,24 +840,6 @@ function PermissionsList({
   );
 }
 
-function severityIcon(severity: AnalysisSeverity): ReactElement {
-  if (severity === 'critical') return <ErrorCircleFilled fontSize={16} style={{ color: tokens.colorStatusDangerForeground1, flexShrink: 0 }} />;
-  if (severity === 'warning') return <WarningFilled fontSize={16} style={{ color: tokens.colorStatusWarningForeground1, flexShrink: 0 }} />;
-  return <InfoFilled fontSize={16} style={{ color: tokens.colorStatusSuccessForeground1, flexShrink: 0 }} />;
-}
-
-const SEVERITY_LABEL: Record<AnalysisSeverity, string> = {
-  critical: 'Error',
-  warning: 'Warning',
-  info: 'Info',
-};
-
-const SEVERITY_BADGE_COLOR: Record<AnalysisSeverity, 'danger' | 'warning' | 'success'> = {
-  critical: 'danger',
-  warning: 'warning',
-  info: 'success',
-};
-
 function AnalysisSection({
   results,
   isLoading,
@@ -803,112 +851,18 @@ function AnalysisSection({
   hasDefinition: boolean;
   flowTypeLabel?: string;
 }): ReactElement {
-  const styles = useStyles();
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-
-  if (isLoading) return <Spinner size="small" label="Analysing flow…" />;
-
-  if (!hasDefinition) {
-    return (
-      <div className={styles.emptyState}>
-        <InfoRegular fontSize={32} />
-        <Text>{flowTypeLabel} definition not available — the API did not return it for this flow type.</Text>
-      </div>
-    );
-  }
-
-  const toggleRow = (id: string) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  };
-
-  if (results.length === 0) {
-    return (
-      <div className={styles.emptyState}>
-        <CheckmarkRegular fontSize={40} style={{ color: tokens.colorStatusSuccessForeground1 }} />
-        <Text style={{ fontWeight: tokens.fontWeightSemibold }}>All checks passed!</Text>
-        <Text style={{ fontSize: tokens.fontSizeBase200, textAlign: 'center', maxWidth: '340px' }}>
-          This flow appears to follow Power Automate best practices.
-        </Text>
-      </div>
-    );
-  }
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalM }}>
-      {/* Issue table */}
-      <div className={styles.analysisList}>
-        {results.map((r) => {
-          const isExpanded = expandedIds.has(r.id);
-          const severityBorderColor =
-            r.severity === 'critical' ? tokens.colorStatusDangerForeground1
-            : r.severity === 'warning' ? tokens.colorStatusWarningForeground1
-            : tokens.colorStatusSuccessForeground1;
-          return (
-            <div key={r.id}>
-              {/* Row */}
-              <div
-                className={styles.analysisRow}
-                style={{ borderLeft: `3px solid ${severityBorderColor}`, backgroundColor: isExpanded ? tokens.colorNeutralBackground2 : undefined }}
-                onClick={() => toggleRow(r.id)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' || e.key === ' ' ? toggleRow(r.id) : undefined}
-                aria-expanded={isExpanded}
-              >
-                {severityIcon(r.severity)}
-                <Text className={styles.analysisTitle} style={{ flex: 1 }}>{r.title}</Text>
-                <Badge appearance="filled" color={SEVERITY_BADGE_COLOR[r.severity]} size="small">
-                  {SEVERITY_LABEL[r.severity]}
-                </Badge>
-                <ChevronIcon expanded={isExpanded} />
-              </div>
-
-              {/* Expanded detail */}
-              {isExpanded && (
-                <div className={styles.analysisRowDetail} style={{ borderLeft: `3px solid ${severityBorderColor}` }}>
-                  <Text className={styles.analysisDesc}>{r.description}</Text>
-                  <div className={styles.analysisRec}>
-                    <Text style={{ fontSize: tokens.fontSizeBase200, fontWeight: tokens.fontWeightSemibold, color: tokens.colorNeutralForeground2 }}>
-                      💡 Recommendation
-                    </Text>
-                    <Text style={{ fontSize: tokens.fontSizeBase300, display: 'block', marginTop: '4px' }}>{r.recommendation}</Text>
-                  </div>
-                  {r.affectedItems && r.affectedItems.length > 0 && (
-                    <div>
-                      <Text style={{ fontSize: tokens.fontSizeBase200, fontWeight: tokens.fontWeightSemibold, color: tokens.colorNeutralForeground2, display: 'block', marginBottom: '6px' }}>
-                        Affected actions
-                      </Text>
-                      <div className={styles.analysisAffected}>
-                        {r.affectedItems.map((item) => (
-                          <Badge key={item} appearance="tint" color="informative" size="small">{item}</Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function ChevronIcon({ expanded }: { expanded: boolean }): ReactElement {
-  return (
-    <span style={{
-      display: 'inline-flex',
-      fontSize: '12px',
-      color: tokens.colorNeutralForeground3,
-      transition: 'transform 0.15s',
-      transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
-      flexShrink: 0,
-    }}>▶</span>
+    <AnalysisPosture
+      results={results}
+      title={`${flowTypeLabel} posture`}
+      description="Governance signals derived from the flow definition, actions, connections, and error handling."
+      isLoading={isLoading}
+      loadingLabel={`Evaluating ${flowTypeLabel.toLowerCase()} posture…`}
+      unavailableMessage={!hasDefinition
+        ? `${flowTypeLabel} definition is unavailable because the API did not return it for this flow type.`
+        : undefined}
+      emptyDescription={`This ${flowTypeLabel.toLowerCase()} follows the evaluated governance practices.`}
+    />
   );
 }
 
@@ -1112,20 +1066,18 @@ export default function CloudFlowDetailPanel({
     return `https://make.powerautomate.com/environments/${envId}/flows/${flowName}/details`;
   })();
 
-  const [openSections, setOpenSections] = useState<string[]>(['details', 'triggers', 'analysis']);
+  const [openSections, setOpenSections] = useState<string[]>(['details', 'triggers']);
+  const [contentTab, setContentTab] = useState<'overview' | 'analysis'>('overview');
   const [flowDetails, setFlowDetails] = useState<AdminFlowWithDefinition | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(true);
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [analysisResults, setAnalysisResults] = useState<AnalysisResult[]>([]);
   const [analysisLoading, setAnalysisLoading] = useState(false);
-  const [creatorDisplayName, setCreatorDisplayName] = useState<string | null>(null);
-  const [creatorEmail, setCreatorEmail] = useState<string | null>(null);
 
   const [owners, setOwners] = useState<FlowPermission[]>([]);
   const [ownersLoading, setOwnersLoading] = useState(false);
   const [ownersError, setOwnersError] = useState<string | null>(null);
   const [ownersFetched, setOwnersFetched] = useState(false);
-  const [ownerNames, setOwnerNames] = useState<Record<string, string>>({});
   const [showAddOwner, setShowAddOwner] = useState(false);
 
   const [runOnlyUsers, setRunOnlyUsers] = useState<FlowPermission[]>([]);
@@ -1145,8 +1097,6 @@ export default function CloudFlowDetailPanel({
     setDetailsLoading(true);
     setAnalysisLoading(true); // keep true until Phase 2 finishes to avoid premature "not available" flash
     setDetailsError(null);
-    setCreatorDisplayName(null);
-    setCreatorEmail(null);
     setAnalysisResults([]);
     let basicData: AdminFlowWithDefinition | null = null;
 
@@ -1154,16 +1104,6 @@ export default function CloudFlowDetailPanel({
     try {
       basicData = await getFlowDetailsOnly(envId, flowName);
       setFlowDetails(basicData);
-      // Resolve creator identity in background
-      const userId = basicData.properties?.creator?.userId ?? basicData.properties?.creator?.objectId;
-      if (userId) {
-        AaduserService.get(userId).then((res) => {
-          if (res.success && res.data) {
-            setCreatorDisplayName(res.data.displayname ?? null);
-            setCreatorEmail(res.data.mail ?? res.data.userprincipalname ?? null);
-          }
-        }).catch(() => { /* graceful fallback */ });
-      }
     } catch (e) {
       setDetailsError(e instanceof Error ? e.message : 'Failed to load flow details');
       return;
@@ -1187,40 +1127,10 @@ export default function CloudFlowDetailPanel({
 
   useEffect(() => { void loadDetails(); }, [loadDetails]);
 
-  // Resolve owner GUIDs to display names when owners list changes
-  useEffect(() => {
-    if (owners.length === 0) return;
-    const toResolve = owners
-      .map((o) => o.properties?.principal?.id)
-      .filter((id): id is string => !!id);
-    if (toResolve.length === 0) return;
-    let cancelled = false;
-    void (async () => {
-      const entries = await Promise.all(toResolve.map(async (id) => {
-        try {
-          const res = await AaduserService.get(id);
-          if (res.success && res.data) {
-            return [id, res.data.displayname ?? res.data.userprincipalname ?? id] as const;
-          }
-        } catch { /* fallback to GUID */ }
-        return [id, id] as const;
-      }));
-      if (!cancelled) {
-        setOwnerNames((prev) => {
-          const next = { ...prev };
-          for (const [id, name] of entries) { if (!next[id]) next[id] = name; }
-          return next;
-        });
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [owners]);
-
   const refreshOwners = useCallback(() => {
     setOwnersLoading(true);
     setOwnersError(null);
     setOwnersFetched(false);
-    setOwnerNames({});
     listFlowOwners(envId, flowName)
       .then((d) => { setOwners(d.value ?? []); setOwnersFetched(true); })
       .catch((e) => setOwnersError(e instanceof Error ? e.message : 'Failed to load owners'))
@@ -1340,6 +1250,18 @@ export default function CloudFlowDetailPanel({
   const props = flowDetails?.properties;
   const triggersSummary = props?.definitionSummary?.triggers ?? [];
   const creator = props?.creator;
+  const creatorDisplayName = useOwner(creator?.userId ?? creator?.objectId, envId);
+  const permissionPrincipalIds = useMemo(
+    () => [...owners, ...runOnlyUsers]
+      .map((permission) => permission.properties?.principal?.id)
+      .filter((id): id is string => Boolean(id)),
+    [owners, runOnlyUsers],
+  );
+  const permissionPrincipalMap = useOwners(permissionPrincipalIds, envId);
+  const permissionPrincipalNames = useMemo(
+    () => Object.fromEntries(permissionPrincipalMap),
+    [permissionPrincipalMap],
+  );
   const connectionRefs = props?.connectionReferences ?? [];
 
   // Build a map from api internal name → display name using connectionReferences
@@ -1404,7 +1326,7 @@ export default function CloudFlowDetailPanel({
               )}
             </div>
             {resource.environmentName && (
-              <Text className={styles.envText}>🌐 {resource.environmentName}</Text>
+              <Text className={styles.envText}>{resource.environmentName}</Text>
             )}
           </div>
         </div>
@@ -1454,7 +1376,7 @@ export default function CloudFlowDetailPanel({
             </Button>
           )}
           <AddSelfAsAdminBanner environmentId={envId} variant="inline" onChanged={() => void loadDetails()} />
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS }}>
+          <div className={styles.actionRegister}>
             {isStopped && (
               <Button
                 appearance="subtle"
@@ -1490,6 +1412,16 @@ export default function CloudFlowDetailPanel({
           </div>
         </div>
 
+        <div className={styles.contentTabs}>
+          <TabList
+            selectedValue={contentTab}
+            onTabSelect={(_, data) => setContentTab(data.value as 'overview' | 'analysis')}
+          >
+            <Tab value="overview">Overview</Tab>
+            <Tab value="analysis" icon={<ShieldCheckmarkRegular />}>Analysis</Tab>
+          </TabList>
+        </div>
+
         {/* Accordion sections */}
         <div className={styles.body}>
           {detailsError && (() => {
@@ -1505,6 +1437,16 @@ export default function CloudFlowDetailPanel({
             }
             return <CollapsibleError error={detailsError} style={{ marginBottom: tokens.spacingVerticalM }} />;
           })()}
+          {contentTab === 'analysis' ? (
+            <div className={styles.sectionBody}>
+              <AnalysisSection
+                results={analysisResults}
+                isLoading={analysisLoading}
+                hasDefinition={Boolean(flowDetails?.properties?.definition)}
+                flowTypeLabel={flowTypeLabel}
+              />
+            </div>
+          ) : (
           <Accordion
             multiple
             collapsible
@@ -1517,10 +1459,10 @@ export default function CloudFlowDetailPanel({
                 Flow Details
               </AccordionHeader>
               <AccordionPanel>
-                <div style={{ padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM} ${tokens.spacingVerticalM}` }}>
+                <div className={styles.sectionBody}>
                   {detailsLoading && <Spinner size="small" label="Loading flow details…" />}
                   {!detailsLoading && !detailsError && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalM }}>
+                  <div className={styles.stack}>
                     {/* Metadata grid */}
                     <div className={styles.detailGrid}>
                       <div className={styles.detailItem}>
@@ -1560,10 +1502,7 @@ export default function CloudFlowDetailPanel({
                         <div className={styles.detailItem}>
                           <span className={styles.detailLabel}>Creator</span>
                           <span className={styles.detailValue}>
-                            {creatorDisplayName
-                              ? `${creatorDisplayName}${creatorEmail ? ` (${creatorEmail})` : ''}`
-                              : (creator.userId ?? creator.objectId ?? '—')
-                            }
+                            {creatorDisplayName}
                           </span>
                         </div>
                       )}
@@ -1601,7 +1540,7 @@ export default function CloudFlowDetailPanel({
                 </span>
               </AccordionHeader>
               <AccordionPanel>
-                <div style={{ padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalM} ${tokens.spacingVerticalL}` }}>
+                <div className={styles.sectionBody}>
                     {/* Trigger */}
                     {(Object.keys(defTriggers).length > 0 || triggersSummary.length > 0) && (
                       <div>
@@ -1714,48 +1653,17 @@ export default function CloudFlowDetailPanel({
               );
             })()}
 
-            {/* ── Best Practice Analysis ── */}
-            <AccordionItem value="analysis" className={styles.accordionCard}>
-              <AccordionHeader expandIconPosition="end" icon={<ShieldCheckmarkRegular />} className={styles.accordionHeaderTinted}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS }}>
-                  Best Practice Analysis
-                  {!analysisLoading && analysisResults.length > 0 && (() => {
-                    const errs = analysisResults.filter((r) => r.severity === 'critical').length;
-                    const warns = analysisResults.filter((r) => r.severity === 'warning').length;
-                    const infs = analysisResults.filter((r) => r.severity === 'info').length;
-                    return (
-                      <>
-                        <Badge appearance="filled" color="subtle" size="small">{errs} error{errs !== 1 ? 's' : ''}</Badge>
-                        <Badge appearance="filled" color="subtle" size="small">{warns} warning{warns !== 1 ? 's' : ''}</Badge>
-                        <Badge appearance="filled" color="subtle" size="small">{infs} info</Badge>
-                      </>
-                    );
-                  })()}
-                </span>
-              </AccordionHeader>
-              <AccordionPanel>
-                <div style={{ padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalM} ${tokens.spacingVerticalL}` }}>
-                  <AnalysisSection
-                    results={analysisResults}
-                    isLoading={analysisLoading}
-                    hasDefinition={Boolean(flowDetails?.properties?.definition)}
-                    flowTypeLabel={flowTypeLabel}
-                  />
-                </div>
-              </AccordionPanel>
-            </AccordionItem>
-
             {/* ── Owners ── */}
             <AccordionItem value="owners" className={styles.accordionCard}>
               <AccordionHeader expandIconPosition="end" icon={<PersonRegular />} className={styles.accordionHeaderTinted}>Owners</AccordionHeader>
               <AccordionPanel>
-                <div style={{ padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalM} ${tokens.spacingVerticalL}` }}>
+                <div className={styles.sectionBody}>
                   <PermissionsList
                     permissions={owners}
                     isLoading={ownersLoading}
                     error={ownersError}
                     emptyLabel="No owners found for this flow."
-                    resolvedNames={ownerNames}
+                    resolvedNames={permissionPrincipalNames}
                   />
                 </div>
               </AccordionPanel>
@@ -1765,17 +1673,19 @@ export default function CloudFlowDetailPanel({
             <AccordionItem value="runonlyusers" className={styles.accordionCard}>
               <AccordionHeader expandIconPosition="end" icon={<PeopleRegular />} className={styles.accordionHeaderTinted}>Run-Only Users</AccordionHeader>
               <AccordionPanel>
-                <div style={{ padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalM} ${tokens.spacingVerticalL}` }}>
+                <div className={styles.sectionBody}>
                   <PermissionsList
                     permissions={runOnlyUsers}
                     isLoading={runOnlyLoading}
                     error={runOnlyError}
                     emptyLabel="No run-only users found for this flow."
+                    resolvedNames={permissionPrincipalNames}
                   />
                 </div>
               </AccordionPanel>
             </AccordionItem>
           </Accordion>
+          )}
         </div>
       </div>
 

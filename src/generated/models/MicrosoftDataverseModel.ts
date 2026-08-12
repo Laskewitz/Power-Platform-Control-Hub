@@ -69,7 +69,7 @@ export interface CallbackRegistration {
   sdkmessagename?: string;
   // Choose a scope to limit which rows can trigger the flow
   scope: number;
-  // Enter a comma-separated list of column unique names. The flow triggers if any of them are modified
+  // Enter a comma-separated list of column unique names. The flow triggers if any of the columns is present in the update payload regardless of if data is modified
   filteringattributes?: string;
   // Odata expression to limit rows that can trigger the flow, eg. statecode eq 0
   filterexpression?: string;
@@ -94,7 +94,7 @@ export interface CallbackRegistrationWithOrganization {
   sdkmessagename?: string;
   // Choose a scope to limit which rows can trigger the flow
   scope: number;
-  // Enter a comma-separated list of column unique names. The flow triggers if any of them are modified
+  // Enter a comma-separated list of column unique names. The flow triggers if any of the columns is present in the update payload regardless of if data is modified
   filteringattributes?: string;
   // Odata expression to limit rows that can trigger the flow, eg. statecode eq 0
   filterexpression?: string;

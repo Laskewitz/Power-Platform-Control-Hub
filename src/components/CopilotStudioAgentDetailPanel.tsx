@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { ReactElement } from 'react';
 import {
   makeStyles,
@@ -15,6 +15,8 @@ import {
   MessageBarBody,
   MessageBarActions,
   Tooltip,
+  Tab,
+  TabList,
   useToastController,
   Toast,
   ToastTitle,
@@ -26,8 +28,6 @@ import {
   ArrowClockwiseRegular,
   InfoFilled,
   ShieldCheckmarkRegular,
-  WarningFilled,
-  ErrorCircleFilled,
   CheckmarkCircleRegular,
   DismissCircleRegular,
   BotRegular,
@@ -56,13 +56,14 @@ import {
   unquarantineBot,
 } from '../services/copilotStudioService.ts';
 import type { BotEnvironmentInfo } from '../services/copilotStudioService.ts';
-import type { AnalysisResult, AnalysisSeverity } from '../services/flowAnalyzer.ts';
-import { resolveUserIds } from '../services/userService.ts';
+import type { AnalysisResult } from '../services/flowAnalyzer.ts';
+import { resolveOwner } from '../services/ownerCache.ts';
 import { extractMessage } from '../utils/errorUtils.ts';
 import { lcidToLabel } from '../utils/lcidUtils.ts';
 import { addSelfAsEnvironmentAdmin } from '../services/environmentMutations.ts';
 import AddSelfAsAdminBanner from './AddSelfAsAdminBanner.tsx';
 import ConfirmDialog from './ConfirmDialog.tsx';
+import AnalysisPosture from './AnalysisPosture.tsx';
 import { hasText, formatSharedSummary, getStringArray, getCapabilityEntries } from '../utils/inventoryFormatters.ts';
 
 interface Props {
@@ -77,14 +78,18 @@ const useStyles = makeStyles({
     flexDirection: 'column',
     height: '100%',
     overflow: 'hidden',
-    backgroundColor: tokens.colorNeutralBackground1,
+    color: '#E5EEF5',
+    backgroundColor: '#060A0F',
+    fontFamily: '"Aptos", "Segoe UI", sans-serif',
   },
   header: {
     display: 'flex',
     alignItems: 'center',
     gap: tokens.spacingHorizontalM,
-    padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalXL}`,
-    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+    padding: `14px ${tokens.spacingHorizontalXL}`,
+    borderBottom: '1px solid #29404F',
+    backgroundColor: '#0C141D',
+    boxShadow: 'inset 3px 0 0 #FFB547',
     flexShrink: 0,
     flexWrap: 'wrap',
     '@media (max-width: 768px)': {
@@ -105,23 +110,32 @@ const useStyles = makeStyles({
     flexWrap: 'wrap',
   },
   title: {
-    fontSize: tokens.fontSizeBase500,
+    fontSize: '20px',
     fontWeight: tokens.fontWeightSemibold,
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
+    color: '#F5FAFD',
   },
   envText: {
-    fontSize: tokens.fontSizeBase200,
-    color: tokens.colorNeutralForeground3,
+    fontSize: '11px',
+    color: '#9CB0BF',
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
   },
   actionBar: {
     display: 'flex',
     alignItems: 'center',
     gap: tokens.spacingHorizontalS,
     padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalXL}`,
-    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+    borderBottom: '1px solid #20313E',
+    backgroundColor: '#111827',
     flexShrink: 0,
+    flexWrap: 'wrap',
+    '& button': {
+      color: '#43D9FF',
+      borderRadius: 0,
+    },
     '@media (max-width: 768px)': {
       padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`,
     },
@@ -129,18 +143,70 @@ const useStyles = makeStyles({
   body: {
     flex: 1,
     overflowY: 'auto',
-    padding: `${tokens.spacingVerticalL} ${tokens.spacingHorizontalXL}`,
+    padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalXL}`,
     width: '100%',
     boxSizing: 'border-box',
     '@media (max-width: 768px)': {
       padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalM}`,
     },
   },
+  postureStrip: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(220px, 1fr) repeat(3, minmax(110px, auto))',
+    gap: '1px',
+    marginBottom: '12px',
+    border: '1px solid #29404F',
+    backgroundColor: '#20313E',
+    '@media (max-width: 820px)': {
+      gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+    },
+  },
+  postureLead: {
+    display: 'grid',
+    gap: '4px',
+    alignContent: 'center',
+    minHeight: '76px',
+    padding: '12px 14px',
+    backgroundColor: '#0C141D',
+  },
+  postureTitle: {
+    color: '#F5FAFD',
+    fontSize: tokens.fontSizeBase400,
+    fontWeight: tokens.fontWeightSemibold,
+  },
+  postureSummary: {
+    color: '#9CB0BF',
+    fontSize: tokens.fontSizeBase200,
+  },
+  postureMetric: {
+    display: 'grid',
+    gap: '2px',
+    alignContent: 'center',
+    minHeight: '76px',
+    padding: '12px 14px',
+    backgroundColor: '#0C141D',
+  },
+  postureValue: {
+    color: '#F5FAFD',
+    fontSize: '22px',
+    lineHeight: '24px',
+    fontWeight: tokens.fontWeightBold,
+    fontVariantNumeric: 'tabular-nums',
+  },
+  postureLabel: {
+    color: '#8DA5B5',
+    fontSize: '10px',
+    fontWeight: tokens.fontWeightSemibold,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+  },
   detailGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(2, 1fr)',
-    gap: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalXL}`,
+    gap: 0,
     alignItems: 'start',
+    borderTop: '1px solid #20313E',
+    borderLeft: '1px solid #20313E',
     '@media (max-width: 768px)': {
       gridTemplateColumns: '1fr',
     },
@@ -148,26 +214,40 @@ const useStyles = makeStyles({
   detailItem: {
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: tokens.spacingVerticalXS,
+    gap: '4px',
     minWidth: 0,
+    minHeight: '58px',
+    padding: '10px 12px',
+    borderRight: '1px solid #20313E',
+    borderBottom: '1px solid #20313E',
+    backgroundColor: '#0C141D',
   },
   detailItemWide: {
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: tokens.spacingVerticalXS,
+    gap: '4px',
     minWidth: 0,
     gridColumn: 'span 2',
+    minHeight: '58px',
+    padding: '10px 12px',
+    borderRight: '1px solid #20313E',
+    borderBottom: '1px solid #20313E',
+    backgroundColor: '#0C141D',
+    '@media (max-width: 768px)': {
+      gridColumn: 'span 1',
+    },
   },
   detailLabel: {
-    fontSize: tokens.fontSizeBase200,
+    fontSize: '10px',
     fontWeight: tokens.fontWeightSemibold,
-    color: tokens.colorNeutralForeground3,
+    color: '#8DA5B5',
     textTransform: 'uppercase',
-    letterSpacing: '0.04em',
+    letterSpacing: '0.1em',
   },
   detailValue: {
     fontSize: tokens.fontSizeBase300,
-    color: tokens.colorNeutralForeground1,
+    color: '#E5EEF5',
+    fontVariantNumeric: 'tabular-nums',
   },
   sectionTitle: {
     fontSize: tokens.fontSizeBase300,
@@ -178,14 +258,13 @@ const useStyles = makeStyles({
   jsonBox: {
     fontFamily: 'Consolas, "Courier New", monospace',
     fontSize: tokens.fontSizeBase200,
-    backgroundColor: tokens.colorNeutralBackground2,
-    border: `1px solid ${tokens.colorNeutralStroke2}`,
-    borderRadius: tokens.borderRadiusMedium,
+    backgroundColor: '#060A0F',
+    border: '1px solid #29404F',
     padding: tokens.spacingHorizontalM,
     overflowX: 'auto',
     whiteSpace: 'pre',
     lineHeight: '1.5',
-    color: tokens.colorNeutralForeground1,
+    color: '#BEEFFF',
     maxHeight: '480px',
     overflowY: 'auto',
   },
@@ -194,8 +273,8 @@ const useStyles = makeStyles({
     alignItems: 'center',
     gap: tokens.spacingHorizontalM,
     padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`,
-    borderRadius: tokens.borderRadiusMedium,
-    backgroundColor: tokens.colorNeutralBackground2,
+    backgroundColor: '#111827',
+    border: '1px solid #29404F',
     marginBottom: tokens.spacingVerticalM,
     flexWrap: 'wrap' as const,
   },
@@ -203,8 +282,7 @@ const useStyles = makeStyles({
     display: 'flex',
     flexDirection: 'column' as const,
     gap: '0',
-    borderRadius: tokens.borderRadiusMedium,
-    border: `1px solid ${tokens.colorNeutralStroke2}`,
+    border: '1px solid #29404F',
     overflow: 'hidden',
   },
   analysisRow: {
@@ -212,20 +290,28 @@ const useStyles = makeStyles({
     alignItems: 'center',
     gap: tokens.spacingHorizontalS,
     padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`,
-    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+    borderBottom: '1px solid #20313E',
     cursor: 'pointer',
     userSelect: 'none' as const,
-    backgroundColor: tokens.colorNeutralBackground1,
-    ':hover': { backgroundColor: tokens.colorNeutralBackground1Hover },
+    backgroundColor: '#0C141D',
+    width: '100%',
+    color: '#E5EEF5',
+    borderTop: 0,
+    borderRight: 0,
+    borderLeft: 0,
+    font: 'inherit',
+    textAlign: 'left',
+    ':hover': { backgroundColor: '#111827', boxShadow: 'inset 1px 0 0 #43D9FF' },
+    ':focus-visible': { outline: '2px solid #43D9FF', outlineOffset: '-2px' },
     ':last-child': { borderBottom: 'none' },
   },
   analysisRowExpanded: {
-    backgroundColor: tokens.colorNeutralBackground2,
+    backgroundColor: '#111827',
   },
   analysisRowDetail: {
     padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalL}`,
-    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
-    backgroundColor: tokens.colorNeutralBackground2,
+    borderBottom: '1px solid #20313E',
+    backgroundColor: '#111827',
     display: 'flex',
     flexDirection: 'column' as const,
     gap: tokens.spacingVerticalS,
@@ -246,19 +332,105 @@ const useStyles = makeStyles({
     color: tokens.colorNeutralForeground2,
     lineHeight: '1.5',
     padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`,
-    borderRadius: tokens.borderRadiusMedium,
-    backgroundColor: tokens.colorNeutralBackground3,
-    borderLeft: `3px solid ${tokens.colorBrandStroke1}`,
+    backgroundColor: '#0C141D',
+    border: '1px solid #29404F',
+    borderLeft: '1px solid #43D9FF',
+  },
+  analysisAction: {
+    width: 'fit-content',
+    color: '#62E6FF',
+    fontSize: tokens.fontSizeBase200,
+    fontWeight: tokens.fontWeightSemibold,
+    textDecorationLine: 'none',
+    ':hover': { textDecorationLine: 'underline' },
+  },
+  analysisChevron: {
+    flexShrink: 0,
+    color: '#8DA5B5',
+    transitionProperty: 'transform',
+    transitionDuration: '160ms',
+    transitionTimingFunction: 'cubic-bezier(.16, 1, .3, 1)',
+  },
+  analysisChevronExpanded: {
+    transform: 'rotate(90deg)',
   },
   accordionCard: {
-    border: `1px solid ${tokens.colorNeutralStroke2}`,
-    borderRadius: tokens.borderRadiusMedium,
+    border: '1px solid #29404F',
     overflow: 'hidden',
-    marginBottom: tokens.spacingVerticalS,
+    marginBottom: '8px',
+    backgroundColor: '#0C141D',
   },
   accordionHeaderTinted: {
-    backgroundColor: tokens.colorNeutralBackground2,
-    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+    minHeight: '42px',
+    color: '#E5EEF5',
+    backgroundColor: '#111827',
+    borderBottom: '1px solid #20313E',
+    ':hover': {
+      color: '#43D9FF',
+      backgroundColor: '#14212D',
+    },
+  },
+  sectionBody: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: tokens.spacingVerticalM,
+    paddingBottom: tokens.spacingVerticalM,
+  },
+  actionRegister: {
+    marginLeft: 'auto',
+    display: 'flex',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalS,
+    flexWrap: 'wrap',
+  },
+  contentTabs: {
+    padding: `0 ${tokens.spacingHorizontalXL}`,
+    borderBottom: '1px solid #29404F',
+    backgroundColor: '#060A0F',
+    flexShrink: 0,
+  },
+  componentStack: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: tokens.spacingVerticalM,
+  },
+  componentRegister: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(160px, 1fr) repeat(3, minmax(64px, auto))',
+    gap: 0,
+    fontSize: tokens.fontSizeBase200,
+    borderTop: '1px solid #29404F',
+    borderLeft: '1px solid #29404F',
+    overflowX: 'auto',
+  },
+  componentHeaderCell: {
+    padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`,
+    fontWeight: tokens.fontWeightSemibold,
+    color: '#9CB0BF',
+    backgroundColor: '#111827',
+    borderRight: '1px solid #29404F',
+    borderBottom: '1px solid #29404F',
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
+  },
+  componentCell: {
+    padding: `${tokens.spacingVerticalXS} ${tokens.spacingHorizontalM}`,
+    borderRight: '1px solid #20313E',
+    borderBottom: '1px solid #20313E',
+    fontVariantNumeric: 'tabular-nums',
+  },
+  componentDirectory: {
+    borderTop: '1px solid #29404F',
+    borderLeft: '1px solid #29404F',
+  },
+  componentRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalS,
+    padding: `${tokens.spacingVerticalXS} ${tokens.spacingHorizontalM}`,
+    borderRight: '1px solid #20313E',
+    borderBottom: '1px solid #20313E',
+    fontSize: tokens.fontSizeBase200,
   },
 });
 
@@ -266,24 +438,6 @@ function formatDate(iso?: string): string {
   if (!iso) return '—';
   try { return new Date(iso).toLocaleString(); } catch { return iso; }
 }
-
-function severityIcon(severity: AnalysisSeverity): ReactElement {
-  if (severity === 'critical') return <ErrorCircleFilled style={{ color: tokens.colorStatusDangerForeground1, flexShrink: 0 }} fontSize={16} />;
-  if (severity === 'warning') return <WarningFilled style={{ color: tokens.colorStatusWarningForeground1, flexShrink: 0 }} fontSize={16} />;
-  return <InfoFilled style={{ color: tokens.colorStatusSuccessForeground1, flexShrink: 0 }} fontSize={16} />;
-}
-
-const SEVERITY_LABEL: Record<AnalysisSeverity, string> = {
-  critical: 'Error',
-  warning: 'Warning',
-  info: 'Info',
-};
-
-const SEVERITY_BADGE_COLOR: Record<AnalysisSeverity, 'danger' | 'warning' | 'success'> = {
-  critical: 'danger',
-  warning: 'warning',
-  info: 'success',
-};
 
 // ── Best practice analysis for Copilot Studio agents ──────────────────────────
 
@@ -461,7 +615,23 @@ function analyzeCopilotAgent(bot: Bots | null, components: BotComponent[]): Anal
 // ── Component types shown in the governance view ─────────────────────────────
 const GOVERNANCE_TYPES = new Set([0, 1, 9, 13, 15, 16, 17, 18, 19]);
 
+const CAPABILITY_LABELS: Record<string, string> = {
+  distinctPowerPlatformConnectorsOperations: 'Connector operations',
+  distinctPowerPlatformConnectors: 'Connectors',
+  distinctFlows: 'Flows',
+};
+
+function formatCapabilityLabel(value: string): string {
+  return CAPABILITY_LABELS[value]
+    ?? value
+      .replace(/^distinct/i, '')
+      .replace(/([A-Z])([A-Z][a-z])/g, '$1 $2')
+      .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+      .trim();
+}
+
 function ComponentsView({ components }: { components: BotComponent[] }): ReactElement {
+  const styles = useStyles();
   // Group by componenttype
   const groups = new Map<number, BotComponent[]>();
   for (const c of components) {
@@ -478,21 +648,13 @@ function ComponentsView({ components }: { components: BotComponent[] }): ReactEl
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalM }}>
+    <div className={styles.componentStack}>
       {/* Summary table */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr auto auto auto',
-        gap: `${tokens.spacingVerticalXS} ${tokens.spacingHorizontalM}`,
-        fontSize: tokens.fontSizeBase200,
-        borderRadius: tokens.borderRadiusMedium,
-        border: `1px solid ${tokens.colorNeutralStroke2}`,
-        overflow: 'hidden',
-      }}>
-        <div style={{ padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`, fontWeight: tokens.fontWeightSemibold, backgroundColor: tokens.colorNeutralBackground2, borderBottom: `1px solid ${tokens.colorNeutralStroke2}` }}>Type</div>
-        <div style={{ padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`, fontWeight: tokens.fontWeightSemibold, backgroundColor: tokens.colorNeutralBackground2, textAlign: 'right', borderBottom: `1px solid ${tokens.colorNeutralStroke2}` }}>Total</div>
-        <div style={{ padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`, fontWeight: tokens.fontWeightSemibold, backgroundColor: tokens.colorNeutralBackground2, textAlign: 'right', borderBottom: `1px solid ${tokens.colorNeutralStroke2}` }}>Active</div>
-        <div style={{ padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`, fontWeight: tokens.fontWeightSemibold, backgroundColor: tokens.colorNeutralBackground2, textAlign: 'right', borderBottom: `1px solid ${tokens.colorNeutralStroke2}` }}>Inactive</div>
+      <div className={styles.componentRegister}>
+        <div className={styles.componentHeaderCell}>Type</div>
+        <div className={styles.componentHeaderCell}>Total</div>
+        <div className={styles.componentHeaderCell}>Active</div>
+        <div className={styles.componentHeaderCell}>Inactive</div>
         {sortedTypes.map((type, idx) => {
           const items = groups.get(type)!;
           const active = items.filter(c => Number(c.statecode) === 0).length;
@@ -501,13 +663,13 @@ function ComponentsView({ components }: { components: BotComponent[] }): ReactEl
           const borderStyle = isLast ? 'none' : `1px solid ${tokens.colorNeutralStroke2}`;
           return (
             <>
-              <div key={`label-${type}`} style={{ padding: `${tokens.spacingVerticalXS} ${tokens.spacingHorizontalM}`, borderBottom: borderStyle }}>
+              <div key={`label-${type}`} className={styles.componentCell} style={{ borderBottom: borderStyle }}>
                 {GOVERNANCE_TYPES.has(type) && <BookOpenRegular fontSize={12} style={{ marginRight: 4, verticalAlign: 'middle', color: tokens.colorBrandForeground1 }} />}
                 {COMPONENT_TYPE_LABELS[type] ?? `Type ${type}`}
               </div>
-              <div key={`total-${type}`} style={{ padding: `${tokens.spacingVerticalXS} ${tokens.spacingHorizontalM}`, textAlign: 'right', borderBottom: borderStyle }}>{items.length}</div>
-              <div key={`active-${type}`} style={{ padding: `${tokens.spacingVerticalXS} ${tokens.spacingHorizontalM}`, textAlign: 'right', color: tokens.colorStatusSuccessForeground1, borderBottom: borderStyle }}>{active > 0 ? active : '—'}</div>
-              <div key={`inactive-${type}`} style={{ padding: `${tokens.spacingVerticalXS} ${tokens.spacingHorizontalM}`, textAlign: 'right', color: inactive > 0 ? tokens.colorStatusWarningForeground1 : tokens.colorNeutralForeground3, borderBottom: borderStyle }}>
+              <div key={`total-${type}`} className={styles.componentCell} style={{ textAlign: 'right', borderBottom: borderStyle }}>{items.length}</div>
+              <div key={`active-${type}`} className={styles.componentCell} style={{ textAlign: 'right', color: tokens.colorStatusSuccessForeground1, borderBottom: borderStyle }}>{active > 0 ? active : '—'}</div>
+              <div key={`inactive-${type}`} className={styles.componentCell} style={{ textAlign: 'right', color: inactive > 0 ? tokens.colorStatusWarningForeground1 : tokens.colorNeutralForeground3, borderBottom: borderStyle }}>
                 {inactive > 0 ? inactive : '—'}
               </div>
             </>
@@ -523,23 +685,12 @@ function ComponentsView({ components }: { components: BotComponent[] }): ReactEl
             <Text style={{ fontWeight: tokens.fontWeightSemibold, fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground2, display: 'block', marginBottom: tokens.spacingVerticalXS }}>
               {COMPONENT_TYPE_LABELS[type] ?? `Type ${type}`} ({items.length})
             </Text>
-            <div style={{
-              borderRadius: tokens.borderRadiusMedium,
-              border: `1px solid ${tokens.colorNeutralStroke2}`,
-              overflow: 'hidden',
-            }}>
+            <div className={styles.componentDirectory}>
               {items.map((comp, i) => {
                 const isActive = Number(comp.statecode) === 0;
                 const isLast = i === items.length - 1;
                 return (
-                  <div key={comp.botcomponentid ?? i} style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: tokens.spacingHorizontalS,
-                    padding: `${tokens.spacingVerticalXS} ${tokens.spacingHorizontalM}`,
-                    borderBottom: isLast ? 'none' : `1px solid ${tokens.colorNeutralStroke2}`,
-                    fontSize: tokens.fontSizeBase200,
-                  }}>
+                  <div key={comp.botcomponentid ?? i} className={styles.componentRow} style={{ borderBottom: isLast ? 'none' : `1px solid ${tokens.colorNeutralStroke2}` }}>
                     {isActive
                       ? <CheckmarkCircleRegular fontSize={14} style={{ color: tokens.colorStatusSuccessForeground1, flexShrink: 0 }} />
                       : <DismissCircleRegular fontSize={14} style={{ color: tokens.colorStatusWarningForeground1, flexShrink: 0 }} />
@@ -567,6 +718,7 @@ function ComponentsView({ components }: { components: BotComponent[] }): ReactEl
 export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDeleted }: Props): ReactElement {
   const styles = useStyles();
   const { dispatchToast } = useToastController();
+  const bodyRef = useRef<HTMLDivElement>(null);
 
   const displayName = (resource.properties.displayName as string) ?? resource.name;
   const envId = (resource.properties.environmentId as string) ?? '';
@@ -586,8 +738,10 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
 
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [expandedAnalysis, setExpandedAnalysis] = useState<Set<string>>(new Set());
-  const [openSections, setOpenSections] = useState<string[]>(['details', 'inventory', 'analysis']);
+  const [confirmQuarantine, setConfirmQuarantine] = useState(false);
+  const [openSections, setOpenSections] = useState<string[]>(['details']);
+  const [contentTab, setContentTab] = useState<'overview' | 'analysis'>('overview');
+  const [componentsError, setComponentsError] = useState<string | null>(null);
 
   const [addingAdmin, setAddingAdmin] = useState(false);
   const [addAdminError, setAddAdminError] = useState<string | null>(null);
@@ -600,6 +754,7 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
     setBotLoading(true);
     setBotError(null);
     setComponents([]);
+    setComponentsError(null);
     setResolvedOwner(null);
     setDataverseError(null);
     try {
@@ -623,8 +778,7 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
       // Resolve owner GUID to display name (best-effort)
       if (result.bot?._ownerid_value) {
         try {
-          const names = await resolveUserIds([result.bot._ownerid_value]);
-          setResolvedOwner(names.get(result.bot._ownerid_value) ?? null);
+          setResolvedOwner(await resolveOwner(result.bot._ownerid_value, envId));
         } catch {
           // non-critical
         }
@@ -636,8 +790,10 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
         try {
           const comps = await fetchBotComponents(envInstanceUrl, result.bot.botid);
           setComponents(comps);
-        } catch {
-          // components are optional
+        } catch (error) {
+          setComponentsError(
+            extractMessage(error instanceof Error ? error.message : 'Agent components could not be loaded.'),
+          );
         } finally {
           setComponentsLoading(false);
         }
@@ -661,6 +817,10 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
   useEffect(() => {
     void loadDetails();
   }, []);
+
+  useEffect(() => {
+    bodyRef.current?.scrollTo({ top: 0 });
+  }, [resource.id]);
 
   async function handleMakeAdmin() {
     setAddingAdmin(true);
@@ -726,14 +886,6 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
     }
   }
 
-  function toggleAnalysis(id: string) {
-    setExpandedAnalysis((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  }
-
   const analysis = analyzeCopilotAgent(bot, components);
 
   // Parse configuration JSON for display
@@ -759,6 +911,7 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
   const inventoryViewers = formatSharedSummary(inventoryProps.sharedWithViewers);
   const inventoryEditors = formatSharedSummary(inventoryProps.sharedWithEditors);
   const inventoryCapabilities = getCapabilityEntries(inventoryProps.capabilitiesCounts);
+  const meaningfulCapabilities = inventoryCapabilities.filter(([, count]) => Number(count) > 0);
   const hasInventoryDetails = [
     hasText(inventoryProps.orchestration),
     hasText(inventoryProps.model),
@@ -772,6 +925,7 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
     hasText(inventoryProps.entraAgentBlueprintId),
     inventoryCapabilities.length > 0,
   ].some(Boolean);
+  const copilotStudioUrl = `https://copilotstudio.microsoft.com/environments/${envId}/bots/${botName}/overview`;
 
   return (
     <>
@@ -787,7 +941,7 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
               <Tooltip content={displayName} relationship="label">
                 <Text className={styles.title}>{displayName}</Text>
               </Tooltip>
-              <Badge appearance="tint" color="success" size="small">Copilot Studio Agent</Badge>
+              <Badge appearance="tint" color="informative" size="small">Copilot Studio Agent</Badge>
               {agentHarnessLabel && (
                 <Badge
                   appearance="tint"
@@ -814,7 +968,7 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
               )}
             </div>
             {resource.environmentName && (
-              <Text className={styles.envText}>🌐 {resource.environmentName}</Text>
+              <Text className={styles.envText}>{resource.environmentName}</Text>
             )}
           </div>
         </div>
@@ -828,17 +982,24 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
             onClick={() => void loadDetails()}
             size="small"
           >
-            {botLoading ? 'Analyzing…' : 'Re-analyze'}
+            {botLoading ? 'Refreshing…' : 'Refresh agent'}
           </Button>
           <AddSelfAsAdminBanner environmentId={envId} variant="inline" onChanged={() => void loadDetails()} />
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS }}>
+          <div className={styles.actionRegister}>
             <Button
               appearance="subtle"
               icon={actionLoading === 'quarantine' || actionLoading === 'unquarantine'
                 ? <Spinner size="tiny" />
                 : isQuarantined ? <LockOpenRegular /> : <LockClosedRegular />}
               disabled={actionLoading !== null || isQuarantined === null}
-              onClick={() => void handleQuarantine()}
+              onClick={() => {
+                if (isQuarantined) {
+                  void handleQuarantine();
+                } else {
+                  setConfirmQuarantine(true);
+                }
+              }}
+              title={isQuarantined === null ? 'Quarantine status is unavailable for this agent.' : undefined}
               size="small"
             >
               {isQuarantined ? 'Unquarantine' : 'Quarantine'}
@@ -856,8 +1017,18 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
           </div>
         </div>
 
+        <div className={styles.contentTabs}>
+          <TabList
+            selectedValue={contentTab}
+            onTabSelect={(_, data) => setContentTab(data.value as 'overview' | 'analysis')}
+          >
+            <Tab value="overview">Overview</Tab>
+            <Tab value="analysis" icon={<ShieldCheckmarkRegular />}>Analysis</Tab>
+          </TabList>
+        </div>
+
         {/* Body */}
-        <div className={styles.body}>
+        <div ref={bodyRef} className={styles.body}>
           {botLoading && (
             <Spinner size="small" label="Loading agent details…" style={{ marginBottom: tokens.spacingVerticalM }} />
           )}
@@ -912,6 +1083,18 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
             );
           })()}
 
+          {contentTab === 'analysis' ? (
+            <div className={styles.sectionBody}>
+              <AnalysisPosture
+                results={analysis}
+                title="Copilot Studio agent posture"
+                description="Governance signals derived from access, publishing, testing, grounding, and component configuration."
+                isLoading={botLoading}
+                emptyDescription="This agent follows the evaluated governance practices."
+                action={{ label: 'Resolve in Copilot Studio', href: copilotStudioUrl }}
+              />
+            </div>
+          ) : (
           <Accordion
             multiple
             collapsible
@@ -924,7 +1107,7 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
                 Agent Details
               </AccordionHeader>
               <AccordionPanel>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalM, paddingBottom: tokens.spacingVerticalM }}>
+                <div className={styles.sectionBody}>
                   <div className={styles.detailGrid}>
                     <div className={styles.detailItem}>
                       <span className={styles.detailLabel}>Display Name</span>
@@ -1037,24 +1220,6 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
                       </div>
                     )}
 
-                    {bot?.schemaname && (
-                      <div className={styles.detailItem}>
-                        <span className={styles.detailLabel}>Schema Name</span>
-                        <span className={styles.detailValue} style={{ fontSize: tokens.fontSizeBase200, wordBreak: 'break-all', color: tokens.colorNeutralForeground3 }}>
-                          {bot.schemaname}
-                        </span>
-                      </div>
-                    )}
-
-                    {bot?.authorizedsecuritygroupids && (
-                      <div className={styles.detailItem}>
-                        <span className={styles.detailLabel}>Authorized Groups</span>
-                        <span className={styles.detailValue} style={{ fontSize: tokens.fontSizeBase200, wordBreak: 'break-all', color: tokens.colorNeutralForeground3 }}>
-                          {bot.authorizedsecuritygroupids}
-                        </span>
-                      </div>
-                    )}
-
                     <div className={styles.detailItem}>
                       <span className={styles.detailLabel}>Environment</span>
                       <span className={styles.detailValue}>
@@ -1062,21 +1227,6 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
                       </span>
                     </div>
 
-                    {instanceUrl && (
-                      <div className={styles.detailItem}>
-                        <span className={styles.detailLabel}>Dataverse URL</span>
-                        <span className={styles.detailValue} style={{ fontSize: tokens.fontSizeBase200, wordBreak: 'break-all', color: tokens.colorNeutralForeground3 }}>
-                          {instanceUrl}
-                        </span>
-                      </div>
-                    )}
-
-                    <div className={styles.detailItem}>
-                      <span className={styles.detailLabel}>Agent ID</span>
-                      <span className={styles.detailValue} style={{ fontSize: tokens.fontSizeBase200, wordBreak: 'break-all', color: tokens.colorNeutralForeground3 }}>
-                        {bot?.botid ?? botName}
-                      </span>
-                    </div>
                   </div>
 
                   {!bot && !botLoading && !botError && (
@@ -1163,40 +1313,17 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
                         </div>
                       )}
 
-                      {hasText(inventoryProps.entraAppId) && (
-                        <div className={styles.detailItem}>
-                          <span className={styles.detailLabel}>Entra App ID</span>
-                          <span className={styles.detailValue} style={{ fontSize: tokens.fontSizeBase200, wordBreak: 'break-all', fontFamily: 'Consolas, "Courier New", monospace', color: tokens.colorNeutralForeground3 }}>
-                            {inventoryProps.entraAppId}
-                          </span>
-                        </div>
-                      )}
-
-                      {hasText(inventoryProps.entraAgentId) && (
-                        <div className={styles.detailItem}>
-                          <span className={styles.detailLabel}>Entra Agent ID</span>
-                          <span className={styles.detailValue} style={{ fontSize: tokens.fontSizeBase200, wordBreak: 'break-all', fontFamily: 'Consolas, "Courier New", monospace', color: tokens.colorNeutralForeground3 }}>
-                            {inventoryProps.entraAgentId}
-                          </span>
-                        </div>
-                      )}
-
-                      {hasText(inventoryProps.entraAgentBlueprintId) && (
-                        <div className={styles.detailItem}>
-                          <span className={styles.detailLabel}>Entra Blueprint ID</span>
-                          <span className={styles.detailValue} style={{ fontSize: tokens.fontSizeBase200, wordBreak: 'break-all', fontFamily: 'Consolas, "Courier New", monospace', color: tokens.colorNeutralForeground3 }}>
-                            {inventoryProps.entraAgentBlueprintId}
-                          </span>
-                        </div>
-                      )}
-
                       {inventoryCapabilities.length > 0 && (
                         <div className={styles.detailItemWide}>
-                          <span className={styles.detailLabel}>Capabilities</span>
+                          <span className={styles.detailLabel}>Connected Resources</span>
                           <span className={styles.detailValue} style={{ display: 'flex', flexWrap: 'wrap', gap: tokens.spacingHorizontalXS }}>
-                            {inventoryCapabilities.map(([name, count]) => (
-                              <Badge key={name} appearance="tint" color="brand" size="small">{name}: {count}</Badge>
-                            ))}
+                            {meaningfulCapabilities.length > 0
+                              ? meaningfulCapabilities.map(([name, count]) => (
+                                  <Badge key={name} appearance="tint" color="brand" size="small">
+                                    {formatCapabilityLabel(name)}: {count}
+                                  </Badge>
+                                ))
+                              : 'No connector or flow dependencies detected.'}
                           </span>
                         </div>
                       )}
@@ -1214,11 +1341,55 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
               <AccordionHeader expandIconPosition="end" icon={<CodeRegular />} className={styles.accordionHeaderTinted}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS }}>
                   <BrainRegular fontSize={16} />
-                  Definition (Configuration)
+                  Technical details
                 </span>
               </AccordionHeader>
               <AccordionPanel>
-                <div style={{ paddingBottom: tokens.spacingVerticalL }}>
+                <div className={styles.sectionBody}>
+                  <div className={styles.detailGrid}>
+                    <div className={styles.detailItem}>
+                      <span className={styles.detailLabel}>Agent ID</span>
+                      <span className={styles.detailValue} style={{ fontFamily: tokens.fontFamilyMonospace, fontSize: tokens.fontSizeBase200, wordBreak: 'break-all' }}>
+                        {bot?.botid ?? botName}
+                      </span>
+                    </div>
+                    {bot?.schemaname && (
+                      <div className={styles.detailItem}>
+                        <span className={styles.detailLabel}>Schema Name</span>
+                        <span className={styles.detailValue} style={{ fontFamily: tokens.fontFamilyMonospace, fontSize: tokens.fontSizeBase200, wordBreak: 'break-all' }}>{bot.schemaname}</span>
+                      </div>
+                    )}
+                    {instanceUrl && (
+                      <div className={styles.detailItemWide}>
+                        <span className={styles.detailLabel}>Dataverse URL</span>
+                        <span className={styles.detailValue} style={{ fontFamily: tokens.fontFamilyMonospace, fontSize: tokens.fontSizeBase200, wordBreak: 'break-all' }}>{instanceUrl}</span>
+                      </div>
+                    )}
+                    {hasText(inventoryProps.entraAppId) && (
+                      <div className={styles.detailItem}>
+                        <span className={styles.detailLabel}>Entra App ID</span>
+                        <span className={styles.detailValue} style={{ fontFamily: tokens.fontFamilyMonospace, fontSize: tokens.fontSizeBase200, wordBreak: 'break-all' }}>{inventoryProps.entraAppId}</span>
+                      </div>
+                    )}
+                    {hasText(inventoryProps.entraAgentId) && (
+                      <div className={styles.detailItem}>
+                        <span className={styles.detailLabel}>Entra Agent ID</span>
+                        <span className={styles.detailValue} style={{ fontFamily: tokens.fontFamilyMonospace, fontSize: tokens.fontSizeBase200, wordBreak: 'break-all' }}>{inventoryProps.entraAgentId}</span>
+                      </div>
+                    )}
+                    {hasText(inventoryProps.entraAgentBlueprintId) && (
+                      <div className={styles.detailItem}>
+                        <span className={styles.detailLabel}>Entra Blueprint ID</span>
+                        <span className={styles.detailValue} style={{ fontFamily: tokens.fontFamilyMonospace, fontSize: tokens.fontSizeBase200, wordBreak: 'break-all' }}>{inventoryProps.entraAgentBlueprintId}</span>
+                      </div>
+                    )}
+                    {bot?.authorizedsecuritygroupids && (
+                      <div className={styles.detailItemWide}>
+                        <span className={styles.detailLabel}>Authorized Security Group IDs</span>
+                        <span className={styles.detailValue} style={{ fontFamily: tokens.fontFamilyMonospace, fontSize: tokens.fontSizeBase200, wordBreak: 'break-all' }}>{bot.authorizedsecuritygroupids}</span>
+                      </div>
+                    )}
+                  </div>
                   {botLoading ? (
                     <Spinner size="tiny" label="Loading configuration…" />
                   ) : bot?.configuration ? (
@@ -1250,79 +1421,6 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
             </AccordionItem>
             )}
 
-            {/* ── Best Practice Analysis ── */}
-            {(!botError || bot) && (
-            <AccordionItem value="analysis" className={styles.accordionCard}>
-              <AccordionHeader expandIconPosition="end" icon={<ShieldCheckmarkRegular />} className={styles.accordionHeaderTinted}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS }}>
-                  Best Practice Analysis
-                  {!botLoading && analysis.length > 0 && (() => {
-                    const errs = analysis.filter(a => a.severity === 'critical').length;
-                    const warns = analysis.filter(a => a.severity === 'warning').length;
-                    const infs = analysis.filter(a => a.severity === 'info').length;
-                    return (
-                      <>
-                        <Badge appearance="filled" color="subtle" size="small">{errs} error{errs !== 1 ? 's' : ''}</Badge>
-                        <Badge appearance="filled" color="subtle" size="small">{warns} warning{warns !== 1 ? 's' : ''}</Badge>
-                        <Badge appearance="filled" color="subtle" size="small">{infs} info</Badge>
-                      </>
-                    );
-                  })()}
-                </span>
-              </AccordionHeader>
-              <AccordionPanel>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalS, paddingBottom: tokens.spacingVerticalL }}>
-                  {botLoading ? (
-                    <Spinner size="tiny" label="Running analysis…" />
-                  ) : analysis.length === 0 ? (
-                    <div className={styles.analysisSummary}>
-                      <CheckmarkCircleRegular fontSize={20} style={{ color: tokens.colorStatusSuccessForeground1 }} />
-                      <Text>
-                        {bot
-                          ? 'All checks passed. No issues found.'
-                          : 'Dataverse record not available — analysis requires bot data from Dataverse.'
-                        }
-                      </Text>
-                    </div>
-                  ) : (
-                    <>
-                      <div className={styles.analysisList}>
-                        {[...analysis].sort((a, b) => {
-                          const order = { critical: 0, warning: 1, info: 2 };
-                          return (order[a.severity] ?? 3) - (order[b.severity] ?? 3);
-                        }).map((item) => {
-                          const isExpanded = expandedAnalysis.has(item.id);
-                          return (
-                            <div key={item.id}>
-                              <div
-                                className={`${styles.analysisRow}${isExpanded ? ` ${styles.analysisRowExpanded}` : ''}`}
-                                onClick={() => toggleAnalysis(item.id)}
-                              >
-                                {severityIcon(item.severity)}
-                                <Text className={styles.analysisTitle}>{item.title}</Text>
-                                <Badge appearance="tint" color={SEVERITY_BADGE_COLOR[item.severity]} size="small">
-                                  {SEVERITY_LABEL[item.severity]}
-                                </Badge>
-                              </div>
-                              {isExpanded && (
-                                <div className={styles.analysisRowDetail}>
-                                  <Text className={styles.analysisDesc}>{item.description}</Text>
-                                  {item.recommendation && (
-                                    <Text className={styles.analysisRec}>💡 {item.recommendation}</Text>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </>
-                  )}
-                </div>
-              </AccordionPanel>
-            </AccordionItem>
-            )}
-
             {/* ── Components ── */}
             {(!botError || bot) && (
             <AccordionItem value="components" className={styles.accordionCard}>
@@ -1335,9 +1433,13 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
                 </span>
               </AccordionHeader>
               <AccordionPanel>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalM, paddingBottom: tokens.spacingVerticalL }}>
+                <div className={styles.sectionBody}>
                   {(botLoading || componentsLoading) ? (
                     <Spinner size="tiny" label="Loading components…" />
+                  ) : componentsError ? (
+                    <MessageBar intent="warning">
+                      <MessageBarBody>Agent components could not be loaded: {componentsError}</MessageBarBody>
+                    </MessageBar>
                   ) : components.length === 0 ? (
                     <Text style={{ color: tokens.colorNeutralForeground3 }}>No components found for this agent.</Text>
                   ) : (
@@ -1348,8 +1450,22 @@ export default function CopilotStudioAgentDetailPanel({ resource, onClose, onDel
             </AccordionItem>
             )}
           </Accordion>
+          )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmQuarantine}
+        title={`Quarantine ${displayName}?`}
+        message="Quarantining prevents this agent from serving users until an administrator removes the quarantine. The agent and its configuration are retained."
+        confirmLabel="Quarantine agent"
+        isDangerous
+        onConfirm={() => {
+          setConfirmQuarantine(false);
+          void handleQuarantine();
+        }}
+        onCancel={() => setConfirmQuarantine(false)}
+      />
 
       <ConfirmDialog
         open={confirmDelete}
