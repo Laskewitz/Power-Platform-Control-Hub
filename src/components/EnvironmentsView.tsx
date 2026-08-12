@@ -176,6 +176,7 @@ const useStyles = makeStyles({
     gap: 0,
     borderTop: '1px solid #29404F',
     borderBottom: '1px solid #29404F',
+    overflowX: 'hidden',
     overflowY: 'auto',
     flex: 1,
     backgroundColor: tokens.colorNeutralBackground1,

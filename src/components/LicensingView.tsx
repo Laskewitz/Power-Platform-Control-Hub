@@ -3,6 +3,13 @@ import type { ReactElement } from 'react';
 import {
   Badge,
   Button,
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogContent,
+  DialogSurface,
+  DialogTitle,
+  Field,
   Input,
   MessageBar,
   MessageBarBody,
@@ -22,13 +29,11 @@ import {
   MoneyRegular,
   PersonWarningRegular,
   SearchRegular,
-  SaveRegular,
 } from '@fluentui/react-icons';
 import type { LicensingSnapshot } from '../types/admin.ts';
 import type { Resource } from '../types/inventory.ts';
 import {
   fetchHarnessEnvironmentLicensing,
-  getHarnessAgents,
   updateCopilotCreditAllocation,
 } from '../services/licensingService.ts';
 import type { HarnessEnvironmentLicensing } from '../services/licensingService.ts';
@@ -273,12 +278,51 @@ const useStyles = makeStyles({
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
+    flexWrap: 'wrap',
   },
-  allocationInput: { width: '132px' },
-  guidance: {
-    maxWidth: '78ch',
+  allocationValue: {
+    color: tokens.colorNeutralForeground1,
+    fontVariantNumeric: 'tabular-nums',
+    fontWeight: tokens.fontWeightSemibold,
+  },
+  dialogSurface: {
+    maxWidth: '440px',
+    width: 'min(440px, 95vw)',
+  },
+  dialogContent: {
+    display: 'grid',
+    gap: tokens.spacingVerticalM,
+  },
+  dialogCopy: {
     color: tokens.colorNeutralForeground2,
     lineHeight: '20px',
+  },
+  creditOverview: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+    border: `1px solid ${tokens.colorNeutralStroke1}`,
+    backgroundColor: tokens.colorNeutralStroke2,
+    gap: '1px',
+    '@media (max-width: 620px)': { gridTemplateColumns: '1fr' },
+  },
+  creditMetric: {
+    display: 'grid',
+    gap: '4px',
+    padding: '16px 18px',
+    backgroundColor: tokens.colorNeutralBackground1,
+  },
+  creditValue: {
+    color: tokens.colorNeutralForeground1,
+    fontSize: tokens.fontSizeBase500,
+    fontWeight: tokens.fontWeightBold,
+    fontVariantNumeric: 'tabular-nums',
+  },
+  creditLabel: {
+    color: tokens.colorNeutralForeground3,
+    fontSize: tokens.fontSizeBase100,
+    fontWeight: tokens.fontWeightSemibold,
+    textTransform: 'uppercase',
+    letterSpacing: '0.06em',
   },
 });
 
@@ -344,11 +388,19 @@ export default function LicensingView({
   const [activeTab, setActiveTab] = useState<LicensingTab>('capacity');
   const [search, setSearch] = useState('');
   const [harnessEnvironments, setHarnessEnvironments] = useState<HarnessEnvironmentLicensing[]>([]);
-  const [allocationDrafts, setAllocationDrafts] = useState<Record<string, string>>({});
+  const [editingEnvironment, setEditingEnvironment] = useState<HarnessEnvironmentLicensing | null>(null);
+  const [allocationDraft, setAllocationDraft] = useState('');
+  const [allocationValidationError, setAllocationValidationError] = useState<string>();
   const [harnessError, setHarnessError] = useState<string | null>(null);
   const [isHarnessLoading, setIsHarnessLoading] = useState(false);
   const [savingEnvironmentId, setSavingEnvironmentId] = useState<string>();
-  const harnessAgents = useMemo(() => getHarnessAgents(resources), [resources]);
+  const copilotCredits = useMemo(
+    () => snapshot?.currencies.find((currency) => currency.currencyType === 'MCSMessages'),
+    [snapshot],
+  );
+  const availableCopilotCredits = copilotCredits
+    ? Math.max(0, copilotCredits.purchased - copilotCredits.allocated)
+    : undefined;
 
   const loadHarnessEnvironments = useCallback(async () => {
     setIsHarnessLoading(true);
@@ -356,14 +408,8 @@ export default function LicensingView({
     try {
       const next = await fetchHarnessEnvironmentLicensing(environments, resources);
       setHarnessEnvironments(next);
-      setAllocationDrafts(Object.fromEntries(
-        next.map((item) => [
-          item.environmentId,
-          item.allocatedCredits === undefined ? '' : String(item.allocatedCredits),
-        ]),
-      ));
     } catch (reason: unknown) {
-      setHarnessError(reason instanceof Error ? reason.message : 'Harness environment licensing could not be loaded.');
+      setHarnessError(reason instanceof Error ? reason.message : 'Agent capacity information could not be loaded.');
     } finally {
       setIsHarnessLoading(false);
     }
@@ -374,9 +420,20 @@ export default function LicensingView({
   }, [loadHarnessEnvironments]);
 
   async function saveAllocation(item: HarnessEnvironmentLicensing): Promise<void> {
-    const allocatedCredits = Number(allocationDrafts[item.environmentId]?.trim() ?? '');
+    const allocatedCredits = Number(allocationDraft.trim());
     if (!Number.isInteger(allocatedCredits) || allocatedCredits < 0) {
-      setHarnessError('Reserved Copilot Credits must be a whole number of zero or greater.');
+      setAllocationValidationError('Enter a whole number of zero or greater.');
+      return;
+    }
+    const maximumReservation = availableCopilotCredits === undefined || item.allocatedCredits === undefined
+      ? undefined
+      : availableCopilotCredits + item.allocatedCredits;
+    if (maximumReservation === undefined) {
+      setAllocationValidationError('Tenant credit availability is not currently available. Refresh licensing and try again.');
+      return;
+    }
+    if (allocatedCredits > maximumReservation) {
+      setAllocationValidationError(`You can reserve up to ${formatNumber(maximumReservation)} credits for this environment.`);
       return;
     }
 
@@ -389,7 +446,9 @@ export default function LicensingView({
           ? { ...environment, allocatedCredits: saved, allocationError: undefined }
           : environment,
       ));
-      setAllocationDrafts((current) => ({ ...current, [item.environmentId]: String(saved) }));
+      setEditingEnvironment(null);
+      setAllocationDraft('');
+      setAllocationValidationError(undefined);
       await onRefresh();
     } catch (reason: unknown) {
       setHarnessError(reason instanceof Error ? reason.message : 'The Copilot Credit allocation could not be updated.');
@@ -499,7 +558,7 @@ export default function LicensingView({
                 aria-label="Licensing registers"
               >
                 <Tab value="capacity" icon={<DatabaseRegular />}>Capacity</Tab>
-                <Tab value="harness" icon={<BotRegular />}>Harness agents</Tab>
+                <Tab value="harness" icon={<BotRegular />}>Agent capacity</Tab>
                 <Tab value="entitlements" icon={<KeyRegular />}>Entitlements</Tab>
                 <Tab value="compliance" icon={<PersonWarningRegular />}>Compliance</Tab>
               </TabList>
@@ -618,19 +677,29 @@ export default function LicensingView({
 
             {activeTab === 'harness' && (
               <div className={styles.boardGrid}>
-                <MessageBar intent="info">
-                  <MessageBarBody>
-                    Classify each affected environment as maker development or funded production before changing capacity. Development needs a deliberate spending boundary; production controls should reflect accountable ownership, funding, expected usage, and service criticality.
-                  </MessageBarBody>
-                </MessageBar>
+                <section className={styles.creditOverview} aria-label="Tenant Copilot Credit availability">
+                  <div className={styles.creditMetric}>
+                    <Text className={styles.creditValue}>
+                      {copilotCredits ? formatNumber(copilotCredits.purchased) : 'Unavailable'}
+                    </Text>
+                    <Text className={styles.creditLabel}>Tenant credits</Text>
+                  </div>
+                  <div className={styles.creditMetric}>
+                    <Text className={styles.creditValue}>
+                      {copilotCredits ? formatNumber(copilotCredits.allocated) : 'Unavailable'}
+                    </Text>
+                    <Text className={styles.creditLabel}>Reserved</Text>
+                  </div>
+                  <div className={styles.creditMetric}>
+                    <Text className={styles.creditValue}>
+                      {availableCopilotCredits === undefined ? 'Unavailable' : formatNumber(availableCopilotCredits)}
+                    </Text>
+                    <Text className={styles.creditLabel}>Available to reserve</Text>
+                  </div>
+                </section>
                 <section className={styles.monitor}>
                   <div className={styles.monitorHeader}>
-                    <BotRegular /> GitHub Copilot harness environments
-                  </div>
-                  <div className={styles.emptyInline}>
-                    <Text className={styles.guidance}>
-                      {harnessAgents.length} harness {harnessAgents.length === 1 ? 'agent' : 'agents'} detected through the inventory <code>isCLIAgent</code> property. Reserved credits and linked pay-as-you-go policies are read with Admin V2 connector actions.
-                    </Text>
+                    <BotRegular /> Environments
                   </div>
                   {harnessEnvironments.length ? (
                     <div className={styles.tableScroll}>
@@ -657,27 +726,27 @@ export default function LicensingView({
                               <td className={styles.td}>{item.ownerCount || 'Not identified'}</td>
                               <td className={styles.td}>
                                 <div className={styles.allocationControl} title={item.allocationError}>
-                                  <Input
-                                    className={styles.allocationInput}
-                                    type="number"
-                                    min={0}
-                                    step={1}
-                                    value={allocationDrafts[item.environmentId] ?? ''}
-                                    placeholder={item.allocationError ? 'Not reserved' : undefined}
-                                    aria-label={`Reserved Copilot Credits for ${item.environmentName}`}
-                                    onChange={(_, data) => setAllocationDrafts((current) => ({
-                                      ...current,
-                                      [item.environmentId]: data.value,
-                                    }))}
-                                  />
+                                  <span className={styles.allocationValue}>
+                                    {item.allocatedCredits === undefined ? 'Unavailable' : formatNumber(item.allocatedCredits)}
+                                  </span>
                                   <Button
                                     appearance="subtle"
                                     size="small"
-                                    icon={<SaveRegular />}
-                                    aria-label={`Save reserved Copilot Credits for ${item.environmentName}`}
-                                    disabled={savingEnvironmentId !== undefined}
-                                    onClick={() => void saveAllocation(item)}
-                                  />
+                                    aria-label={`Change reserved Copilot Credits for ${item.environmentName}`}
+                                    disabled={
+                                      savingEnvironmentId !== undefined
+                                      || item.allocatedCredits === undefined
+                                      || availableCopilotCredits === undefined
+                                    }
+                                    onClick={() => {
+                                      setHarnessError(null);
+                                      setEditingEnvironment(item);
+                                      setAllocationDraft(item.allocatedCredits === undefined ? '0' : String(item.allocatedCredits));
+                                      setAllocationValidationError(undefined);
+                                    }}
+                                  >
+                                    Change
+                                  </Button>
                                 </div>
                               </td>
                               <td className={styles.td}>
@@ -697,13 +766,82 @@ export default function LicensingView({
                   ) : (
                     <div className={styles.emptyInline}>
                       {isHarnessLoading
-                        ? 'Loading harness environment controls…'
-                        : 'No GitHub Copilot harness agents were found in the current inventory.'}
+                        ? 'Loading agent capacity…'
+                        : 'No agent environments were found.'}
                     </div>
                   )}
                 </section>
               </div>
             )}
+
+            <Dialog
+              open={editingEnvironment !== null}
+              onOpenChange={(_, data) => {
+                if (!data.open && savingEnvironmentId === undefined) {
+                  setEditingEnvironment(null);
+                  setAllocationDraft('');
+                  setAllocationValidationError(undefined);
+                }
+              }}
+            >
+              <DialogSurface className={styles.dialogSurface}>
+                <DialogBody>
+                  <DialogTitle>Change reserved credits</DialogTitle>
+                  <DialogContent className={styles.dialogContent}>
+                    <Text className={styles.dialogCopy}>
+                      Set the number of Copilot Credits reserved for {editingEnvironment?.environmentName}.
+                      {' '}You currently have {availableCopilotCredits === undefined
+                        ? 'no availability data'
+                        : `${formatNumber(availableCopilotCredits)} tenant credits available to reserve`}.
+                    </Text>
+                    <Field
+                      label="Reserved Copilot Credits"
+                      validationMessage={allocationValidationError}
+                      validationState={allocationValidationError ? 'error' : 'none'}
+                    >
+                      <Input
+                        type="number"
+                        min={0}
+                        max={
+                          availableCopilotCredits === undefined || editingEnvironment?.allocatedCredits === undefined
+                            ? undefined
+                            : availableCopilotCredits + editingEnvironment.allocatedCredits
+                        }
+                        step={1}
+                        value={allocationDraft}
+                        aria-label={`Reserved Copilot Credits for ${editingEnvironment?.environmentName ?? 'environment'}`}
+                        onChange={(_, data) => {
+                          setAllocationDraft(data.value);
+                          setAllocationValidationError(undefined);
+                        }}
+                      />
+                    </Field>
+                  </DialogContent>
+                  <DialogActions>
+                    <Button
+                      appearance="secondary"
+                      disabled={savingEnvironmentId !== undefined}
+                      onClick={() => {
+                        setEditingEnvironment(null);
+                        setAllocationDraft('');
+                        setAllocationValidationError(undefined);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      appearance="primary"
+                      disabled={savingEnvironmentId !== undefined || editingEnvironment === null}
+                      onClick={() => {
+                        if (editingEnvironment) void saveAllocation(editingEnvironment);
+                      }}
+                    >
+                      {savingEnvironmentId !== undefined ? 'Saving…' : 'Save'}
+                    </Button>
+                  </DialogActions>
+                </DialogBody>
+              </DialogSurface>
+            </Dialog>
 
             {activeTab === 'entitlements' && (
               <>
