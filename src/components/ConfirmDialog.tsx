@@ -7,9 +7,25 @@ import {
   DialogContent,
   DialogSurface,
   DialogTitle,
+  makeStyles,
   tokens,
 } from '@fluentui/react-components';
 import { WarningRegular } from '@fluentui/react-icons';
+
+const useStyles = makeStyles({
+  surface: {
+    maxWidth: '440px',
+    color: '#F4FBFD',
+    border: '1px solid #29404F',
+    borderRadius: 0,
+    backgroundColor: '#0C141D',
+    boxShadow: '0 24px 64px rgba(0, 0, 0, 0.62)',
+  },
+  warningIcon: {
+    color: tokens.colorStatusDangerForeground1,
+    fontSize: '20px',
+  },
+});
 
 export interface ConfirmDialogProps {
   open: boolean;
@@ -34,13 +50,14 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps): ReactElement {
+  const styles = useStyles();
   return (
     <Dialog open={open} onOpenChange={(_, data) => { if (!data.open) onCancel(); }}>
-      <DialogSurface>
+      <DialogSurface className={styles.surface}>
         <DialogBody>
           <DialogTitle
             action={isDangerous
-              ? <WarningRegular style={{ color: tokens.colorStatusDangerForeground1, fontSize: '20px' }} />
+              ? <WarningRegular aria-hidden="true" className={styles.warningIcon} />
               : undefined}
           >
             {title}

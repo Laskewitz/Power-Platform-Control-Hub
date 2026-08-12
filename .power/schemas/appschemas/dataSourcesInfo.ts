@@ -31,6 +31,26 @@ export const dataSourcesInfo = {
           }
         }
       },
+      "GetOrganizationsTest": {
+        "path": "/{connectionId}/v1.0/$metadata.json/organizationsTest",
+        "method": "GET",
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responseInfo": {
+          "200": {
+            "type": "object"
+          },
+          "default": {
+            "type": "void"
+          }
+        }
+      },
       "GetMetadataForGetEntity": {
         "path": "/{connectionId}/$metadata.json/entities/{entityName}",
         "method": "GET",
@@ -6210,6 +6230,82 @@ export const dataSourcesInfo = {
           }
         }
       },
+      "GetConnectorConsentBypass": {
+        "path": "/{connectionId}/copilotstudio/environments/{EnvironmentId}/bots/{BotId}/api/connectorConsentBypass",
+        "method": "GET",
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "EnvironmentId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "BotId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "api-version",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responseInfo": {
+          "200": {
+            "type": "object"
+          }
+        }
+      },
+      "SetConnectorConsentBypass": {
+        "path": "/{connectionId}/copilotstudio/environments/{EnvironmentId}/bots/{BotId}/api/connectorConsentBypass",
+        "method": "PUT",
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "EnvironmentId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "BotId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "api-version",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "type": "object"
+          }
+        ],
+        "responseInfo": {
+          "200": {
+            "type": "object"
+          }
+        }
+      },
       "ListMakerEvaluationTestRuns": {
         "path": "/{connectionId}/copilotstudio/environments/{EnvironmentId}/bots/{BotId}/api/makerevaluation/testruns",
         "method": "GET",
@@ -7505,6 +7601,47 @@ export const dataSourcesInfo = {
             "type": "void"
           },
           "400": {
+            "type": "object"
+          }
+        }
+      },
+      "GetEnvironmentOperationByID": {
+        "path": "/{connectionId}/environmentmanagement/environments/{targetEnvironmentId}/operations/{operationId}",
+        "method": "GET",
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "targetEnvironmentId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "operationId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "api-version",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responseInfo": {
+          "200": {
+            "type": "object"
+          },
+          "400": {
+            "type": "object"
+          },
+          "404": {
             "type": "object"
           }
         }
@@ -11080,6 +11217,174 @@ export const dataSourcesInfo = {
           }
         }
       },
+      "UploadCertificate": {
+        "path": "/{connectionId}/powerpages/environments/{environmentId}/websites/{id}/certificates",
+        "method": "POST",
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "environmentId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "certType",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "api-version",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "file",
+            "in": "formData",
+            "required": false,
+            "type": "file"
+          },
+          {
+            "name": "password",
+            "in": "formData",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responseInfo": {
+          "200": {
+            "type": "string"
+          },
+          "400": {
+            "type": "object"
+          },
+          "401": {
+            "type": "object"
+          },
+          "404": {
+            "type": "object"
+          }
+        }
+      },
+      "GetCertificatesByPortal": {
+        "path": "/{connectionId}/powerpages/environments/{environmentId}/websites/{id}/certificates",
+        "method": "GET",
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "environmentId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "certType",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "api-version",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responseInfo": {
+          "200": {
+            "type": "array"
+          },
+          "400": {
+            "type": "object"
+          },
+          "401": {
+            "type": "object"
+          },
+          "404": {
+            "type": "object"
+          }
+        }
+      },
+      "DeleteCertificateByPortal": {
+        "path": "/{connectionId}/powerpages/environments/{environmentId}/websites/{id}/certificates",
+        "method": "DELETE",
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "environmentId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "thumbprint",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "certType",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "api-version",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responseInfo": {
+          "200": {
+            "type": "void"
+          },
+          "400": {
+            "type": "object"
+          },
+          "401": {
+            "type": "object"
+          },
+          "404": {
+            "type": "object"
+          }
+        }
+      },
       "ConvertTrialToProduction": {
         "path": "/{connectionId}/powerpages/environments/{environmentId}/websites/{id}/convertToProduction",
         "method": "POST",
@@ -11167,6 +11472,150 @@ export const dataSourcesInfo = {
         ],
         "responseInfo": {
           "202": {
+            "type": "void"
+          },
+          "400": {
+            "type": "object"
+          },
+          "401": {
+            "type": "object"
+          },
+          "404": {
+            "type": "object"
+          }
+        }
+      },
+      "ListHostNamesForPortal": {
+        "path": "/{connectionId}/powerpages/environments/{environmentId}/websites/{id}/customDomain",
+        "method": "GET",
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "environmentId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "api-version",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responseInfo": {
+          "200": {
+            "type": "array"
+          },
+          "400": {
+            "type": "object"
+          },
+          "401": {
+            "type": "object"
+          },
+          "404": {
+            "type": "object"
+          }
+        }
+      },
+      "CreateCustomDomain": {
+        "path": "/{connectionId}/powerpages/environments/{environmentId}/websites/{id}/customDomain",
+        "method": "POST",
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "environmentId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "customDomain",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "api-version",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responseInfo": {
+          "200": {
+            "type": "void"
+          },
+          "400": {
+            "type": "object"
+          },
+          "401": {
+            "type": "object"
+          },
+          "404": {
+            "type": "object"
+          }
+        }
+      },
+      "DeleteHostNameForPortal": {
+        "path": "/{connectionId}/powerpages/environments/{environmentId}/websites/{id}/customDomain",
+        "method": "DELETE",
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "environmentId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "hostName",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "api-version",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responseInfo": {
+          "200": {
             "type": "void"
           },
           "400": {
@@ -11415,6 +11864,50 @@ export const dataSourcesInfo = {
           }
         }
       },
+      "GetAllowedIpAddresses": {
+        "path": "/{connectionId}/powerpages/environments/{environmentId}/websites/{id}/ipaddressrules",
+        "method": "GET",
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "environmentId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "api-version",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responseInfo": {
+          "200": {
+            "type": "array"
+          },
+          "400": {
+            "type": "object"
+          },
+          "401": {
+            "type": "object"
+          },
+          "404": {
+            "type": "object"
+          }
+        }
+      },
       "AddAllowedIpAddresses": {
         "path": "/{connectionId}/powerpages/environments/{environmentId}/websites/{id}/ipaddressrules",
         "method": "POST",
@@ -11451,8 +11944,8 @@ export const dataSourcesInfo = {
           }
         ],
         "responseInfo": {
-          "200": {
-            "type": "array"
+          "204": {
+            "type": "void"
           },
           "400": {
             "type": "object"
@@ -11501,8 +11994,8 @@ export const dataSourcesInfo = {
           }
         ],
         "responseInfo": {
-          "200": {
-            "type": "array"
+          "204": {
+            "type": "void"
           },
           "400": {
             "type": "object"
@@ -11818,6 +12311,168 @@ export const dataSourcesInfo = {
             "in": "body",
             "required": true,
             "type": "object"
+          }
+        ],
+        "responseInfo": {
+          "200": {
+            "type": "void"
+          },
+          "400": {
+            "type": "object"
+          },
+          "401": {
+            "type": "object"
+          },
+          "404": {
+            "type": "object"
+          }
+        }
+      },
+      "ListSslBindingsByThumbprints": {
+        "path": "/{connectionId}/powerpages/environments/{environmentId}/websites/{id}/sslBindings",
+        "method": "GET",
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "environmentId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "hostName",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "api-version",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responseInfo": {
+          "200": {
+            "type": "array"
+          },
+          "400": {
+            "type": "object"
+          },
+          "401": {
+            "type": "object"
+          },
+          "404": {
+            "type": "object"
+          }
+        }
+      },
+      "AddSslBindingByPortal": {
+        "path": "/{connectionId}/powerpages/environments/{environmentId}/websites/{id}/sslBindings",
+        "method": "POST",
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "environmentId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "thumbprint",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "hostName",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "api-version",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responseInfo": {
+          "200": {
+            "type": "void"
+          },
+          "400": {
+            "type": "object"
+          },
+          "401": {
+            "type": "object"
+          },
+          "404": {
+            "type": "object"
+          }
+        }
+      },
+      "DeleteSslBindingByThumbprint": {
+        "path": "/{connectionId}/powerpages/environments/{environmentId}/websites/{id}/sslBindings",
+        "method": "DELETE",
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "environmentId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "hostName",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "thumbprint",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "api-version",
+            "in": "query",
+            "required": true,
+            "type": "string"
           }
         ],
         "responseInfo": {

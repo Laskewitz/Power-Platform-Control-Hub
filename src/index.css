@@ -4,14 +4,114 @@
   box-sizing: border-box;
 }
 
+:root {
+  color-scheme: light dark;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+html,
 body {
   margin: 0;
   padding: 0;
-  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+  min-width: 320px;
+  min-height: 100%;
+  font-family: 'Aptos', 'Segoe UI Variable', 'Segoe UI', sans-serif;
+  background: #0b1f33;
 }
 
 #root {
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
   overflow: hidden;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid #f2a900;
+  outline-offset: 2px;
+}
+
+::selection {
+  color: #0b1f33;
+  background: #ffd36a;
+}
+
+@keyframes atlas-scan {
+  0%,
+  72% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+
+  76% {
+    opacity: 0.85;
+  }
+
+  96% {
+    opacity: 0.15;
+    transform: translateY(calc(100vh - 118px));
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(calc(100vh - 118px));
+  }
+}
+
+@keyframes atlas-enter {
+  from {
+    opacity: 0.35;
+    clip-path: inset(0 0 12% 0);
+    transform: translateY(8px);
+  }
+
+  @keyframes signal-breathe {
+    0%,
+    100% {
+      opacity: 0.35;
+      transform: scale(0.82);
+    }
+
+    @keyframes aurora-drift {
+      from {
+        transform: translate3d(0, -4%, 0) rotate(-8deg) scale(0.94);
+      }
+
+      to {
+        transform: translate3d(-18%, 12%, 0) rotate(18deg) scale(1.14);
+      }
+    }
+
+    48% {
+      opacity: 1;
+      transform: scale(1.08);
+    }
+  }
+
+  to {
+    opacity: 1;
+    clip-path: inset(0);
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }

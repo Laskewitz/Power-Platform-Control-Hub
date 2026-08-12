@@ -4,7 +4,7 @@
   "type": "Microsoft.PowerApps/apis",
   "properties": {
     "displayName": "Microsoft Dataverse",
-    "iconUri": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1811/1.0.1811.4721/commondataserviceforapps/icon.png",
+    "iconUri": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1820/1.0.1820.4809/commondataserviceforapps/icon.png",
     "iconBrandColor": "",
     "apiEnvironment": "Shared",
     "isCustomApi": false,
@@ -54,7 +54,7 @@
                 "description": "Sign in with your Microsoft Entra ID credentials",
                 "tooltip": "Provide Microsoft Entra ID credentials",
                 "constraints": {
-                  "required": "false",
+                  "required": "true",
                   "hidden": "false"
                 }
               }
@@ -154,7 +154,7 @@
                 "description": "Sign in with your Microsoft Entra ID credentials",
                 "tooltip": "Provide Microsoft Entra ID credentials",
                 "constraints": {
-                  "required": "false",
+                  "required": "true",
                   "hidden": "true"
                 }
               }
@@ -515,6 +515,12 @@
       "schemes": [
         "https"
       ],
+      "x-ms-capabilities": {
+        "testConnection": {
+          "operationId": "GetOrganizationsTest",
+          "parameters": {}
+        }
+      },
       "paths": {
         "/{connectionId}/v1.0/$metadata.json/organizations": {
           "get": {
@@ -553,6 +559,46 @@
             "x-ms-visibility": "internal",
             "externalDocs": {
               "url": "https://docs.microsoft.com/connectors/commondataserviceforapps/#get-organizations"
+            }
+          }
+        },
+        "/{connectionId}/v1.0/$metadata.json/organizationsTest": {
+          "get": {
+            "tags": [
+              "Organizations"
+            ],
+            "summary": "Get organizations test",
+            "description": "Get all organizations (test variant).",
+            "operationId": "GetOrganizationsTest",
+            "consumes": [],
+            "produces": [
+              "application/json",
+              "text/json"
+            ],
+            "parameters": [
+              {
+                "name": "connectionId",
+                "in": "path",
+                "required": true,
+                "x-ms-visibility": "internal",
+                "type": "string"
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "OK",
+                "schema": {
+                  "$ref": "#/definitions/OrganizationsDynamicValuesList"
+                }
+              },
+              "default": {
+                "description": "Operation Failed."
+              }
+            },
+            "deprecated": false,
+            "x-ms-visibility": "internal",
+            "externalDocs": {
+              "url": "https://docs.microsoft.com/connectors/commondataserviceforapps/#get-organizations-test"
             }
           }
         },
@@ -2155,7 +2201,7 @@
                 },
                 "x-ms-summary": "Table name",
                 "type": "string",
-                "x-ms-description-for-model": "Name of the target Dataverse table (e.g., 'contacts', 'access_rights'). Use get_tables to discover valid names.",
+                "x-ms-description-for-model": "REQUIRED. Set to the exact entity set name (plural collection name) of a Dataverse table that exists in the selected environment, chosen from the available table list - do NOT guess, invent, or assume a table name. Custom tables use a publisher prefix (e.g. dws_, cr3a_) and exist only if deployed to this environment; using a table that does not exist returns 404. Use get_tables to discover valid names if unsure. Examples: contacts, accounts, access_rights.",
                 "x-ms-name-for-model": "list_rows_entityName"
               },
               {
@@ -2504,7 +2550,7 @@
                 },
                 "x-ms-summary": "Table name",
                 "x-ms-name-for-model": "list_records_with_organization_entity_name",
-                "x-ms-description-for-model": "Set to the logical name of the Dataverse table to query. Examples: accounts, contacts, incidents.",
+                "x-ms-description-for-model": "REQUIRED. Set to the exact entity set name (plural collection name) of a Dataverse table that exists in the selected environment, chosen from the available table list for that environment - do NOT guess, invent, or assume a table name. Custom tables use a publisher prefix (e.g. dws_, cr3a_) and exist only if deployed to this environment; using a table that does not exist returns 404. If unsure, list the environment's tables first and use a value confirmed to exist. Examples: accounts, contacts, incidents.",
                 "type": "string"
               },
               {
@@ -5878,7 +5924,8 @@
                     "itemValuePath": "schema"
                   }
                 },
-                "x-ms-summary": "Action parameters"
+                "x-ms-summary": "Action parameters",
+                "x-ms-description-for-model": "REQUIRED - always provide this. Set to a JSON object containing the input parameters of the selected action (actionName). Include only the parameters defined for that action, and pass an empty object {} when the action takes no input. Do not omit this field. Example 1 (ExportSolution): { 'SolutionName': 'MySolution', 'Managed': true }. Example 2 (WhoAmI, no inputs): {}."
               }
             ],
             "responses": {
@@ -6024,7 +6071,7 @@
                 },
                 "x-ms-summary": "Action parameters",
                 "x-ms-name-for-model": "perform_unbound_action_with_organization_item",
-                "x-ms-description-for-model": "Set to a JSON object containing the input parameters required by the selected action. Include only the parameters defined for that action. Example { 'SolutionName': 'MySolution', 'Managed': true }."
+                "x-ms-description-for-model": "REQUIRED - always provide this. Set to a JSON object containing the input parameters of the selected action (actionName). Include only the parameters defined for that action, and pass an empty object {} when the action takes no input. Do not omit this field. Example 1 (ExportSolution): { 'SolutionName': 'MySolution', 'Managed': true }. Example 2 (WhoAmI, no inputs): {}."
               }
             ],
             "responses": {
@@ -8316,11 +8363,11 @@
                 "description": "Operation failed."
               }
             },
-            "deprecated": false,
+            "deprecated": true,
             "x-ms-visibility": "important",
             "x-ms-mcs-visibility": "featured",
             "externalDocs": {
-              "url": "https://docs.microsoft.com/connectors/commondataserviceforapps/#dynamics-365-erp-mcp-(deprecated)"
+              "url": "https://docs.microsoft.com/connectors/commondataserviceforapps/#dynamics-365-erp-mcp-(deprecated)-%5bdeprecated%5d"
             }
           }
         },
@@ -8330,7 +8377,7 @@
               "agentic",
               "Action",
               "Connector-MCP",
-              "deprecated"
+              "Deprecated"
             ],
             "summary": "Dataverse MCP Server (Deprecated)",
             "description": "Dataverse MCP Server. This server can be used to get information from Dataverse as well as get knowledge from Dataverse and various other tabular sources. To check what all sources this server can access, use the list_knowledge_sources tool. list_knowledge_sources responsds with the source and tables that this server can access. ",
@@ -8373,11 +8420,11 @@
                 "description": "Operation failed."
               }
             },
-            "deprecated": false,
+            "deprecated": true,
             "x-ms-visibility": "important",
             "x-ms-mcs-visibility": "featured",
             "externalDocs": {
-              "url": "https://docs.microsoft.com/connectors/commondataserviceforapps/#dataverse-mcp-server-(deprecated)"
+              "url": "https://docs.microsoft.com/connectors/commondataserviceforapps/#dataverse-mcp-server-(deprecated)-%5bdeprecated%5d"
             }
           }
         },
@@ -8717,7 +8764,7 @@
             },
             "filteringattributes": {
               "x-ms-summary": "Select columns",
-              "description": "Enter a comma-separated list of column unique names. The flow triggers if any of them are modified",
+              "description": "Enter a comma-separated list of column unique names. The flow triggers if any of the columns is present in the update payload regardless of if data is modified",
               "type": "string",
               "x-ms-visibility": "important"
             },
@@ -8869,7 +8916,7 @@
             },
             "filteringattributes": {
               "x-ms-summary": "Select columns",
-              "description": "Enter a comma-separated list of column unique names. The flow triggers if any of them are modified",
+              "description": "Enter a comma-separated list of column unique names. The flow triggers if any of the columns is present in the update payload regardless of if data is modified",
               "type": "string",
               "x-ms-visibility": "important"
             },
@@ -9532,23 +9579,23 @@
       }
     },
     "runtimeUrls": [
-      "https://daacce33-7d66-ea1f-bfe5-f912f9252a1e.14.common.usa002.azure-apihub.net/apim/commondataserviceforapps"
+      "https://ecc0ee26-d0d1-eaaf-9b5c-9bdef7aa2306.00.common.usa002.azure-apihub.net/apim/commondataserviceforapps"
     ],
-    "primaryRuntimeUrl": "https://daacce33-7d66-ea1f-bfe5-f912f9252a1e.14.common.usa002.azure-apihub.net/apim/commondataserviceforapps",
-    "doNotUseApiHubNetRuntimeUrl": "https://daacce33-7d66-ea1f-bfe5-f912f9252a1e.14.common.usa002.azure-apihub.net/apim/commondataserviceforapps",
+    "primaryRuntimeUrl": "https://ecc0ee26-d0d1-eaaf-9b5c-9bdef7aa2306.00.common.usa002.azure-apihub.net/apim/commondataserviceforapps",
+    "doNotUseApiHubNetRuntimeUrl": "https://ecc0ee26-d0d1-eaaf-9b5c-9bdef7aa2306.00.common.usa002.azure-apihub.net/apim/commondataserviceforapps",
     "metadata": {
       "source": "marketplace",
       "brandColor": "",
       "useNewApimVersion": "true",
       "version": {
-        "previous": "releases/v1.0.1810\\1.0.1810.4710",
-        "current": "releases/v1.0.1811\\1.0.1811.4721"
+        "previous": "releases/v1.0.1819\\1.0.1819.4795",
+        "current": "releases/v1.0.1820\\1.0.1820.4809"
       },
       "OperationIcons": {
-        "mcp_ContactCenterMCPServer": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1811/1.0.1811.4721/commondataserviceforapps/icon_mcp_ContactCenterMCPServer.png",
-        "mcp_ERPMCPServer": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1811/1.0.1811.4721/commondataserviceforapps/icon_mcp_ERPMCPServer.png",
-        "mcp_SalesMCPServer": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1811/1.0.1811.4721/commondataserviceforapps/icon_mcp_SalesMCPServer.png",
-        "mcp_ServiceMCPServer": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1811/1.0.1811.4721/commondataserviceforapps/icon_mcp_ServiceMCPServer.png"
+        "mcp_ContactCenterMCPServer": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1820/1.0.1820.4809/commondataserviceforapps/icon_mcp_ContactCenterMCPServer.png",
+        "mcp_ERPMCPServer": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1820/1.0.1820.4809/commondataserviceforapps/icon_mcp_ERPMCPServer.png",
+        "mcp_SalesMCPServer": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1820/1.0.1820.4809/commondataserviceforapps/icon_mcp_SalesMCPServer.png",
+        "mcp_ServiceMCPServer": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1820/1.0.1820.4809/commondataserviceforapps/icon_mcp_ServiceMCPServer.png"
       }
     },
     "capabilities": [
@@ -9558,7 +9605,7 @@
     "interfaces": {},
     "description": "Provides access to Microsoft Dataverse actions and triggers for Power Platform environments.",
     "createdTime": "2024-03-25T21:44:09.9343266Z",
-    "changedTime": "2026-05-18T16:41:34.6796466Z",
+    "changedTime": "2026-07-29T19:17:29.995266Z",
     "releaseTag": "Production",
     "tier": "Premium",
     "publisher": "Microsoft",

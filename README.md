@@ -1,56 +1,24 @@
-# 🚀 Power Platform Control Hub
+# Power Platform Control Hub
 
-A **Center of Excellence (CoE) Starter Kit dashboard replacement** built as a [Power Apps Code App](https://learn.microsoft.com/en-us/power-apps/developer/code-apps/overview). It uses the [Power Platform Inventory API](https://learn.microsoft.com/en-us/power-platform/admin/inventory-api) and several Power Platform admin connectors — including **Microsoft Dataverse** — to surface a real-time view of all resources across your tenant: canvas apps, model-driven apps, cloud flows, agent flows, code apps, Copilot Studio agents, and environments. No CoE Starter Kit solution required.
+An action-oriented Power Platform operations console built as a [Power Apps Code App](https://learn.microsoft.com/en-us/power-apps/developer/code-apps/overview). It uses the [Power Platform Inventory API](https://learn.microsoft.com/en-us/power-platform/admin/inventory-api) and several Power Platform admin connectors, including **Microsoft Dataverse**, to connect tenant-wide inventory with recommendations, best-practice analysis, governance configuration, and direct admin actions. No CoE Starter Kit solution is required.
 
 🔐 Authentication is handled entirely by the Power Apps host. No app registration or MSAL configuration is required.
 
 ---
 
-## 📸 Screenshots
+## Features
 
-### Overview
+### Operations navigation
 
-![Overview](screenshots/01-overview.png)
-
-### Resources
-
-![Resources](screenshots/02-resources.png)
-
-### Environments
-
-![Environments](screenshots/03-environments.png)
-
-### Tenant Policies
-
-![Tenant Policies](screenshots/04-tenant-policies.png)
-
-### Environment Groups
-
-![Environment Groups](screenshots/05-environment-groups.png)
-
-### Connectors
-
-![Connectors](screenshots/06-connectors.png)
-
-### Recommendations
-
-![Recommendations](screenshots/07-recommendations.png)
-
----
-
-## ✨ Features
-
-### 🗂️ Navigation tabs
-
-| Tab | What it shows |
+| Destination | What it shows |
 |---|---|
-| 🏠 **Overview** | Metric cards per resource type + recently created resources table |
-| 📋 **Resources** | Sortable, searchable, filterable table of all resources across all environments. Click any canvas app, cloud flow, or agent to open a full detail panel. |
-| 🌍 **Environments** | Card grid of every environment with type badge, managed-environment indicator, region, and resource count. Click any environment to open the environment detail view. |
-| 🛡️ **Tenant Policies** | DLP policies, Copilot Credit licensing controls, billing policies, and cross-tenant connection reports |
-| 🗂️ **Environment Groups** | Environment groups, rule-based policies, and rule sets (CRUD) |
-| 🔌 **Connectors** | Per-environment connections, connectors, and Power Pages websites |
-| 💡 **Recommendations** | Advisor recommendations from the admin API |
+| **Operations** | Tenant scope, resource movement, active recommendations, and recently created resources |
+| **Resources** | Sortable, searchable, filterable inventory across all environments, with full details for supported resources |
+| **Environments** | Every environment with type, management state, region, resource count, lifecycle actions, and analysis |
+| **Connectivity** | Per-environment connectors, connections, and Power Pages websites |
+| **Tenant policies** | DLP policies, billing policies, and cross-tenant connection reports |
+| **Environment groups** | Environment groups, rule-based policies, and rule sets |
+| **Recommendations** | Advisor recommendations and the affected resources returned by the admin API |
 
 ---
 
@@ -187,15 +155,6 @@ The **Resources table** includes Name, Type, Created, Modified, Owner columns. C
 - **📄 Detail page**: collapsible accordion sections for Policy Details, Connector Groups, Environments, and Advisories
 - **✨ Apply Best Practices**: analyses the policy against advisory rules (e.g. HTTP connector → Blocked, SharePoint → Confidential) and proposes changes before saving
 
-### 💳 Copilot Credit licensing
-
-- Tenant-level purchased, reserved, consumed, and available Copilot Credit totals
-- GitHub Copilot harness agent detection through the inventory `isCLIAgent` property
-- Environment-level harness agent and owner counts to support maker-development and funded-production classification
-- Reserved Copilot Credit updates per affected environment
-- Linked pay-as-you-go billing policy visibility
-- Uses Power Platform Admin V2 connector actions (`ListCurrencyReports`, `GetCurrencyAllocationByEnvironment`, `PatchCurrencyAllocationByEnvironment`, and `GetEnvironmentBillingPolicy`) rather than direct Power Platform API requests
-
 ### 🗂️ Environment Groups
 
 - Create, edit, and delete environment groups
@@ -203,13 +162,14 @@ The **Resources table** includes Name, Type, Created, Modified, Owner columns. C
 - Rule-based policies: create, assign to groups, edit, extract rule sets
 - Rule sets: full CRUD with JSON-based parameter editing
 
-### 🎨 Additional UX
+### Interface and accessibility
 
-- 🌙 Light / dark mode toggle (preference saved to `localStorage`)
-- 📱 Responsive layout (mobile hamburger menu)
-- Fluent UI v9 — consistent with Microsoft 365 design language
-- ♿ Accessible (WCAG-compliant contrast, ARIA labels, keyboard navigation)
-- 🔔 Toast notifications for all write actions
+- Responsive command rail and mobile navigation
+- Light and dark themes with preference saved to `localStorage`
+- Fluent UI v9 foundations with a Control Hub-specific operations system
+- WCAG-compliant contrast, visible focus, ARIA labels, and keyboard navigation
+- Skeleton, empty, error, loading, and destructive-action states
+- Toast notifications for write actions
 - Inline error messages with expandable details
 
 ---
@@ -229,7 +189,6 @@ CoE-Code/
 │   ├── services/
 │   │   ├── inventoryApi.ts            # Inventory API calls
 │   │   ├── adminApi.ts                # Admin V2 API calls (connectors, groups…)
-│   │   ├── licensingService.ts        # Admin V2 connector actions for Copilot Credit governance
 │   │   ├── dlpService.ts              # DLP policy CRUD (Power Platform for Admins)
 │   │   ├── canvasAppAnalyzer.ts       # 11 best-practice checks for canvas apps
 │   │   ├── canvasAppAdminService.ts   # Canvas app governance via Power Apps for Admins
@@ -322,7 +281,7 @@ Each resource type pulls from one or more connectors (and optionally a Dataverse
 | **DLP Policies** | Power Platform for Admins → `ListPoliciesV2` | Power Platform for Admins → `CreatePolicyV2 / UpdatePolicyV2 / DeletePolicyV2` | Advisory recommendations via Admin V2 |
 | **Connectors & Connections** | Admin V2 → `GetConnectorById`, connections list | Admin V2 | Per-environment view |
 | **Environment Groups** | Admin V2 → `ListEnvironmentGroups` | Admin V2 → create / update / delete | |
-| **Licensing & Billing Policies** | Admin V2 → `ListCurrencyReports`, inventory `isCLIAgent` | Admin V2 → environment allocation and billing policy actions | Copilot Credit totals and harness-environment governance |
+| **Billing Policies** | Admin V2 | Admin V2 | |
 | **Tombstones** (soft-delete) | Dataverse `ppa_resourcetombstone` table | Dataverse `ppa_resourcetombstone` table | Falls back to `localStorage` when Dataverse is unavailable |
 | **User display names** | Microsoft Dataverse → `aadusers` virtual table (AAD-backed virtual entity) | — | Used to resolve owner/created-by GUIDs across all resource types |
 

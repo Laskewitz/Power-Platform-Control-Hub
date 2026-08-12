@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
 import {
   Badge,
@@ -6,436 +6,622 @@ import {
   Input,
   MessageBar,
   MessageBarBody,
-  Skeleton,
-  SkeletonItem,
+  Tab,
+  TabList,
   Text,
   makeStyles,
   tokens,
 } from '@fluentui/react-components';
-import { ArrowClockwiseRegular, SaveRegular } from '@fluentui/react-icons';
-import type { BillingPolicy } from '../types/admin.ts';
-import type { Resource } from '../types/inventory.ts';
 import {
-  fetchCopilotCreditSummary,
-  fetchHarnessEnvironmentLicensing,
-  getHarnessAgents,
-  updateCopilotCreditAllocation,
-} from '../services/licensingService.ts';
-import type {
-  CopilotCreditSummary,
-  HarnessEnvironmentLicensing,
-} from '../services/licensingService.ts';
+  ArrowClockwiseRegular,
+  ChevronLeftRegular,
+  ChevronRightRegular,
+  DatabaseRegular,
+  KeyRegular,
+  MoneyRegular,
+  PersonWarningRegular,
+  SearchRegular,
+} from '@fluentui/react-icons';
+import type { LicensingSnapshot } from '../types/admin.ts';
+import EmptyState from './EmptyState.tsx';
+import { OperationsSkeleton, PageHeader } from './ui.tsx';
 
 interface LicensingViewProps {
-  billingPolicies: BillingPolicy[];
-  environments: Resource[];
-  resources: Resource[];
+  snapshot: LicensingSnapshot | null;
+  isLoading: boolean;
+  error: string | null;
+  onRefresh: () => Promise<void>;
+  onPeriodChange: (startDate: string, endDate: string) => Promise<void>;
 }
 
-const numberFormatter = new Intl.NumberFormat();
+type LicensingTab = 'capacity' | 'entitlements' | 'compliance';
 
 const useStyles = makeStyles({
   root: {
     display: 'flex',
     flexDirection: 'column',
-    gap: tokens.spacingVerticalL,
-    minHeight: 0,
-    flex: 1,
+    gap: '18px',
+    height: '100%',
+    padding: '28px 32px 32px',
     overflowY: 'auto',
-    paddingBottom: tokens.spacingVerticalL,
+    overflowX: 'hidden',
+    '@media (max-width: 768px)': { padding: tokens.spacingHorizontalM },
   },
-  section: {
+  scrollBody: {
     display: 'flex',
     flexDirection: 'column',
-    gap: tokens.spacingVerticalM,
+    gap: '18px',
+    flexShrink: 0,
   },
-  sectionHeader: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: tokens.spacingHorizontalM,
+  statusDeck: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(260px, 1.4fr) repeat(3, minmax(150px, 0.65fr))',
+    border: `1px solid ${tokens.colorNeutralStroke1}`,
+    backgroundColor: tokens.colorNeutralStroke2,
+    gap: '1px',
+    boxShadow: tokens.shadow4,
+    '@media (max-width: 980px)': { gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' },
+    '@media (max-width: 560px)': { gridTemplateColumns: '1fr' },
   },
-  sectionTitle: {
-    fontSize: tokens.fontSizeBase400,
+  posture: {
+    display: 'grid',
+    alignContent: 'center',
+    gap: '7px',
+    minHeight: '126px',
+    padding: '20px 22px',
+    backgroundColor: tokens.colorNeutralBackground1,
+    backgroundImage: 'linear-gradient(90deg, rgba(67, 217, 255, 0.06), transparent 72%)',
+  },
+  postureLine: { display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' },
+  postureTitle: {
+    color: tokens.colorNeutralForeground1,
+    fontSize: tokens.fontSizeBase500,
     fontWeight: tokens.fontWeightSemibold,
   },
-  sectionDescription: {
-    color: tokens.colorNeutralForeground3,
-    maxWidth: '72ch',
-  },
-  summary: {
+  postureMessage: { color: tokens.colorNeutralForeground3, lineHeight: '20px', maxWidth: '62ch' },
+  stat: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(4, minmax(120px, 1fr))',
-    border: `1px solid ${tokens.colorNeutralStroke2}`,
-    borderRadius: tokens.borderRadiusMedium,
+    alignContent: 'center',
+    gap: '4px',
+    minHeight: '126px',
+    padding: '18px',
     backgroundColor: tokens.colorNeutralBackground1,
-    '@media (max-width: 768px)': {
-      gridTemplateColumns: 'repeat(2, minmax(120px, 1fr))',
-    },
   },
-  summaryItem: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: tokens.spacingVerticalXXS,
-    padding: tokens.spacingHorizontalM,
-    borderRight: `1px solid ${tokens.colorNeutralStroke2}`,
-    ':last-child': {
-      borderRight: 'none',
-    },
-    '@media (max-width: 768px)': {
-      borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
-    },
+  statValue: {
+    color: tokens.colorNeutralForeground1,
+    fontSize: '28px',
+    lineHeight: '32px',
+    fontWeight: tokens.fontWeightBold,
+    fontVariantNumeric: 'tabular-nums',
+    letterSpacing: '-0.03em',
   },
-  summaryLabel: {
+  statLabel: {
     color: tokens.colorNeutralForeground3,
-    fontSize: tokens.fontSizeBase200,
+    fontSize: tokens.fontSizeBase100,
+    fontWeight: tokens.fontWeightSemibold,
+    letterSpacing: '0.07em',
+    textTransform: 'uppercase',
   },
-  summaryValue: {
-    fontSize: tokens.fontSizeBase500,
+  tabBar: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '16px',
+    flexWrap: 'wrap',
+    borderBottom: `1px solid ${tokens.colorNeutralStroke1}`,
+  },
+  periodControl: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    marginLeft: 'auto',
+    paddingBottom: '6px',
+  },
+  periodCopy: {
+    display: 'grid',
+    gap: '1px',
+    minWidth: '240px',
+    textAlign: 'right',
+    '@media (max-width: 620px)': {
+      minWidth: 0,
+      textAlign: 'left',
+    },
+  },
+  periodLabel: {
+    color: tokens.colorNeutralForeground1,
+    fontSize: tokens.fontSizeBase200,
+    fontWeight: tokens.fontWeightSemibold,
+  },
+  periodHint: {
+    color: tokens.colorNeutralForeground3,
+    fontSize: tokens.fontSizeBase100,
+  },
+  boardGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, 1fr)',
+    gap: '18px',
+    alignItems: 'start',
+  },
+  monitor: {
+    minWidth: 0,
+    border: `1px solid ${tokens.colorNeutralStroke1}`,
+    backgroundColor: tokens.colorNeutralBackground1,
+    boxShadow: tokens.shadow4,
+  },
+  monitorHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '9px',
+    minHeight: '46px',
+    padding: '0 14px',
+    color: tokens.colorNeutralForeground1,
+    borderBottom: `1px solid ${tokens.colorNeutralStroke1}`,
+    backgroundColor: tokens.colorNeutralBackground3,
+    fontWeight: tokens.fontWeightSemibold,
+  },
+  tableScroll: { width: '100%' },
+  table: { width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse' },
+  th: {
+    padding: '9px 13px',
+    color: tokens.colorNeutralForeground3,
+    backgroundColor: tokens.colorNeutralBackground2,
+    borderBottom: `1px solid ${tokens.colorNeutralStroke1}`,
+    textAlign: 'left',
+    fontSize: tokens.fontSizeBase100,
+    fontWeight: tokens.fontWeightSemibold,
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase',
+    whiteSpace: 'nowrap',
+    '@media (max-width: 700px)': {
+      padding: '8px',
+      whiteSpace: 'normal',
+    },
+  },
+  td: {
+    padding: '10px 13px',
+    color: tokens.colorNeutralForeground2,
+    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+    fontSize: tokens.fontSizeBase200,
+    verticalAlign: 'middle',
+    overflowWrap: 'anywhere',
+    '@media (max-width: 700px)': {
+      padding: '9px 8px',
+      fontSize: tokens.fontSizeBase100,
+    },
+  },
+  strong: { color: tokens.colorNeutralForeground1, fontWeight: tokens.fontWeightSemibold },
+  numeric: { fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' },
+  secondary: { display: 'block', color: tokens.colorNeutralForeground3, fontSize: tokens.fontSizeBase100, marginTop: '2px' },
+  toolbar: { display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'space-between', flexWrap: 'wrap' },
+  summaryRows: { display: 'grid' },
+  summaryRow: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(160px, 1fr) repeat(4, minmax(90px, auto))',
+    gap: '12px',
+    alignItems: 'center',
+    minHeight: '58px',
+    padding: '9px 13px',
+    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+    '@media (max-width: 700px)': {
+      gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+      '& > :first-child': { gridColumn: '1 / -1' },
+    },
+  },
+  summaryValue: { display: 'grid', gap: '1px', fontVariantNumeric: 'tabular-nums' },
+  ledgerGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+    gap: '1px',
+    backgroundColor: tokens.colorNeutralStroke2,
+    '@media (max-width: 1100px)': { gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' },
+    '@media (max-width: 650px)': { gridTemplateColumns: '1fr' },
+  },
+  ledgerCell: {
+    display: 'grid',
+    gap: '16px',
+    minHeight: '126px',
+    padding: '16px',
+    backgroundColor: tokens.colorNeutralBackground1,
+  },
+  ledgerTitle: {
+    display: 'grid',
+    gap: '3px',
+    minWidth: 0,
+  },
+  ledgerName: {
+    color: tokens.colorNeutralForeground1,
+    fontWeight: tokens.fontWeightSemibold,
+    overflowWrap: 'anywhere',
+  },
+  ledgerDate: { color: tokens.colorNeutralForeground3, fontSize: tokens.fontSizeBase100 },
+  ledgerValues: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+    gap: '10px',
+  },
+  ledgerValue: {
+    display: 'grid',
+    gap: '2px',
+    minWidth: 0,
+    color: tokens.colorNeutralForeground1,
+    fontSize: tokens.fontSizeBase400,
     fontWeight: tokens.fontWeightSemibold,
     fontVariantNumeric: 'tabular-nums',
   },
-  tableWrapper: {
-    overflowX: 'auto',
-    border: `1px solid ${tokens.colorNeutralStroke2}`,
-    borderRadius: tokens.borderRadiusMedium,
-    backgroundColor: tokens.colorNeutralBackground1,
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-    minWidth: '860px',
-  },
-  th: {
-    padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`,
-    textAlign: 'left',
-    fontSize: tokens.fontSizeBase200,
+  ledgerLabel: {
+    color: tokens.colorNeutralForeground3,
+    fontSize: '10px',
     fontWeight: tokens.fontWeightSemibold,
-    color: tokens.colorNeutralForeground3,
+    letterSpacing: '0.06em',
     textTransform: 'uppercase',
-    letterSpacing: '0.04em',
-    borderBottom: `2px solid ${tokens.colorNeutralStroke2}`,
-    backgroundColor: tokens.colorNeutralBackground3,
-    whiteSpace: 'nowrap',
   },
-  td: {
-    padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`,
-    fontSize: tokens.fontSizeBase300,
-    color: tokens.colorNeutralForeground1,
-    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
-    verticalAlign: 'middle',
-  },
-  muted: {
-    color: tokens.colorNeutralForeground3,
-  },
-  allocationControl: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: tokens.spacingHorizontalXS,
-  },
-  allocationInput: {
-    width: '128px',
-  },
-  empty: {
-    padding: tokens.spacingHorizontalXL,
-    textAlign: 'center',
-    color: tokens.colorNeutralForeground3,
-  },
-  skeleton: {
-    display: 'grid',
-    gap: tokens.spacingVerticalS,
-  },
+  warning: { color: tokens.colorStatusWarningForeground1, fontWeight: tokens.fontWeightSemibold },
+  danger: { color: tokens.colorStatusDangerForeground1, fontWeight: tokens.fontWeightSemibold },
+  emptyInline: { padding: '26px' },
 });
 
+function labelize(value: string): string {
+  return value
+    .replace(/([A-Z])([A-Z][a-z])/g, '$1 $2')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/[_-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+const CURRENCY_LABELS: Record<string, string> = {
+  AI: 'AI credits',
+  MCSMessages: 'Copilot Studio messages',
+  PAUnattendedRPA: 'Power Automate unattended RPA',
+  ProcessMiningDataStorage: 'Process Mining data storage',
+  TenantM365Copilot: 'Microsoft 365 Copilot',
+  W365APAYGO: 'Windows 365 pay-as-you-go',
+};
+
 function formatNumber(value: number): string {
-  return numberFormatter.format(Math.round(value));
+  return new Intl.NumberFormat(undefined, { maximumFractionDigits: value < 10 ? 2 : 0 }).format(value);
 }
 
 function formatDate(value?: string): string {
-  if (!value) return 'Not reported';
+  if (!value) return '—';
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-function getBillingBadgeColor(status: BillingPolicy['status']): 'success' | 'warning' {
-  return status === 'Enabled' ? 'success' : 'warning';
+function shiftPeriod(startDate: string, direction: -1 | 1): { startDate: string; endDate: string } {
+  const start = new Date(`${startDate}T00:00:00Z`);
+  start.setUTCDate(start.getUTCDate() + direction * 30);
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + 29);
+  return {
+    startDate: start.toISOString().slice(0, 10),
+    endDate: end.toISOString().slice(0, 10),
+  };
+}
+
+function badgeColor(status: string): 'success' | 'warning' | 'danger' | 'informative' {
+  const normalized = status.toLowerCase();
+  if (normalized.includes('available') || normalized.includes('healthy') || normalized.includes('enabled')) return 'success';
+  if (normalized.includes('critical') || normalized.includes('exceed') || normalized.includes('unavailable')) return 'danger';
+  if (normalized.includes('warning') || normalized.includes('limited')) return 'warning';
+  return 'informative';
 }
 
 export default function LicensingView({
-  billingPolicies,
-  environments,
-  resources,
+  snapshot,
+  isLoading,
+  error,
+  onRefresh,
+  onPeriodChange,
 }: LicensingViewProps): ReactElement {
   const styles = useStyles();
-  const [summary, setSummary] = useState<CopilotCreditSummary | null>(null);
-  const [environmentLicensing, setEnvironmentLicensing] = useState<HarnessEnvironmentLicensing[]>([]);
-  const [allocationDrafts, setAllocationDrafts] = useState<Record<string, string>>({});
-  const [savingEnvironmentId, setSavingEnvironmentId] = useState<string>();
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string>();
-  const harnessAgents = useMemo(() => getHarnessAgents(resources), [resources]);
+  const [activeTab, setActiveTab] = useState<LicensingTab>('capacity');
+  const [search, setSearch] = useState('');
 
-  const loadLicensing = useCallback(async () => {
-    setIsLoading(true);
-    setError(undefined);
-    try {
-      const [nextSummary, nextEnvironmentLicensing] = await Promise.all([
-        fetchCopilotCreditSummary(),
-        fetchHarnessEnvironmentLicensing(environments, resources),
-      ]);
-      setSummary(nextSummary);
-      setEnvironmentLicensing(nextEnvironmentLicensing);
-      setAllocationDrafts(
-        Object.fromEntries(
-          nextEnvironmentLicensing.map((item) => [
-            item.environmentId,
-            item.allocatedCredits === undefined ? '' : String(item.allocatedCredits),
-          ]),
-        ),
-      );
-    } catch (cause: unknown) {
-      setError(cause instanceof Error ? cause.message : 'Licensing data could not be loaded.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [environments, resources]);
+  const filteredEntitlements = useMemo(() => {
+    if (!snapshot) return [];
+    const term = search.trim().toLowerCase();
+    if (!term) return snapshot.entitlements;
+    return snapshot.entitlements.filter((item) =>
+      [item.displayName, item.entitlementCode, item.capacityType, item.skuId]
+        .some((value) => value?.toLowerCase().includes(term)),
+    );
+  }, [search, snapshot]);
 
-  useEffect(() => {
-    void loadLicensing();
-  }, [loadLicensing]);
+  const riskTotals = useMemo(() => (
+    (snapshot?.compliance ?? []).reduce(
+      (totals, row) => ({
+        exceeding: totals.exceeding + row.usersExceedingCapacity,
+        unlicensed: totals.unlicensed + row.usersWithoutLicense + row.usersWithoutPremiumLicense,
+      }),
+      { exceeding: 0, unlicensed: 0 },
+    )
+  ), [snapshot]);
+  const today = new Date().toISOString().slice(0, 10);
 
-  async function saveAllocation(item: HarnessEnvironmentLicensing): Promise<void> {
-    const draft = allocationDrafts[item.environmentId]?.trim() ?? '';
-    const allocatedCredits = Number(draft);
-    if (!Number.isInteger(allocatedCredits) || allocatedCredits < 0) {
-      setError('Reserved Copilot Credits must be a whole number of zero or greater.');
-      return;
-    }
-
-    setSavingEnvironmentId(item.environmentId);
-    setError(undefined);
-    try {
-      const savedAllocation = await updateCopilotCreditAllocation(item.environmentId, allocatedCredits);
-      setEnvironmentLicensing((current) =>
-        current.map((environment) =>
-          environment.environmentId === item.environmentId
-            ? { ...environment, allocatedCredits: savedAllocation, allocationError: undefined }
-            : environment,
-        ),
-      );
-      setAllocationDrafts((current) => ({
-        ...current,
-        [item.environmentId]: String(savedAllocation),
-      }));
-      const nextSummary = await fetchCopilotCreditSummary();
-      setSummary(nextSummary);
-    } catch (cause: unknown) {
-      setError(cause instanceof Error ? cause.message : 'The allocation could not be updated.');
-    } finally {
-      setSavingEnvironmentId(undefined);
-    }
-  }
-
-  const availableCredits = Math.max(0, (summary?.purchased ?? 0) - (summary?.consumed ?? 0));
+  if (isLoading && !snapshot) return <OperationsSkeleton />;
 
   return (
     <div className={styles.root}>
-      {error && (
-        <MessageBar intent="error">
-          <MessageBarBody>{error}</MessageBarBody>
-        </MessageBar>
-      )}
-
-      <section className={styles.section} aria-labelledby="copilot-credit-heading">
-        <div className={styles.sectionHeader}>
-          <div>
-            <Text as="h2" id="copilot-credit-heading" className={styles.sectionTitle}>
-              Copilot Credit governance
-            </Text>
-            <div>
-              <Text className={styles.sectionDescription}>
-                Track tenant consumption, find GitHub Copilot harness agents, and reserve capacity for the environments that contain them.
-              </Text>
-            </div>
-          </div>
-          <Button
-            appearance="subtle"
-            icon={<ArrowClockwiseRegular />}
-            onClick={() => void loadLicensing()}
-            disabled={isLoading}
-          >
-            Refresh
+      <PageHeader
+        title="Licensing & Capacity"
+        description="Tenant entitlements, capacity consumption, currency allocation, and per-flow license compliance from Power Platform Admin V2."
+        actions={(
+          <Button appearance="primary" icon={<ArrowClockwiseRegular />} disabled={isLoading} onClick={() => void onRefresh()}>
+            {isLoading ? 'Refreshing…' : 'Refresh licensing'}
           </Button>
-        </div>
-
-        {isLoading ? (
-          <Skeleton className={styles.skeleton} aria-label="Loading Copilot Credit totals">
-            <SkeletonItem size={48} />
-            <SkeletonItem size={48} />
-          </Skeleton>
-        ) : (
-          <div className={styles.summary}>
-            <div className={styles.summaryItem}>
-              <Text className={styles.summaryLabel}>Purchased</Text>
-              <Text className={styles.summaryValue}>{formatNumber(summary?.purchased ?? 0)}</Text>
-            </div>
-            <div className={styles.summaryItem}>
-              <Text className={styles.summaryLabel}>Reserved to environments</Text>
-              <Text className={styles.summaryValue}>{formatNumber(summary?.allocated ?? 0)}</Text>
-            </div>
-            <div className={styles.summaryItem}>
-              <Text className={styles.summaryLabel}>Consumed</Text>
-              <Text className={styles.summaryValue}>{formatNumber(summary?.consumed ?? 0)}</Text>
-            </div>
-            <div className={styles.summaryItem}>
-              <Text className={styles.summaryLabel}>Available tenant capacity</Text>
-              <Text className={styles.summaryValue}>{formatNumber(availableCredits)}</Text>
-              <Text className={styles.muted}>Updated {formatDate(summary?.lastUpdated)}</Text>
-            </div>
-          </div>
         )}
+      />
 
-        <MessageBar intent="info">
-          <MessageBarBody>
-            Classify each environment as maker development or funded production before changing capacity. Development environments need a deliberate spending boundary; production limits should reflect funding, ownership, expected usage, and service criticality.
-          </MessageBarBody>
-        </MessageBar>
-      </section>
+      <div className={styles.scrollBody}>
+        {error && (
+          <MessageBar intent="error">
+            <MessageBarBody>{error}</MessageBarBody>
+          </MessageBar>
+        )}
+        {snapshot?.warnings.length ? (
+          <MessageBar intent="warning">
+            <MessageBarBody>
+              Some licensing signals are unavailable: {snapshot.warnings.join(' · ')}
+            </MessageBarBody>
+          </MessageBar>
+        ) : null}
 
-      <section className={styles.section} aria-labelledby="harness-heading">
-        <div>
-          <Text as="h2" id="harness-heading" className={styles.sectionTitle}>
-            GitHub Copilot harness environments
-          </Text>
-          <div>
-            <Text className={styles.sectionDescription}>
-              {harnessAgents.length} harness {harnessAgents.length === 1 ? 'agent' : 'agents'} detected from Power Platform Inventory. Review the purpose and accountable cost owner before reserving credits.
-            </Text>
-          </div>
-        </div>
-        <div className={styles.tableWrapper}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th className={styles.th}>Environment</th>
-                <th className={styles.th}>Type</th>
-                <th className={styles.th}>Harness agents</th>
-                <th className={styles.th}>Owners</th>
-                <th className={styles.th}>Reserved credits</th>
-                <th className={styles.th}>Pay-as-you-go</th>
-              </tr>
-            </thead>
-            <tbody>
-              {!isLoading && environmentLicensing.length === 0 ? (
-                <tr>
-                  <td className={styles.empty} colSpan={6}>
-                    No GitHub Copilot harness agents were found in the current inventory.
-                  </td>
-                </tr>
-              ) : (
-                environmentLicensing.map((item) => (
-                  <tr key={item.environmentId}>
-                    <td className={styles.td}>{item.environmentName}</td>
-                    <td className={styles.td}>{item.environmentType}</td>
-                    <td className={styles.td}>{item.agentCount}</td>
-                    <td className={styles.td}>{item.ownerCount || 'Not identified'}</td>
-                    <td className={styles.td}>
-                      <div className={styles.allocationControl} title={item.allocationError}>
-                        <Input
-                          className={styles.allocationInput}
-                          type="number"
-                          min={0}
-                          step={1}
-                          value={allocationDrafts[item.environmentId] ?? ''}
-                          placeholder={item.allocationError ? 'Not reserved' : undefined}
-                          aria-label={`Reserved Copilot Credits for ${item.environmentName}`}
-                          onChange={(_, data) =>
-                            setAllocationDrafts((current) => ({
-                              ...current,
-                              [item.environmentId]: data.value,
-                            }))
-                          }
-                        />
-                        <Button
-                          appearance="subtle"
-                          size="small"
-                          icon={<SaveRegular />}
-                          aria-label={`Save reserved Copilot Credits for ${item.environmentName}`}
-                          disabled={savingEnvironmentId !== undefined}
-                          onClick={() => void saveAllocation(item)}
-                        />
+        {!snapshot ? (
+          <EmptyState
+            icon={<KeyRegular />}
+            title="Licensing signal unavailable"
+            subtitle="The tenant did not return capacity or entitlement data. Confirm that the Admin V2 connection can access tenant capacity APIs."
+            action={{ label: 'Retry licensing', onClick: () => void onRefresh() }}
+          />
+        ) : (
+          <>
+            <section className={styles.statusDeck} aria-label="Licensing posture">
+              <div className={styles.posture}>
+                <div className={styles.postureLine}>
+                  <Text className={styles.postureTitle}>Tenant capacity {labelize(snapshot.capacityStatus)}</Text>
+                  <Badge appearance="filled" color={badgeColor(snapshot.capacityStatus)}>
+                    {labelize(snapshot.capacityStatus)}
+                  </Badge>
+                </div>
+                <Text className={styles.postureMessage}>
+                  {snapshot.capacityStatusMessage || `${snapshot.licenseModelType} license model reporting across ${snapshot.capacities.length} capacity families.`}
+                </Text>
+              </div>
+              <div className={styles.stat}>
+                <Text className={styles.statValue}>{snapshot.entitlements.length}</Text>
+                <Text className={styles.statLabel}>Entitlements indexed</Text>
+              </div>
+              <div className={styles.stat}>
+                <Text className={`${styles.statValue} ${riskTotals.exceeding ? styles.warning : ''}`}>{riskTotals.exceeding}</Text>
+                <Text className={styles.statLabel}>Users over capacity</Text>
+              </div>
+              <div className={styles.stat}>
+                <Text className={`${styles.statValue} ${riskTotals.unlicensed ? styles.danger : ''}`}>{riskTotals.unlicensed}</Text>
+                <Text className={styles.statLabel}>License gaps</Text>
+              </div>
+            </section>
+
+            <div className={styles.tabBar}>
+              <TabList
+                selectedValue={activeTab}
+                onTabSelect={(_, data) => setActiveTab(data.value as LicensingTab)}
+                aria-label="Licensing registers"
+              >
+                <Tab value="capacity" icon={<DatabaseRegular />}>Capacity</Tab>
+                <Tab value="entitlements" icon={<KeyRegular />}>Entitlements</Tab>
+                <Tab value="compliance" icon={<PersonWarningRegular />}>Compliance</Tab>
+              </TabList>
+              <div className={styles.periodControl}>
+                <Button
+                  appearance="subtle"
+                  size="small"
+                  icon={<ChevronLeftRegular />}
+                  aria-label="Load previous 30-day compliance window"
+                  title="Previous 30 days"
+                  disabled={isLoading}
+                  onClick={() => {
+                    const period = shiftPeriod(snapshot.periodStart, -1);
+                    void onPeriodChange(period.startDate, period.endDate);
+                  }}
+                />
+                <div className={styles.periodCopy}>
+                  <Text className={styles.periodLabel}>
+                    {formatDate(snapshot.periodStart)}–{formatDate(snapshot.periodEnd)}
+                  </Text>
+                  <Text className={styles.periodHint}>
+                    Rolling 30-day compliance window · not the billing cycle
+                  </Text>
+                </div>
+                <Button
+                  appearance="subtle"
+                  size="small"
+                  icon={<ChevronRightRegular />}
+                  aria-label="Load next 30-day compliance window"
+                  title="Next 30 days"
+                  disabled={isLoading || snapshot.periodEnd >= today}
+                  onClick={() => {
+                    const period = shiftPeriod(snapshot.periodStart, 1);
+                    const endDate = period.endDate > today ? today : period.endDate;
+                    const end = new Date(`${endDate}T00:00:00Z`);
+                    const start = new Date(end);
+                    start.setUTCDate(start.getUTCDate() - 29);
+                    void onPeriodChange(start.toISOString().slice(0, 10), endDate);
+                  }}
+                />
+              </div>
+            </div>
+
+            {activeTab === 'capacity' && (
+              <div className={styles.boardGrid}>
+                <section className={styles.monitor}>
+                  <div className={styles.monitorHeader}><DatabaseRegular /> Capacity register</div>
+                  {snapshot.capacities.length ? (
+                    <div className={styles.tableScroll}>
+                      <table className={styles.table}>
+                        <thead>
+                          <tr><th className={styles.th}>Capacity</th><th className={styles.th}>Status</th><th className={styles.th}>Available</th><th className={styles.th}>Consumed</th><th className={styles.th}>Updated</th></tr>
+                        </thead>
+                        <tbody>
+                          {snapshot.capacities.map((item) => (
+                            <tr key={`${item.capacityType}-${item.units}`}>
+                              <td className={`${styles.td} ${styles.strong}`}>{labelize(item.capacityType)}<span className={styles.secondary}>{item.units || 'Units not specified'}</span></td>
+                              <td className={styles.td}><Badge appearance="tint" color={badgeColor(item.status)}>{labelize(item.status)}</Badge></td>
+                              <td className={`${styles.td} ${styles.numeric}`}>{formatNumber(item.totalCapacity)}</td>
+                              <td className={`${styles.td} ${styles.numeric}`}>
+                                {formatNumber(item.consumed)}
+                                {item.ratedConsumption !== undefined && item.ratedConsumption > 0 && (
+                                  <span
+                                    className={styles.secondary}
+                                    title="Service-adjusted consumption reported by Microsoft for capacity accounting."
+                                  >
+                                    Rated usage {formatNumber(item.ratedConsumption)}
+                                  </span>
+                                )}
+                              </td>
+                              <td className={styles.td}>{formatDate(item.updatedOn)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : <div className={styles.emptyInline}>Capacity details were not returned.</div>}
+                </section>
+
+                <section className={styles.monitor}>
+                  <div className={styles.monitorHeader}><MoneyRegular /> Currency ledger</div>
+                  {snapshot.currencies.length ? (
+                    <div className={styles.ledgerGrid}>
+                      {snapshot.currencies.map((item) => (
+                        <article className={styles.ledgerCell} key={item.currencyType}>
+                          <div className={styles.ledgerTitle}>
+                            <Text className={styles.ledgerName}>
+                              {CURRENCY_LABELS[item.currencyType] ?? labelize(item.currencyType)}
+                            </Text>
+                            {item.lastUpdatedDay && (
+                              <Text className={styles.ledgerDate}>Updated {formatDate(item.lastUpdatedDay)}</Text>
+                            )}
+                          </div>
+                          <div className={styles.ledgerValues}>
+                            <span className={styles.ledgerValue}>
+                              {formatNumber(item.purchased)}
+                              <small className={styles.ledgerLabel}>Purchased</small>
+                            </span>
+                            <span className={styles.ledgerValue}>
+                              {formatNumber(item.allocated)}
+                              <small className={styles.ledgerLabel}>Allocated</small>
+                            </span>
+                            <span className={styles.ledgerValue}>
+                              {formatNumber(item.consumed)}
+                              <small className={styles.ledgerLabel}>Consumed</small>
+                            </span>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  ) : <div className={styles.emptyInline}>Currency reporting is not enabled for this tenant.</div>}
+                </section>
+              </div>
+            )}
+
+            {activeTab === 'entitlements' && (
+              <>
+                <div className={styles.toolbar}>
+                  <Input
+                    contentBefore={<SearchRegular />}
+                    placeholder="Search license, SKU, or capacity…"
+                    value={search}
+                    onChange={(_, data) => setSearch(data.value)}
+                    style={{ minWidth: '280px' }}
+                  />
+                  <Text size={200}>{filteredEntitlements.length} of {snapshot.entitlements.length} entitlements</Text>
+                </div>
+                <section className={styles.monitor}>
+                  {filteredEntitlements.length ? (
+                    <div className={styles.tableScroll}>
+                      <table className={styles.table}>
+                        <thead>
+                          <tr><th className={styles.th}>Entitlement</th><th className={styles.th}>Capacity</th><th className={styles.th}>Paid</th><th className={styles.th}>Trial</th><th className={styles.th}>Status</th><th className={styles.th}>Lifecycle</th></tr>
+                        </thead>
+                        <tbody>
+                          {filteredEntitlements.map((item, index) => (
+                            <tr key={`${item.entitlementCode}-${item.skuId ?? index}`}>
+                              <td className={`${styles.td} ${styles.strong}`}>{item.displayName}<span className={styles.secondary}>{item.entitlementCode || item.skuId || 'No entitlement code'}</span></td>
+                              <td className={styles.td}>{labelize(item.capacityType)}<span className={styles.secondary}>{labelize(item.capacitySubType)} · {formatNumber(item.totalCapacity)}</span></td>
+                              <td className={`${styles.td} ${styles.numeric}`}>{formatNumber(item.paidEnabled)}</td>
+                              <td className={`${styles.td} ${styles.numeric}`}>{formatNumber(item.trialEnabled)}</td>
+                              <td className={styles.td}><Badge appearance="tint" color={badgeColor(item.capabilityStatus)}>{labelize(item.capabilityStatus)}</Badge>{item.isTemporary && <span className={styles.secondary}>Temporary</span>}</td>
+                              <td className={styles.td}>{formatDate(item.expiryDate ?? item.nextLifecycleDate)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <EmptyState
+                      icon={<KeyRegular />}
+                      title={search ? 'No entitlements match your search' : 'No license entitlements returned'}
+                      subtitle={search ? 'Search by another license, SKU, or capacity family.' : 'The tenant capacity response did not include embedded license details.'}
+                      action={search ? { label: 'Clear search', onClick: () => setSearch('') } : undefined}
+                    />
+                  )}
+                </section>
+              </>
+            )}
+
+            {activeTab === 'compliance' && (
+              <div className={styles.boardGrid}>
+                <section className={styles.monitor}>
+                  <div className={styles.monitorHeader}><PersonWarningRegular /> Tenant compliance summary</div>
+                  <div className={styles.tableScroll}>
+                    {snapshot.compliance.length ? (
+                      <div className={styles.summaryRows}>
+                        {snapshot.compliance.map((item) => (
+                          <div className={styles.summaryRow} key={item.flowContext}>
+                            <Text className={styles.strong}>{labelize(item.flowContext)}</Text>
+                            <span className={styles.summaryValue}><strong>{item.usersInCompliance}</strong><small>Compliant</small></span>
+                            <span className={`${styles.summaryValue} ${item.usersExceedingCapacity ? styles.warning : ''}`}><strong>{item.usersExceedingCapacity}</strong><small>Over capacity</small></span>
+                            <span className={`${styles.summaryValue} ${item.usersWithoutLicense ? styles.danger : ''}`}><strong>{item.usersWithoutLicense}</strong><small>No license</small></span>
+                            <span className={`${styles.summaryValue} ${item.usersWithoutPremiumLicense ? styles.danger : ''}`}><strong>{item.usersWithoutPremiumLicense}</strong><small>Premium gap</small></span>
+                          </div>
+                        ))}
                       </div>
-                    </td>
-                    <td className={styles.td}>
-                      {item.billingPolicyError ? (
-                        <Badge
-                          appearance="tint"
-                          color="subtle"
-                          title={item.billingPolicyError}
-                        >
-                          Not linked or unavailable
-                        </Badge>
-                      ) : (
-                        <Badge
-                          appearance="tint"
-                          color={item.billingPolicyEnabled ? 'success' : 'warning'}
-                        >
-                          {item.billingPolicyName ?? 'Disabled'}
-                        </Badge>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+                    ) : <div className={styles.emptyInline}>No per-flow compliance summary was returned for this period.</div>}
+                  </div>
+                </section>
 
-      <section className={styles.section} aria-labelledby="billing-heading">
-        <div>
-          <Text as="h2" id="billing-heading" className={styles.sectionTitle}>Billing policies</Text>
-          <div>
-            <Text className={styles.sectionDescription}>
-              Pay-as-you-go policies provide approved continuity when reserved or tenant capacity is exhausted.
-            </Text>
-          </div>
-        </div>
-        <div className={styles.tableWrapper}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th className={styles.th}>Name</th>
-                <th className={styles.th}>Status</th>
-                <th className={styles.th}>Location</th>
-                <th className={styles.th}>Subscription ID</th>
-                <th className={styles.th}>Created on</th>
-              </tr>
-            </thead>
-            <tbody>
-              {billingPolicies.length === 0 ? (
-                <tr>
-                  <td className={styles.empty} colSpan={5}>No billing policies found.</td>
-                </tr>
-              ) : (
-                billingPolicies.map((policy) => (
-                  <tr key={policy.id}>
-                    <td className={styles.td}>{policy.name}</td>
-                    <td className={styles.td}>
-                      <Badge appearance="filled" color={getBillingBadgeColor(policy.status)}>
-                        {policy.status}
-                      </Badge>
-                    </td>
-                    <td className={styles.td}>{policy.location}</td>
-                    <td className={styles.td}>{policy.billingInstrument.subscriptionId}</td>
-                    <td className={styles.td}>{formatDate(policy.createdOn)}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+                <section className={styles.monitor}>
+                  <div className={styles.monitorHeader}><PersonWarningRegular /> User utilization · first 200 records</div>
+                  {snapshot.users.length ? (
+                    <div className={styles.tableScroll}>
+                      <table className={styles.table}>
+                        <thead>
+                          <tr><th className={styles.th}>User ID</th><th className={styles.th}>Context</th><th className={styles.th}>Consumption</th><th className={styles.th}>Flows</th></tr>
+                        </thead>
+                        <tbody>
+                          {snapshot.users.map((item, index) => {
+                            const overCapacity = item.totalCapacity > 0 && item.totalConsumption > item.totalCapacity;
+                            return (
+                              <tr key={`${item.userId}-${item.flowContext}-${index}`}>
+                                <td className={`${styles.td} ${styles.strong}`}><span style={{ fontFamily: tokens.fontFamilyMonospace }}>{item.userId || 'Unknown user'}</span><span className={styles.secondary}>{labelize(item.licenseCategorization)}</span></td>
+                                <td className={styles.td}>{labelize(item.flowContext)}</td>
+                                <td className={`${styles.td} ${styles.numeric} ${overCapacity ? styles.warning : ''}`}>{formatNumber(item.totalConsumption)} / {formatNumber(item.totalCapacity)}</td>
+                                <td className={`${styles.td} ${styles.numeric}`}>{item.totalFlows}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : <div className={styles.emptyInline}>No user utilization records were returned for this period.</div>}
+                </section>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

@@ -116,6 +116,21 @@ export interface Connection {
     description?: string;
     createdTime: string;
     changedTime: string;
+    expirationTime?: string;
+    apiId?: string;
+    isSsoConnection?: boolean;
+    createdBy?: {
+      displayName?: string;
+      email?: string;
+    };
+    statuses?: {
+      status?: string;
+      target?: string;
+      error?: {
+        code?: string;
+        message?: string;
+      };
+    }[];
     tier?: string;
     publisher?: string;
   };
@@ -140,4 +155,75 @@ export interface PowerPagesWebsite {
   packageVersion?: string;
   siteVisibility: 'public' | 'private';
   status: string;
+}
+
+export interface CapacityRegisterEntry {
+  capacityType: string;
+  units: string;
+  totalCapacity: number;
+  maxCapacity: number;
+  consumed: number;
+  ratedConsumption?: number;
+  status: string;
+  updatedOn?: string;
+}
+
+export interface LicenseEntitlement {
+  capacityType: string;
+  capacitySubType: string;
+  entitlementCode: string;
+  displayName: string;
+  skuId?: string;
+  servicePlanId?: string;
+  paidEnabled: number;
+  trialEnabled: number;
+  totalCapacity: number;
+  isTemporary: boolean;
+  expiryDate?: string;
+  nextLifecycleDate?: string;
+  capabilityStatus: string;
+}
+
+export interface CurrencyRegisterEntry {
+  currencyType: string;
+  purchased: number;
+  allocated: number;
+  consumed: number;
+  lastUpdatedDay?: string;
+}
+
+export interface FlowComplianceSummary {
+  flowContext: string;
+  usersInCompliance: number;
+  usersExceedingCapacity: number;
+  usersWithoutLicense: number;
+  usersWithoutPremiumLicense: number;
+}
+
+export interface UserCapacitySummary {
+  userId: string;
+  flowContext: string;
+  licenseCategorization: string;
+  totalConsumption: number;
+  totalCapacity: number;
+  totalFlows: number;
+}
+
+export interface LicensingSnapshot {
+  tenantId: string;
+  licenseModelType: string;
+  capacityStatus: string;
+  capacityStatusMessage: string;
+  finOpsStatus: string;
+  finOpsStatusMessage: string;
+  hasTemporaryLicense: boolean;
+  temporaryLicenseExpiryDate?: string;
+  periodStart: string;
+  periodEnd: string;
+  capacities: CapacityRegisterEntry[];
+  entitlements: LicenseEntitlement[];
+  currencies: CurrencyRegisterEntry[];
+  compliance: FlowComplianceSummary[];
+  users: UserCapacitySummary[];
+  warnings: string[];
 }

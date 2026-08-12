@@ -47,6 +47,21 @@ export class MicrosoftDataverseService {
   }
 
   /**
+   * Get organizations test
+   * Get all organizations (test variant).
+   */
+  public static async GetOrganizationsTest(): Promise<IOperationResult<OrganizationsDynamicValuesList>> {
+    const result = await MicrosoftDataverseService.client.executeAsync<void, OrganizationsDynamicValuesList>(
+      {
+        connectorOperation: {
+          tableName: MicrosoftDataverseService.dataSourceName,
+          operationName: 'GetOrganizationsTest',
+        },
+      });
+    return result;
+  }
+
+  /**
    * Get table metadata
    * Gets table metadata
    */

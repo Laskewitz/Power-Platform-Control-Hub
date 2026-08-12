@@ -26,6 +26,8 @@ deploy/env-config.json
 # Editor
 .vscode/
 .idea/
+.impeccable/hook.cache.json
+.impeccable/questions/
 
 # OS
 .DS_Store

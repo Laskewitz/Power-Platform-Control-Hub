@@ -3,9 +3,11 @@ import type {
   AdvisorRecommendation as GeneratedAdvisorRecommendation,
   BillingPolicyResponseModel,
   Connection as GeneratedConnection,
+  CurrencyReportV2,
   CrossTenantConnectionReport,
   EnvironmentGroup as GeneratedEnvironmentGroup,
   GetConnectorByIdResponse,
+  TenantCapacityDetailsModel,
   Policy as GeneratedPolicy,
   Principal,
   RuleSetDto,
@@ -18,11 +20,15 @@ import type {
   Connection,
   CrossTenantReport,
   EnvironmentGroup,
+  FlowComplianceSummary,
   GovernanceRuleSet,
+  LicenseEntitlement,
+  LicensingSnapshot,
   PolicyRuleAssignment,
   PowerPagesWebsite,
   RoleAssignment,
   RuleBasedPolicy,
+  UserCapacitySummary,
 } from '../types/admin.ts';
 import type { Resource } from '../types/inventory.ts';
 
@@ -115,6 +121,25 @@ function mapConnection(item: GeneratedConnection): Connection {
       iconUri: item.properties?.iconUri,
       createdTime: item.properties?.createdTime ?? '',
       changedTime: item.properties?.lastModifiedTime ?? '',
+      expirationTime: item.properties?.expirationTime,
+      apiId: item.properties?.apiId,
+      isSsoConnection: item.properties?.isSsoConnection,
+      createdBy: item.properties?.createdBy
+        ? {
+            displayName: item.properties.createdBy.displayName,
+            email: item.properties.createdBy.email ?? item.properties.createdBy.userPrincipalName,
+          }
+        : undefined,
+      statuses: item.properties?.statuses?.map((status) => ({
+        status: status.status,
+        target: status.target,
+        error: status.error
+          ? {
+              code: status.error.code,
+              message: status.error.message,
+            }
+          : undefined,
+      })),
       description:
         typeof item.properties?.metadata?.description === 'string'
           ? item.properties.metadata.description
@@ -211,6 +236,129 @@ export async function fetchBillingPolicies(): Promise<BillingPolicy[]> {
 export async function fetchCrossTenantReports(): Promise<CrossTenantReport[]> {
   const result = await PowerPlatformforAdminsV2Service.ListCrossTenantConnectionReports(API_VERSION);
   return (unwrapOperationResult(result).value ?? []).map(mapCrossTenantReport);
+}
+
+function mapEntitlements(details: TenantCapacityDetailsModel): LicenseEntitlement[] {
+  return (details.tenantCapacities ?? []).flatMap((capacity) =>
+    (capacity.capacityEntitlements ?? []).flatMap((entitlement) =>
+      (entitlement.licenses ?? []).map((license) => ({
+        capacityType: capacity.capacityType ?? entitlement.capacityType ?? 'Unknown',
+        capacitySubType: entitlement.capacitySubType ?? 'Standard',
+        entitlementCode: license.entitlementCode ?? '',
+        displayName: license.displayName ?? license.entitlementCode ?? 'Unnamed entitlement',
+        skuId: license.skuId,
+        servicePlanId: license.servicePlanId,
+        paidEnabled: license.paid?.enabled ?? 0,
+        trialEnabled: license.trial?.enabled ?? 0,
+        totalCapacity: license.totalCapacity ?? entitlement.totalCapacity ?? 0,
+        isTemporary: license.isTemporaryLicense ?? false,
+        expiryDate: license.temporaryLicenseExpiryDate,
+        nextLifecycleDate: license.nextLifecycleDate,
+        capabilityStatus: license.capabilityStatus ?? 'Unknown',
+      })),
+    ),
+  );
+}
+
+function mapCurrencies(reports: CurrencyReportV2[]) {
+  return reports.map((report) => ({
+    currencyType: report.currencyType ?? 'Unknown',
+    purchased: report.purchased ?? 0,
+    allocated: report.allocated ?? 0,
+    consumed: report.consumed?.unitsConsumed ?? 0,
+    lastUpdatedDay: report.consumed?.lastUpdatedDay,
+  }));
+}
+
+export async function fetchLicensingSnapshot(
+  startDate: string,
+  endDate: string,
+): Promise<LicensingSnapshot> {
+  const [capacityResult, currencyResult, complianceResult, usersResult] = await Promise.allSettled([
+    PowerPlatformforAdminsV2Service.GetTenantCapacityDetails(API_VERSION),
+    PowerPlatformforAdminsV2Service.ListCurrencyReports(API_VERSION, true, true),
+    PowerPlatformforAdminsV2Service.GetUserPerFlowCapacitySourceTenantContextSummary(
+      startDate,
+      API_VERSION,
+      endDate,
+    ),
+    PowerPlatformforAdminsV2Service.GetUserPerFlowCapacitySourceUserContextSummary(
+      startDate,
+      API_VERSION,
+      endDate,
+      1,
+      200,
+    ),
+  ]);
+
+  const warnings: string[] = [];
+  const readSettled = <T>(
+    result: PromiseSettledResult<IOperationResult<T>>,
+    label: string,
+  ): T | undefined => {
+    if (result.status === 'rejected') {
+      warnings.push(`${label}: ${result.reason instanceof Error ? result.reason.message : 'request failed'}`);
+      return undefined;
+    }
+    if (!result.value.success || result.value.error) {
+      warnings.push(`${label}: ${result.value.error?.message ?? 'request failed'}`);
+      return undefined;
+    }
+    return result.value.data;
+  };
+
+  const capacity = readSettled(capacityResult, 'Tenant capacity');
+  const currencies = readSettled(currencyResult, 'Currency report');
+  const compliance = readSettled(complianceResult, 'Licensing compliance');
+  const users = readSettled(usersResult, 'User capacity');
+
+  if (!capacity && !currencies && !compliance && !users) {
+    throw new Error('The licensing and capacity APIs did not return data for this tenant.');
+  }
+
+  const mappedCompliance: FlowComplianceSummary[] = (compliance ?? []).map((item) => ({
+    flowContext: item.flowContext ?? 'All flow contexts',
+    usersInCompliance: item.countOfUsersInCompliance ?? 0,
+    usersExceedingCapacity: item.countOfUsersExceedingCapacity ?? 0,
+    usersWithoutLicense: item.countOfUsersWithoutALicense ?? 0,
+    usersWithoutPremiumLicense: item.countOfUsersWithoutPremiumLicenseUsingPremiumFeatures ?? 0,
+  }));
+  const mappedUsers: UserCapacitySummary[] = (users?.records ?? []).map((item) => ({
+    userId: item.userId ?? '',
+    flowContext: item.flowContext ?? 'Unknown',
+    licenseCategorization: item.flowLicenseCategorization ?? 'Unknown',
+    totalConsumption: item.totalConsumption ?? 0,
+    totalCapacity: item.totalCapacity ?? 0,
+    totalFlows: item.totalFlows ?? 0,
+  }));
+
+  return {
+    tenantId: capacity?.tenantId ?? '',
+    licenseModelType: capacity?.licenseModelType ?? 'Unknown',
+    capacityStatus: capacity?.capacitySummary?.status ?? 'Unknown',
+    capacityStatusMessage: capacity?.capacitySummary?.statusMessage ?? '',
+    finOpsStatus: capacity?.capacitySummary?.finOpsStatus ?? 'Unknown',
+    finOpsStatusMessage: capacity?.capacitySummary?.finOpsStatusMessage ?? '',
+    hasTemporaryLicense: capacity?.temporaryLicenseInfo?.hasTemporaryLicense ?? false,
+    temporaryLicenseExpiryDate: capacity?.temporaryLicenseInfo?.temporaryLicenseExpiryDate,
+    periodStart: startDate,
+    periodEnd: endDate,
+    capacities: (capacity?.tenantCapacities ?? []).map((item) => ({
+      capacityType: item.capacityType ?? 'Unknown',
+      units: item.capacityUnits ?? '',
+      totalCapacity: item.totalCapacity ?? 0,
+      maxCapacity: item.maxCapacity ?? item.totalCapacity ?? 0,
+      consumed: item.consumption?.actual ?? 0,
+      ratedConsumption: item.consumption?.rated,
+      status: item.status ?? 'Unknown',
+      updatedOn: item.consumption?.actualUpdatedOn ?? item.consumption?.ratedUpdatedOn,
+    })),
+    entitlements: capacity ? mapEntitlements(capacity) : [],
+    currencies: mapCurrencies(currencies ?? []),
+    compliance: mappedCompliance,
+    users: mappedUsers,
+    warnings,
+  };
 }
 
 export async function fetchConnections(environmentId: string): Promise<Connection[]> {
