@@ -15,10 +15,104 @@ An action-oriented Power Platform operations console built as a [Power Apps Code
 | **Operations** | Tenant scope, resource movement, active recommendations, and recently created resources |
 | **Resources** | Sortable, searchable, filterable inventory across all environments, with full details for supported resources |
 | **Environments** | Every environment with type, management state, region, resource count, lifecycle actions, and analysis |
-| **Connectivity** | Per-environment connectors, connections, and Power Pages websites |
+| **Connections** | Connection health, tenant-wide connector usage, and the connector registry |
+| **Licensing & capacity** | Capacity consumption, agent capacity, tenant entitlements, and licensing compliance |
 | **Tenant policies** | DLP policies, billing policies, and cross-tenant connection reports |
-| **Environment groups** | Environment groups, rule-based policies, and rule sets |
 | **Recommendations** | Advisor recommendations and the affected resources returned by the admin API |
+
+---
+
+## Application screens
+
+The screenshots below were captured from the hosted Power Apps experience. Tenant totals and records are live data, so values may differ between sessions.
+
+### Operations
+
+![Operations dashboard](docs/images/operations.jpeg)
+
+The Operations dashboard is the tenant command surface. It summarizes indexed resources and environments, highlights active governance signals, breaks inventory down by resource type, and provides a direct route to recommendations that need review.
+
+### Resources
+
+![Resources inventory](docs/images/resources.jpeg)
+
+Resources provides the searchable tenant inventory for apps, flows, agents, and related resource types. Use the environment, type, and owner filters to narrow the result set, sort the table by its column headers, and open a supported resource to inspect its details and best-practice analysis.
+
+### Environments
+
+![Environments inventory](docs/images/environments.jpeg)
+
+Environments combines lifecycle and governance context for every environment. The summary identifies managed and disabled environments, while the list exposes type, region, resource count, creation date, management status, environment groups, and the actions available for each environment.
+
+### Connections
+
+#### Health
+
+![Connection health](docs/images/connections-health.jpeg)
+
+Health scans connection instances across environments and separates failed, expiring, and ready connections. The results identify the service, environment, health signal, expiry state, and any unusable connection that an administrator can remove.
+
+#### Tenant usage
+
+![Tenant connector usage](docs/images/connections-tenant-usage.jpeg)
+
+Tenant usage scans the indexed apps, flows, and agents to rank connector adoption across the tenant. Results are cached in the browser and can be refreshed with **Scan tenant**.
+
+#### Connector registry
+
+![Connector registry](docs/images/connections-connector-registry.jpeg)
+
+Connector registry is the tenant connector catalog. It supports reviewing connector metadata, availability, and usage context without leaving the Control Hub.
+
+### Licensing & capacity
+
+#### Capacity
+
+![Licensing capacity](docs/images/licensing-capacity.jpeg)
+
+Capacity compares tenant storage entitlement with database, file, and log consumption and identifies environments driving usage.
+
+#### Agent capacity
+
+![Agent capacity](docs/images/licensing-agent-capacity.jpeg)
+
+Agent capacity reviews Copilot Credit purchases, allocations, consumption, and accountable environment ownership.
+
+#### Entitlements
+
+![Licensing entitlements](docs/images/licensing-entitlements.jpeg)
+
+Entitlements lists the licenses, SKUs, service plans, and capacity grants available to the tenant.
+
+#### Compliance
+
+![Licensing compliance](docs/images/licensing-compliance.jpeg)
+
+Compliance finds users and flow contexts that are over capacity, unlicensed, or otherwise require a licensing review.
+
+### Tenant policies
+
+#### DLP Policies
+
+DLP Policies creates, inspects, updates, and analyzes data loss prevention policies and connector classifications.
+
+#### Billing Policies
+
+![Billing policies](docs/images/tenant-policies-billing.jpeg)
+
+Billing Policies reviews pay-as-you-go billing policies and the environments linked to them.
+
+#### Cross-Tenant Reports
+
+![Cross-tenant reports](docs/images/tenant-policies-cross-tenant-reports.jpeg)
+
+Cross-Tenant Reports inspects cross-tenant connection reports and the resources participating in external access.
+
+### Recommendations
+
+![Recommendations](docs/images/recommendations.jpeg)
+
+Recommendations turns advisor signals into an actionable queue. Review the recommendation, affected resource count, severity, and supporting guidance before opening the associated resources for remediation.
 
 ---
 
