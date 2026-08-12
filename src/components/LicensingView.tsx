@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
 import {
   Badge,
@@ -14,6 +14,7 @@ import {
 } from '@fluentui/react-components';
 import {
   ArrowClockwiseRegular,
+  BotRegular,
   ChevronLeftRegular,
   ChevronRightRegular,
   DatabaseRegular,
@@ -21,8 +22,16 @@ import {
   MoneyRegular,
   PersonWarningRegular,
   SearchRegular,
+  SaveRegular,
 } from '@fluentui/react-icons';
 import type { LicensingSnapshot } from '../types/admin.ts';
+import type { Resource } from '../types/inventory.ts';
+import {
+  fetchHarnessEnvironmentLicensing,
+  getHarnessAgents,
+  updateCopilotCreditAllocation,
+} from '../services/licensingService.ts';
+import type { HarnessEnvironmentLicensing } from '../services/licensingService.ts';
 import EmptyState from './EmptyState.tsx';
 import { OperationsSkeleton, PageHeader } from './ui.tsx';
 
@@ -32,9 +41,11 @@ interface LicensingViewProps {
   error: string | null;
   onRefresh: () => Promise<void>;
   onPeriodChange: (startDate: string, endDate: string) => Promise<void>;
+  environments: Resource[];
+  resources: Resource[];
 }
 
-type LicensingTab = 'capacity' | 'entitlements' | 'compliance';
+type LicensingTab = 'capacity' | 'harness' | 'entitlements' | 'compliance';
 
 const useStyles = makeStyles({
   root: {
@@ -258,6 +269,17 @@ const useStyles = makeStyles({
   warning: { color: tokens.colorStatusWarningForeground1, fontWeight: tokens.fontWeightSemibold },
   danger: { color: tokens.colorStatusDangerForeground1, fontWeight: tokens.fontWeightSemibold },
   emptyInline: { padding: '26px' },
+  allocationControl: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  allocationInput: { width: '132px' },
+  guidance: {
+    maxWidth: '78ch',
+    color: tokens.colorNeutralForeground2,
+    lineHeight: '20px',
+  },
 });
 
 function labelize(value: string): string {
@@ -271,7 +293,7 @@ function labelize(value: string): string {
 
 const CURRENCY_LABELS: Record<string, string> = {
   AI: 'AI credits',
-  MCSMessages: 'Copilot Studio messages',
+  MCSMessages: 'Copilot Credits',
   PAUnattendedRPA: 'Power Automate unattended RPA',
   ProcessMiningDataStorage: 'Process Mining data storage',
   TenantM365Copilot: 'Microsoft 365 Copilot',
@@ -315,10 +337,66 @@ export default function LicensingView({
   error,
   onRefresh,
   onPeriodChange,
+  environments,
+  resources,
 }: LicensingViewProps): ReactElement {
   const styles = useStyles();
   const [activeTab, setActiveTab] = useState<LicensingTab>('capacity');
   const [search, setSearch] = useState('');
+  const [harnessEnvironments, setHarnessEnvironments] = useState<HarnessEnvironmentLicensing[]>([]);
+  const [allocationDrafts, setAllocationDrafts] = useState<Record<string, string>>({});
+  const [harnessError, setHarnessError] = useState<string | null>(null);
+  const [isHarnessLoading, setIsHarnessLoading] = useState(false);
+  const [savingEnvironmentId, setSavingEnvironmentId] = useState<string>();
+  const harnessAgents = useMemo(() => getHarnessAgents(resources), [resources]);
+
+  const loadHarnessEnvironments = useCallback(async () => {
+    setIsHarnessLoading(true);
+    setHarnessError(null);
+    try {
+      const next = await fetchHarnessEnvironmentLicensing(environments, resources);
+      setHarnessEnvironments(next);
+      setAllocationDrafts(Object.fromEntries(
+        next.map((item) => [
+          item.environmentId,
+          item.allocatedCredits === undefined ? '' : String(item.allocatedCredits),
+        ]),
+      ));
+    } catch (reason: unknown) {
+      setHarnessError(reason instanceof Error ? reason.message : 'Harness environment licensing could not be loaded.');
+    } finally {
+      setIsHarnessLoading(false);
+    }
+  }, [environments, resources]);
+
+  useEffect(() => {
+    void loadHarnessEnvironments();
+  }, [loadHarnessEnvironments]);
+
+  async function saveAllocation(item: HarnessEnvironmentLicensing): Promise<void> {
+    const allocatedCredits = Number(allocationDrafts[item.environmentId]?.trim() ?? '');
+    if (!Number.isInteger(allocatedCredits) || allocatedCredits < 0) {
+      setHarnessError('Reserved Copilot Credits must be a whole number of zero or greater.');
+      return;
+    }
+
+    setSavingEnvironmentId(item.environmentId);
+    setHarnessError(null);
+    try {
+      const saved = await updateCopilotCreditAllocation(item.environmentId, allocatedCredits);
+      setHarnessEnvironments((current) => current.map((environment) =>
+        environment.environmentId === item.environmentId
+          ? { ...environment, allocatedCredits: saved, allocationError: undefined }
+          : environment,
+      ));
+      setAllocationDrafts((current) => ({ ...current, [item.environmentId]: String(saved) }));
+      await onRefresh();
+    } catch (reason: unknown) {
+      setHarnessError(reason instanceof Error ? reason.message : 'The Copilot Credit allocation could not be updated.');
+    } finally {
+      setSavingEnvironmentId(undefined);
+    }
+  }
 
   const filteredEntitlements = useMemo(() => {
     if (!snapshot) return [];
@@ -347,10 +425,15 @@ export default function LicensingView({
     <div className={styles.root}>
       <PageHeader
         title="Licensing & Capacity"
-        description="Tenant entitlements, capacity consumption, currency allocation, and per-flow license compliance from Power Platform Admin V2."
+        description="Tenant capacity, Copilot Credit governance, entitlements, and per-flow compliance through Power Platform Admin V2 connector actions."
         actions={(
-          <Button appearance="primary" icon={<ArrowClockwiseRegular />} disabled={isLoading} onClick={() => void onRefresh()}>
-            {isLoading ? 'Refreshing…' : 'Refresh licensing'}
+          <Button
+            appearance="primary"
+            icon={<ArrowClockwiseRegular />}
+            disabled={isLoading || isHarnessLoading}
+            onClick={() => void Promise.all([onRefresh(), loadHarnessEnvironments()])}
+          >
+            {isLoading || isHarnessLoading ? 'Refreshing…' : 'Refresh licensing'}
           </Button>
         )}
       />
@@ -368,6 +451,11 @@ export default function LicensingView({
             </MessageBarBody>
           </MessageBar>
         ) : null}
+        {harnessError && (
+          <MessageBar intent="warning">
+            <MessageBarBody>{harnessError}</MessageBarBody>
+          </MessageBar>
+        )}
 
         {!snapshot ? (
           <EmptyState
@@ -411,6 +499,7 @@ export default function LicensingView({
                 aria-label="Licensing registers"
               >
                 <Tab value="capacity" icon={<DatabaseRegular />}>Capacity</Tab>
+                <Tab value="harness" icon={<BotRegular />}>Harness agents</Tab>
                 <Tab value="entitlements" icon={<KeyRegular />}>Entitlements</Tab>
                 <Tab value="compliance" icon={<PersonWarningRegular />}>Compliance</Tab>
               </TabList>
@@ -480,6 +569,7 @@ export default function LicensingView({
                                     Rated usage {formatNumber(item.ratedConsumption)}
                                   </span>
                                 )}
+
                               </td>
                               <td className={styles.td}>{formatDate(item.updatedOn)}</td>
                             </tr>
@@ -522,6 +612,95 @@ export default function LicensingView({
                       ))}
                     </div>
                   ) : <div className={styles.emptyInline}>Currency reporting is not enabled for this tenant.</div>}
+                </section>
+              </div>
+            )}
+
+            {activeTab === 'harness' && (
+              <div className={styles.boardGrid}>
+                <MessageBar intent="info">
+                  <MessageBarBody>
+                    Classify each affected environment as maker development or funded production before changing capacity. Development needs a deliberate spending boundary; production controls should reflect accountable ownership, funding, expected usage, and service criticality.
+                  </MessageBarBody>
+                </MessageBar>
+                <section className={styles.monitor}>
+                  <div className={styles.monitorHeader}>
+                    <BotRegular /> GitHub Copilot harness environments
+                  </div>
+                  <div className={styles.emptyInline}>
+                    <Text className={styles.guidance}>
+                      {harnessAgents.length} harness {harnessAgents.length === 1 ? 'agent' : 'agents'} detected through the inventory <code>isCLIAgent</code> property. Reserved credits and linked pay-as-you-go policies are read with Admin V2 connector actions.
+                    </Text>
+                  </div>
+                  {harnessEnvironments.length ? (
+                    <div className={styles.tableScroll}>
+                      <table className={styles.table}>
+                        <thead>
+                          <tr>
+                            <th className={styles.th}>Environment</th>
+                            <th className={styles.th}>Purpose signal</th>
+                            <th className={styles.th}>Agents</th>
+                            <th className={styles.th}>Owners</th>
+                            <th className={styles.th}>Reserved credits</th>
+                            <th className={styles.th}>Pay-as-you-go</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {harnessEnvironments.map((item) => (
+                            <tr key={item.environmentId}>
+                              <td className={`${styles.td} ${styles.strong}`}>
+                                {item.environmentName}
+                                <span className={styles.secondary}>{item.environmentId}</span>
+                              </td>
+                              <td className={styles.td}>{labelize(item.environmentType)}</td>
+                              <td className={`${styles.td} ${styles.numeric}`}>{item.agentCount}</td>
+                              <td className={styles.td}>{item.ownerCount || 'Not identified'}</td>
+                              <td className={styles.td}>
+                                <div className={styles.allocationControl} title={item.allocationError}>
+                                  <Input
+                                    className={styles.allocationInput}
+                                    type="number"
+                                    min={0}
+                                    step={1}
+                                    value={allocationDrafts[item.environmentId] ?? ''}
+                                    placeholder={item.allocationError ? 'Not reserved' : undefined}
+                                    aria-label={`Reserved Copilot Credits for ${item.environmentName}`}
+                                    onChange={(_, data) => setAllocationDrafts((current) => ({
+                                      ...current,
+                                      [item.environmentId]: data.value,
+                                    }))}
+                                  />
+                                  <Button
+                                    appearance="subtle"
+                                    size="small"
+                                    icon={<SaveRegular />}
+                                    aria-label={`Save reserved Copilot Credits for ${item.environmentName}`}
+                                    disabled={savingEnvironmentId !== undefined}
+                                    onClick={() => void saveAllocation(item)}
+                                  />
+                                </div>
+                              </td>
+                              <td className={styles.td}>
+                                <Badge
+                                  appearance="tint"
+                                  color={item.billingPolicyEnabled ? 'success' : 'subtle'}
+                                  title={item.billingPolicyError}
+                                >
+                                  {item.billingPolicyName ?? (item.billingPolicyError ? 'Not linked or unavailable' : 'Disabled')}
+                                </Badge>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className={styles.emptyInline}>
+                      {isHarnessLoading
+                        ? 'Loading harness environment controls…'
+                        : 'No GitHub Copilot harness agents were found in the current inventory.'}
+                    </div>
+                  )}
                 </section>
               </div>
             )}

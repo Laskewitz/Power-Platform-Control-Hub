@@ -486,6 +486,8 @@ export default function App(): ReactElement {
                   error={licensing.error}
                   onRefresh={licensing.refresh}
                   onPeriodChange={licensing.loadPeriod}
+                  environments={inventory.environments}
+                  resources={inventory.resources}
                 />
               )}
             </div>
